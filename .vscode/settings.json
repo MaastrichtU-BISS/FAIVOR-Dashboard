@@ -1,5 +1,5 @@
 {
-	"window.title": "📊 Faivor - ${activeEditorShort}",
+	"window.title": "📊 FAIVOR - ${activeEditorShort}",
 	"eslint.workingDirectories": [
 		{
 			"mode": "auto"
