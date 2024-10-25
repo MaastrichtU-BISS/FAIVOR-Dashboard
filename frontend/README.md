@@ -1,12 +1,7 @@
-# Ctwhome faivor
-Unified template with SvelteKit, TailwindCSS, DaisyUI, Auth, Postgres, and more.\
-by [ctwhome](https://ctwhome.com)
+# FAIVOR validator frontend
 
 
 ## Installation and running locally
-```bash
-npx degit ctwhome/faivor <directory-name>
-```
 
 Steps:
 1. Install the dependencies with `pnpm install`
