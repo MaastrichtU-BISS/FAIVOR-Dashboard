@@ -1,7 +1,5 @@
-<script lang="ts">
-	import LoginButton from '$components/ui/Login/LoginButton.svelte';
+<script>
+	import LandingForm from '$lib/components/ui/LandingForm.svelte';
 </script>
 
-<div class="flex flex-col items-center justify-center overflow-auto">
-	<div class=""></div>
-</div>
+<LandingForm />
