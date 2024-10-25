@@ -6,11 +6,15 @@
 	import SideMenu from '$components/ui/SideMenu.svelte';
 	import GlobalToast from '$components/ui/GlobalToast.svelte';
 	import { env } from '$env/dynamic/public';
-	import FooterMain from '$components/ui/footerMain.svelte';
+	// import FooterMain from '$components/ui/footerMain.svelte';
 </script>
 
 <Analytics />
 <GlobalToast />
+
+<svelte:head>
+	<title>FAIVOR VALIDATOR</title>
+</svelte:head>
 
 <div
 	class="relative grid h-dvh w-dvw grid-rows-[auto_auto_1fr] overflow-hidden sm:grid-rows-[auto_1fr]"
@@ -20,9 +24,9 @@
 	<slot>
 		<!-- Content here -->
 	</slot>
-	<FooterMain />
+	<!-- <FooterMain /> -->
 	{#if env.PUBLIC_LOCALHOST}
-		<div class="fixed bottom-0 left-0 w-full bg-warning pl-4 text-xs text-warning-content">
+		<div class="bg-warning text-warning-content fixed bottom-0 left-0 w-full pl-4 text-xs">
 			dev database
 		</div>
 	{/if}

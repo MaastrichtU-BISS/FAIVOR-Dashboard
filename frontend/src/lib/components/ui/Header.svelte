@@ -1,18 +1,13 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { browser } from '$app/environment';
 	import Logo from '$lib/assets/icons/Logo.svelte';
 	import FeedbackButton from '$lib/components/ui/feedback/FeedbackButton.svelte';
-	import DaisyUIThemeSwitcher from '$lib/components/ui/themeChamge/DaisyUIThemeSwitcher.svelte';
 	import { onMount } from 'svelte';
 	import Login from '$lib/components/ui/Login/LoginButton.svelte';
 	import { toggleMenu } from '$lib/stores/menu.store';
 	import IconamoonMenuBurgerHorizontalBold from '~icons/iconamoon/menu-burger-horizontal-bold';
 	import menuItems from '$lib/models/menu-itmes';
 
-	let active = 'Latest Work';
 	let activeCategory = '';
-	let activeTag = '';
 	let isDesktop = true;
 
 	onMount(() => {
@@ -38,7 +33,7 @@
 		<!--Desktop Header-->
 		<header class="flex items-center gap-3 px-2 sm:px-0">
 			<button
-				class="rounded-md p-2 transition-colors duration-200 hover:bg-base-200 sm:hidden"
+				class="hover:bg-base-200 rounded-md p-2 transition-colors duration-200 sm:hidden"
 				on:click={toggleMenu}
 				aria-label="Open menu"
 			>
@@ -67,8 +62,6 @@
 
 			<FeedbackButton showButton={isDesktop} />
 
-			<DaisyUIThemeSwitcher class="z-50 ml-auto sm:ml-14 " />
-
 			<Login />
 		</header>
 	</div>
@@ -76,7 +69,7 @@
 
 <style lang="postcss">
 	.menu-link {
-		@apply font-medium text-base-content text-opacity-80 transition hover:text-secondary hover:text-opacity-100;
+		@apply text-base-content hover:text-secondary font-medium text-opacity-80 transition hover:text-opacity-100;
 	}
 
 	.menu-link.active {
