@@ -62,7 +62,7 @@
 
 			<FeedbackButton showButton={isDesktop} />
 
-			<Login />
+			<!-- <Login /> -->
 		</header>
 	</div>
 </nav>
