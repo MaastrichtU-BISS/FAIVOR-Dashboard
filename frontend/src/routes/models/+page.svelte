@@ -1,36 +1,8 @@
 <script lang="ts">
-	let modelUrl = '';
+	import { goto } from '$app/navigation';
+	import { models } from './models-api-example';
 
-	const models = [
-		{
-			name: 'Model name',
-			description: 'Small description (link more info)',
-			validations: 4,
-			lastValidation: '12 May 2024',
-			status: 'Done'
-		},
-		{
-			name: 'Model name',
-			description: 'Small description (link more info)',
-			validations: 6,
-			lastValidation: '12 May 2024',
-			status: 'Done'
-		},
-		{
-			name: 'Model name',
-			description: 'Small description (link more info)',
-			validations: 2,
-			lastValidation: '12 May 2024',
-			status: 'In progress (23 min)'
-		},
-		{
-			name: 'Model name',
-			description: 'Small description (link more info)',
-			validations: 3,
-			lastValidation: '12 May 2024',
-			status: 'Failed'
-		}
-	];
+	let modelUrl = '';
 
 	const handleImport = () => {
 		console.log('Importing model:', modelUrl);
@@ -38,6 +10,10 @@
 
 	const handleFindRepositories = () => {
 		console.log('Finding repositories');
+	};
+
+	const handleModelClick = (modelName: string) => {
+		goto(`/models/${encodeURIComponent(modelName)}`);
 	};
 </script>
 
@@ -90,7 +66,7 @@
 				<!-- Body -->
 				<tbody>
 					{#each models as model}
-						<tr class="hover">
+						<tr class="hover cursor-pointer" on:click={() => handleModelClick(model.name)}>
 							<td>{model.name}</td>
 							<td>{model.description}</td>
 							<td class="text-center">{model.validations}</td>
