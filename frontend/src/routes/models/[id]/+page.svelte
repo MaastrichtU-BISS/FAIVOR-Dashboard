@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import HugeiconsCsv01 from '~icons/hugeicons/csv-01';
+	import NewValidationButton from '$lib/components/ui/validation/NewValidationButton.svelte';
 
 	export let data: PageData;
 	const { model } = data;
@@ -239,5 +240,5 @@
 	</div>
 
 	<!-- Add Validation Job Button -->
-	<button class="btn btn-primary">Add validation job</button>
+	<NewValidationButton />
 </div>
