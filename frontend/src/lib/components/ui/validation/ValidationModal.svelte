@@ -29,6 +29,14 @@
 	let metricsDescription = $state('');
 	let performanceMetrics = $state('');
 
+	function goToStep(stepIndex: number) {
+		if (stepIndex >= 0 && stepIndex < steps.length) {
+			steps[currentStep].active = false;
+			currentStep = stepIndex;
+			steps[currentStep].active = true;
+		}
+	}
+
 	function nextStep() {
 		if (currentStep < steps.length - 1) {
 			steps[currentStep].active = false;
@@ -63,19 +71,35 @@
 		console.log('Form submitted:', formData);
 		closeModal();
 	}
+
+	function handleKeydown(e: KeyboardEvent, index: number) {
+		if (e.key === 'Enter') {
+			goToStep(index);
+		}
+	}
 </script>
 
-// TODO: change class:modal-open={open} when finished developing
+<!-- TODO: change class:modal-open={open} when finished developing -->
 <dialog
 	id="validation_modal"
 	class="modal modal-bottom sm:modal-middle h-full w-full"
-	class:modal-open={true}
+	class:modal-open={open}
 >
 	<div class="modal-box bg-base-100 h-[90vh] max-h-none w-full !max-w-full p-8">
 		<!-- Stepper -->
 		<ul class="steps mb-8 w-full">
 			{#each steps as step, i}
-				<li class="step {step.active || i < currentStep ? 'step-primary' : ''}">{step.title}</li>
+				<li
+					class="step transition-all {step.active || i < currentStep
+						? 'step-primary'
+						: ''}  cursor-pointer"
+					onclick={() => goToStep(i)}
+					onkeydown={(e) => handleKeydown(e, i)}
+					role="button"
+					tabindex="0"
+				>
+					{step.title}
+				</li>
 			{/each}
 		</ul>
 
