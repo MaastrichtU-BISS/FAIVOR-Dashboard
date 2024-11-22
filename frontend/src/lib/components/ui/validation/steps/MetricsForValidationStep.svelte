@@ -1,5 +1,9 @@
 <script lang="ts">
-	export let metricsDescription = '';
+	interface Props {
+		metricsDescription?: string;
+	}
+
+	let { metricsDescription = $bindable('') }: Props = $props();
 </script>
 
 <div class="space-y-6">

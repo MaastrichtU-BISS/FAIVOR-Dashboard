@@ -1,5 +1,9 @@
 <script lang="ts">
-	export let performanceMetrics = '';
+	interface Props {
+		performanceMetrics?: string;
+	}
+
+	let { performanceMetrics = $bindable('') }: Props = $props();
 </script>
 
 <div class="space-y-6">

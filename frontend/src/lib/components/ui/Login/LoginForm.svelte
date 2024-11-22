@@ -5,12 +5,12 @@
 	import PhKeyBold from '~icons/ph/key-bold';
 	import { signIn } from '@auth/sveltekit/client';
 
-	let email = '';
+	let email = $state('');
 	let password = '';
-	let error = '';
+	let error = $state('');
 
 	let openCredentials = false;
-	let openMagicLink = true;
+	let openMagicLink = $state(true);
 
 	function handleGoogleSignIn() {
 		signIn('google');

@@ -1,5 +1,9 @@
 <script lang="ts">
-	export let datasetDescription = '';
+	interface Props {
+		datasetDescription?: string;
+	}
+
+	let { datasetDescription = $bindable('') }: Props = $props();
 </script>
 
 <div class="space-y-6">

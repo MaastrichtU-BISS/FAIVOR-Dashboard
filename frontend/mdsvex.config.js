@@ -17,7 +17,7 @@ export default {
     dashes: 'oldschool'
   },
   layout: {
-    _: "src/lib/markdown-layouts/default", // Default layout for markdown files, without .svelte extension
+    _: "src/lib/markdown-layouts/default.svelte", // Default layout for markdown files, without .svelte extension
   },
   remarkPlugins: [
     videos,

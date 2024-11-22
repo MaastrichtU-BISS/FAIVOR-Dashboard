@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import VanillaTilt from 'vanilla-tilt';
-	let tiltImage: HTMLElement | HTMLElement[];
+	let tiltImage: HTMLElement | HTMLElement[] = $state();
 
-	let className = undefined; // class is a reserved keyword in JS, with initialization
-	export { className as class };
+	let { class: className = undefined, children } = $props();
+	
 
 	onMount(async () => {
 		const tiltOtions = {
@@ -34,5 +34,5 @@
 		class="tilt rounded pointer-events-none h-[450px] w-full object-cover"
 		alt="Jesse Ctw Profile"
 	/> -->
-	<slot />
+	{@render children?.()}
 </div>

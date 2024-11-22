@@ -16,7 +16,7 @@
 		}
 	];
 
-	let currentSlideItem = 0;
+	let currentSlideItem = $state(0);
 
 	const nextImage = () => {
 		currentSlideItem = (currentSlideItem + 1) % gallery_items.length;

@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { run } from 'svelte/legacy';
+
 	import { isMenuOpen, closeMenu, openMenu } from '$lib/stores/menu.store';
 	import FeedbackButton from '$lib/components/ui/feedback/FeedbackButton.svelte';
 	import { onMount } from 'svelte';
 
-	let containerElement: HTMLElement;
+	let containerElement: HTMLElement = $state();
 	let startX: number;
 	let currentX: number;
 	let isDragging = false;
@@ -11,7 +13,7 @@
 	let dragThreshold = 5; // Minimum drag distance to start moving the menu
 	let edgeThreshold = 100; // Area from the left edge to start dragging when menu is closed
 
-	$: menuPosition = $isMenuOpen ? 0 : -menuWidth;
+	let menuPosition = $derived($isMenuOpen ? 0 : -menuWidth);
 
 	const updatePosition = (x: number) => {
 		const position = Math.max(-menuWidth, Math.min(0, x));
@@ -77,11 +79,11 @@
 		};
 	});
 
-	$: {
+	run(() => {
 		if (containerElement) {
 			updatePosition(menuPosition);
 		}
-	}
+	});
 </script>
 
 <div bind:this={containerElement} class="side-menu-container sm:hidden">

@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { preventDefault } from 'svelte/legacy';
+
 	import { goto } from '$app/navigation';
-	let password = '';
+	let password = $state('');
 
 	const handleSubmit = () => {
 		// TODO: Implement actual password validation in a store
@@ -18,7 +20,7 @@
 	<!-- Password Form -->
 	<div class="card bg-base-100 w-full max-w-md shadow-xl">
 		<div class="card-body">
-			<form on:submit|preventDefault={handleSubmit} class="space-y-4">
+			<form onsubmit={preventDefault(handleSubmit)} class="space-y-4">
 				<div class="form-control">
 					<label for="password" class="label">
 						<span class="label-text text-xl">Password</span>

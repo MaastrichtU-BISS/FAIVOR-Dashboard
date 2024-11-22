@@ -1,10 +1,10 @@
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import themes from './themes.json';
 	import { themeChange } from 'theme-change';
 
-	let className = undefined; // class is a reserved keyword in JS, with initialization
-	export { className as class };
+	let { class: className = undefined } = $props();
+	
 
 	onMount(() => {
 		themeChange(false);
@@ -59,10 +59,10 @@
 									{theme.id}
 								</div>
 								<div class="flex flex-shrink-0 flex-wrap gap-1">
-									<div class="bg-primary w-2 rounded" />
-									<div class="bg-secondary w-2 rounded" />
-									<div class="bg-accent w-2 rounded" />
-									<div class="bg-neutral w-2 rounded" />
+									<div class="bg-primary w-2 rounded"></div>
+									<div class="bg-secondary w-2 rounded"></div>
+									<div class="bg-accent w-2 rounded"></div>
+									<div class="bg-neutral w-2 rounded"></div>
 								</div>
 							</div>
 						</div>

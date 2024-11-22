@@ -4,7 +4,11 @@
 	import HugeiconsCsv01 from '~icons/hugeicons/csv-01';
 	import NewValidationButton from '$lib/components/ui/validation/NewValidationButton.svelte';
 
-	export let data: PageData;
+	interface Props {
+		data: PageData;
+	}
+
+	let { data }: Props = $props();
 	const { model } = data;
 
 	const handleGoBack = () => {

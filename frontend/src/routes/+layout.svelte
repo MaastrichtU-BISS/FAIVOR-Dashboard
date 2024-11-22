@@ -6,6 +6,11 @@
 	import SideMenu from '$components/ui/SideMenu.svelte';
 	import GlobalToast from '$components/ui/GlobalToast.svelte';
 	import { env } from '$env/dynamic/public';
+	interface Props {
+		children?: import('svelte').Snippet;
+	}
+
+	let { children }: Props = $props();
 	// import FooterMain from '$components/ui/footerMain.svelte';
 </script>
 
@@ -21,9 +26,9 @@
 >
 	<Header />
 	<SideMenu />
-	<slot>
+	{#if children}{@render children()}{:else}
 		<!-- Content here -->
-	</slot>
+	{/if}
 	<!-- <FooterMain /> -->
 	{#if env.PUBLIC_LOCALHOST}
 		<div class="bg-warning text-warning-content fixed bottom-0 left-0 w-full pl-4 text-xs">

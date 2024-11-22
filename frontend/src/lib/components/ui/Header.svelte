@@ -8,7 +8,7 @@
 	import menuItems from '$lib/models/menu-itmes';
 
 	let activeCategory = '';
-	let isDesktop = true;
+	let isDesktop = $state(true);
 
 	onMount(() => {
 		const mediaQuery = window.matchMedia('(min-width: 640px)');
@@ -27,8 +27,8 @@
 </script>
 
 <nav class="bien-nav mb-10">
-	<div class="bien-glass" />
-	<div class="bien-glass-edge" />
+	<div class="bien-glass"></div>
+	<div class="bien-glass-edge"></div>
 	<div class="container relative mx-auto py-2">
 		<!--Desktop Header-->
 		<header class="flex items-center gap-3 px-2 sm:px-0">

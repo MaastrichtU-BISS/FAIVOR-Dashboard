@@ -7,23 +7,27 @@
 
 	const dispatch = createEventDispatcher();
 
-	export let open = false;
+	interface Props {
+		open?: boolean;
+	}
 
-	let currentStep = 0;
-	const steps = [
+	let { open = $bindable(false) }: Props = $props();
+
+	let currentStep = $state(0);
+	const steps = $state([
 		{ title: 'Dataset', active: true },
 		{ title: 'Dataset Characteristics', active: false },
 		{ title: 'Metrics for validation', active: false },
 		{ title: 'Performance metrics', active: false }
-	];
+	]);
 
 	// Form data
-	let userName = '';
-	let date = '';
-	let uploadedFile: File | null = null;
-	let datasetDescription = '';
-	let metricsDescription = '';
-	let performanceMetrics = '';
+	let userName = $state('');
+	let date = $state('');
+	let uploadedFile: File | null = $state(null);
+	let datasetDescription = $state('');
+	let metricsDescription = $state('');
+	let performanceMetrics = $state('');
 
 	function nextStep() {
 		if (currentStep < steps.length - 1) {
@@ -90,20 +94,20 @@
 
 		<!-- Navigation -->
 		<div class="modal-action mt-8">
-			<button class="btn" on:click={closeModal}>Close</button>
+			<button class="btn" onclick={closeModal}>Close</button>
 			<div class="flex-1"></div>
 			{#if currentStep > 0}
-				<button class="btn btn-outline" on:click={prevStep}>Previous</button>
+				<button class="btn btn-outline" onclick={prevStep}>Previous</button>
 			{/if}
 			{#if currentStep < steps.length - 1}
-				<button class="btn btn-primary" on:click={nextStep}>Next</button>
+				<button class="btn btn-primary" onclick={nextStep}>Next</button>
 			{:else}
-				<button class="btn btn-primary" on:click={handleSubmit}>Submit</button>
+				<button class="btn btn-primary" onclick={handleSubmit}>Submit</button>
 			{/if}
 		</div>
 	</div>
 
-	<div class="modal-backdrop" on:click={closeModal}>
+	<div class="modal-backdrop" onclick={closeModal}>
 		<button>close</button>
 	</div>
 </dialog>

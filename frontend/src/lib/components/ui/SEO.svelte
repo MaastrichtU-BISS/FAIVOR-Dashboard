@@ -1,9 +1,7 @@
-<script>
+<script lang="ts">
 	import { siteSettings } from '$lib/siteSettings';
 
-	export let title = siteSettings.title;
-	export let desc = siteSettings.description;
-	export let img = siteSettings.image;
+	let { title = siteSettings.title, desc = siteSettings.description, img = siteSettings.image } = $props();
 </script>
 
 <svelte:head>

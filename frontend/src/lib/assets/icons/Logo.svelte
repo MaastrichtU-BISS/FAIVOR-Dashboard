@@ -1,6 +1,6 @@
-<script>
-	let className = undefined; // class is a reserved keyword in JS, with initialization
-	export { className as class };
+<script lang="ts">
+	let { class: className = undefined } = $props();
+	
 </script>
 
 <div class="text-xl font-bold">FAIVOR</div>

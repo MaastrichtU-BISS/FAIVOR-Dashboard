@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ValidationModal from './ValidationModal.svelte';
 
-	let isModalOpen = false;
+	let isModalOpen = $state(false);
 
 	function openModal() {
 		isModalOpen = true;
@@ -12,6 +12,6 @@
 	}
 </script>
 
-<button class="btn btn-primary" on:click={openModal}>New Validation</button>
+<button class="btn btn-primary" onclick={openModal}>New Validation</button>
 
 <ValidationModal bind:open={isModalOpen} on:close={handleClose} />

@@ -1,9 +1,13 @@
 <script lang="ts">
+	import { run } from 'svelte/legacy';
+
 	import { Toaster } from 'svelte-french-toast';
 	import { toastStore } from '$lib/stores/toast.store';
 
 	// Subscribe to the toast store to trigger updates
-	$: $toastStore;
+	run(() => {
+		$toastStore;
+	});
 </script>
 
 <Toaster

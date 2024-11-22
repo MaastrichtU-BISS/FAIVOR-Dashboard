@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { models } from './models-api-example';
 
-	let modelUrl = '';
+	let modelUrl = $state('');
 
 	const handleImport = () => {
 		console.log('Importing model:', modelUrl);

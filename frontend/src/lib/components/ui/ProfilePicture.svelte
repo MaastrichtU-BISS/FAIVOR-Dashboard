@@ -1,6 +1,10 @@
-<script>
+<script lang="ts">
 	import ctwhomeProfile from '$lib/assets/images/ctwhome-profile.webp';
-	export let subtitle = 'Product Designer & Research Software Engineer';
+	interface Props {
+		subtitle?: string;
+	}
+
+	let { subtitle = 'Product Designer & Research Software Engineer' }: Props = $props();
 </script>
 
 <!-- Profile picture -->

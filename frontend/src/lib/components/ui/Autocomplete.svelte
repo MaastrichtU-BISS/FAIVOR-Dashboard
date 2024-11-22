@@ -1,10 +1,10 @@
 <script>
 	import { onMount } from 'svelte';
-	let searchValue = '';
+	let searchValue = $state('');
 	let options = [];
-	let filteredOptions = [];
-	let selectedIndex = -1;
-	let showDropdown = false;
+	let filteredOptions = $state([]);
+	let selectedIndex = $state(-1);
+	let showDropdown = $state(false);
 	let timeoutId = null;
 
 	function handleInput(event) {
@@ -70,8 +70,8 @@
 			class="input border-2 border-gray-300 rounded-md w-full"
 			type="text"
 			bind:value={searchValue}
-			on:input={handleInput}
-			on:keydown={handleKeyDown}
+			oninput={handleInput}
+			onkeydown={handleKeyDown}
 			placeholder="Search..."
 		/>
 	</div>

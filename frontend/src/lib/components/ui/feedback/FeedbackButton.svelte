@@ -5,10 +5,14 @@
 	import { page } from '$app/stores';
 	import { toastStore } from '$lib/stores/toast.store';
 
-	export let showButton = true;
+	interface Props {
+		showButton?: boolean;
+	}
 
-	let textarea: HTMLTextAreaElement;
-	let modal: HTMLDialogElement;
+	let { showButton = true }: Props = $props();
+
+	let textarea: HTMLTextAreaElement = $state();
+	let modal: HTMLDialogElement = $state();
 
 	export const openFeedbackModal = writable(() => {});
 

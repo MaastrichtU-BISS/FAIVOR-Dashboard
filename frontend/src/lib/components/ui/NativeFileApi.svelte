@@ -6,11 +6,11 @@
 	import { deleteDB, openDB } from 'idb';
 	import { onMount } from 'svelte';
 
-	let numberFiles = { rootName: '', directories: 0, files: 0 };
+	let numberFiles = $state({ rootName: '', directories: 0, files: 0 });
 	let loadingFiles = false;
 	let db = null;
 	let arrayTree = [];
-	let tree = {};
+	let tree = $state({});
 	// Object.keys(tree).length !== 0
 	onMount(async () => {
 		// Create DB in indexDB
