@@ -82,7 +82,7 @@
 <!-- TODO: change class:modal-open={open} when finished developing -->
 <dialog
 	id="validation_modal"
-	class="modal modal-bottom sm:modal-middle h-full w-full"
+	class="modal modal-bottom sm:modal-middle z-[10000] !mt-0 h-full w-full"
 	class:modal-open={open}
 >
 	<div class="modal-box bg-base-100 h-[90vh] max-h-none w-full !max-w-full p-8">

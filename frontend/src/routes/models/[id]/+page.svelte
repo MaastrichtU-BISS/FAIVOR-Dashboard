@@ -2,6 +2,13 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import HugeiconsCsv01 from '~icons/hugeicons/csv-01';
+	import MaterialSymbolsArrowBack from '~icons/material-symbols/arrow-back';
+	import MaterialSymbolsScreenshotMonitorOutline from '~icons/material-symbols/screenshot-monitor-outline';
+	import MaterialSymbolsCheckCircleOutline from '~icons/material-symbols/check-circle-outline';
+	import MaterialSymbolsClose from '~icons/material-symbols/close';
+	import MaterialSymbolsMoreVert from '~icons/material-symbols/more-vert';
+	import MaterialSymbolsContentCopyOutline from '~icons/material-symbols/content-copy-outline';
+	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
 	import NewValidationButton from '$lib/components/ui/validation/NewValidationButton.svelte';
 
 	interface Props {
@@ -59,40 +66,14 @@
 <div class="container mx-auto space-y-8 p-4">
 	<!-- Back Button -->
 	<button class="btn btn-ghost gap-2" onclick={handleGoBack}>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			class="h-6 w-6"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke="currentColor"
-		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				stroke-width="2"
-				d="M10 19l-7-7m0 0l7-7m-7 7h18"
-			/>
-		</svg>
+		<MaterialSymbolsArrowBack class="h-6 w-6" />
 		Go Back
 	</button>
 
 	<!-- Model Header -->
 	<div class="flex items-start gap-4">
 		<div class="bg-base-200 flex h-16 w-16 items-center justify-center rounded-lg">
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				class="h-8 w-8"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-				/>
-			</svg>
+			<MaterialSymbolsScreenshotMonitorOutline class="h-8 w-8" />
 		</div>
 		<div>
 			<h1 class="text-2xl font-bold">{model.name}</h1>
@@ -144,70 +125,18 @@
 						<td>
 							<div class="w-8">
 								{#if job.dataCharacteristics}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										class="text-success h-6 w-6"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
+									<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
 								{:else}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										class="text-error h-6 w-6"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M6 18L18 6M6 6l12 12"
-										/>
-									</svg>
+									<MaterialSymbolsClose class="text-error h-6 w-6" />
 								{/if}
 							</div>
 						</td>
 						<td>
 							<div class="w-8">
 								{#if job.metrics}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										class="text-success h-6 w-6"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
+									<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
 								{:else}
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										class="text-error h-6 w-6"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M6 18L18 6M6 6l12 12"
-										/>
-									</svg>
+									<MaterialSymbolsClose class="text-error h-6 w-6" />
 								{/if}
 							</div>
 						</td>
@@ -217,23 +146,22 @@
 						<td>
 							<div class="dropdown dropdown-end">
 								<button tabindex="0" class="btn btn-ghost btn-circle">
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										class="h-5 w-5"
-										viewBox="0 0 20 20"
-										fill="currentColor"
-									>
-										<path
-											d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"
-										/>
-									</svg>
+									<MaterialSymbolsMoreVert class="h-5 w-5" />
 								</button>
 								<ul
 									tabindex="0"
-									class="dropdown-content menu bg-base-100 rounded-box w-52 p-2 shadow"
+									class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow"
 								>
-									<li><button>Duplicate</button></li>
-									<li><button>Delete</button></li>
+									<li>
+										<button class="flex items-center gap-2">
+											<MaterialSymbolsContentCopyOutline class="h-5 w-5" />Duplicate
+										</button>
+									</li>
+									<li>
+										<button class="flex items-center gap-2">
+											<MaterialSymbolsDeleteOutline class="h-5 w-5" />Delete
+										</button>
+									</li>
 								</ul>
 							</div>
 						</td>
