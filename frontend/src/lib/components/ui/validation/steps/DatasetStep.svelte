@@ -166,6 +166,7 @@
 			<textarea
 				class="textarea textarea-bordered h-48 w-full"
 				placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
+				readonly
 			/>
 
 			<button class="btn btn-outline gap-2" on:click={checkDataset}>
@@ -175,6 +176,7 @@
 			<textarea
 				class="textarea textarea-bordered h-48 w-full"
 				placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
+				readonly
 			/>
 		</div>
 	</div>
