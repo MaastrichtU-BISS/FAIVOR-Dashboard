@@ -14,7 +14,7 @@
 	</div>
 
 	<div class="flex gap-4">
-		<button class="btn btn-outline btn-sm" on:click={() => {}}>Calculate the summary</button>
-		<button class="btn btn-outline btn-sm" on:click={() => {}}>Check the dataset</button>
+		<button class="btn btn-outline btn-sm" onclick={() => {}}>Calculate the summary</button>
+		<button class="btn btn-outline btn-sm" onclick={() => {}}>Check the dataset</button>
 	</div>
 </div>

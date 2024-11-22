@@ -82,21 +82,21 @@
 
 		<!-- Navigation -->
 		<div class="modal-action mt-8">
-			<button class="btn" on:click={closeModal}>Cancel</button>
+			<button class="btn" onclick={closeModal}>Cancel</button>
 			<div class="flex-1"></div>
 			{#if currentStep > 0}
-				<button class="btn btn-outline" on:click={prevStep}>Previous</button>
+				<button class="btn btn-outline" onclick={prevStep}>Previous</button>
 			{/if}
 			{#if currentStep < steps.length - 1}
-				<button class="btn btn-primary" on:click={nextStep}>Next</button>
+				<button class="btn btn-primary" onclick={nextStep}>Next</button>
 			{:else}
-				<button class="btn btn-primary" on:click={handleSubmit}>Submit</button>
+				<button class="btn btn-primary" onclick={handleSubmit}>Submit</button>
 			{/if}
 		</div>
 	</div>
 
 	<form method="dialog" class="modal-backdrop">
-		<button on:click={closeModal}>close</button>
+		<button onclick={closeModal}>close</button>
 	</form>
 </dialog>
 

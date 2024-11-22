@@ -34,7 +34,7 @@
 		<header class="flex items-center gap-3 px-2 sm:px-0">
 			<button
 				class="hover:bg-base-200 rounded-md p-2 transition-colors duration-200 sm:hidden"
-				on:click={toggleMenu}
+				onclick={toggleMenu}
 				aria-label="Open menu"
 			>
 				<IconamoonMenuBurgerHorizontalBold class="size-6" />
@@ -51,7 +51,7 @@
 				{#each menuItems as link}
 					<a
 						class="menu-link"
-						on:click={() => (active = link.title)}
+						onclick={() => (active = link.title)}
 						class:active={activeCategory === link.title}
 						href={link.path}
 					>

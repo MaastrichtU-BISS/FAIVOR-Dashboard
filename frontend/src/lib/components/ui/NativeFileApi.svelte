@@ -109,11 +109,11 @@
 	<!--    file system when reloading. The user needs to grand access once again.-->
 	<!--  </p>-->
 
-	<div class="btn" on:click={open}>Open directory</div>
+	<div class="btn" onclick={open}>Open directory</div>
 	<div>
 		<pre>{JSON.stringify(numberFiles, null, 2)}</pre>
 		{#each Object.values(tree) as { name, handle }}
-			<div class="hover:bg-gray-500 cursor-pointer" on:click={() => fileClicked(handle)}>
+			<div class="cursor-pointer hover:bg-gray-500" onclick={() => fileClicked(handle)}>
 				{name}
 			</div>
 			<!--      <div>{item[0]} -  <pre>{JSON.stringify(item[1], null, 2)}</pre>{item[1]}</div>-->

@@ -32,7 +32,7 @@
 </script>
 
 <div>
-	<h3 class="text-xl mt-3">Image Carousel</h3>
+	<h3 class="mt-3 text-xl">Image Carousel</h3>
 	{#each [gallery_items[currentSlideItem]] as item (currentSlideItem)}
 		<img
 			class="cursor-pointer"
@@ -41,21 +41,21 @@
 			alt={item.description}
 			width="100%"
 			height="100%"
-			on:click={() => nextImage()}
+			onclick={() => nextImage()}
 		/>
 	{/each}
 	<div class="carousel-buttons flex gap-1">
-		<button on:click={() => prevImage()}>◀</button>
+		<button onclick={() => prevImage()}>◀</button>
 		{#each gallery_items as item, i (i)}
 			<img
-				class="cursor-pointer {currentSlideItem === i && 'ring-offset-0 border-primary border '}"
-				on:click={() => (currentSlideItem = i)}
+				class="cursor-pointer {currentSlideItem === i && 'border-primary border ring-offset-0 '}"
+				onclick={() => (currentSlideItem = i)}
 				src={item.url}
 				axlt={item.description}
 				width={50}
 				height={50}
 			/>
 		{/each}
-		<button on:click={() => nextImage()}>▶</button>
+		<button onclick={() => nextImage()}>▶</button>
 	</div>
 </div>

@@ -31,8 +31,8 @@
 				bind:value={modelUrl}
 			/>
 		</div>
-		<button class="btn btn-primary" on:click={handleImport}>Import model</button>
-		<button class="btn btn-outline" on:click={handleFindRepositories}>Find repositories</button>
+		<button class="btn btn-primary" onclick={handleImport}>Import model</button>
+		<button class="btn btn-outline" onclick={handleFindRepositories}>Find repositories</button>
 	</div>
 
 	<!-- Models Section -->
@@ -66,7 +66,7 @@
 				<!-- Body -->
 				<tbody>
 					{#each models as model}
-						<tr class="hover cursor-pointer" on:click={() => handleModelClick(model.name)}>
+						<tr class="hover cursor-pointer" onclick={() => handleModelClick(model.name)}>
 							<td>{model.name}</td>
 							<td>{model.description}</td>
 							<td class="text-center">{model.validations}</td>

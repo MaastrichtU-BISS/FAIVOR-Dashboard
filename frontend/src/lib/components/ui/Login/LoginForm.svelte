@@ -42,13 +42,9 @@
 </script>
 
 <div>
-	<h1 class="font-bold text-center text-2xl mb-5">Login Access</h1>
+	<h1 class="mb-5 text-center text-2xl font-bold">Login Access</h1>
 	<div class="flex flex-col gap-4 p-5">
-		<button
-			type="button"
-			class="btn btn-primary"
-			on:click={() => loginWithSocialProvider('google')}
-		>
+		<button type="button" class="btn btn-primary" onclick={() => loginWithSocialProvider('google')}>
 			<BiGoogle />
 			Login with Google
 		</button>
@@ -57,15 +53,15 @@
 		<button
 			class="btn"
 			class:hidden={openMagicLink}
-			on:click={() => (openMagicLink = !openMagicLink)}
+			onclick={() => (openMagicLink = !openMagicLink)}
 		>
 			<MingcuteMailSendLine class="size-5" />
 			Send Magic Link
 		</button>
 		<form
-			class="p-3 border rounded-box border-base-300"
+			class="rounded-box border-base-300 border p-3"
 			class:hidden={!openMagicLink}
-			on:submit|preventDefault={handleMagicLinkSignIn}
+			onsubmit={handleMagicLinkSignIn}
 		>
 			<div class="form-control">
 				<input
@@ -82,7 +78,7 @@
 				<div class="text-error mt-2">{error}</div>
 			{/if}
 
-			<button type="submit" class="btn w-full mt-3 btn-outline btn-secondary">
+			<button type="submit" class="btn btn-outline btn-secondary mt-3 w-full">
 				<MingcuteMailSendLine class="size-5" />
 				Send Magic Link
 			</button>
@@ -93,7 +89,7 @@
 		<button
 			class="btn"
 			class:hidden={openCredentials}
-			on:click={() => (openCredentials = !openCredentials)}
+			onclick={() => (openCredentials = !openCredentials)}
 		>
 			<PhKeyBold class="size-5" />
 			Email and Password
@@ -102,7 +98,7 @@
 		<form
 			class="p-3 border rounded-box border-base-300"
 			class:hidden={!openCredentials}
-			on:submit|preventDefault={handleEmailSignIn}
+			onsubmit|preventDefault={handleEmailSignIn}
 		>
 			<div class="form-control">
 				<input
