@@ -7,6 +7,8 @@
 
 	const dispatch = createEventDispatcher();
 
+	export let open = false;
+
 	let currentStep = 0;
 	const steps = [
 		{ title: 'Dataset', active: true },
@@ -40,6 +42,7 @@
 	}
 
 	function closeModal() {
+		open = false;
 		dispatch('close');
 	}
 
@@ -58,8 +61,13 @@
 	}
 </script>
 
-<dialog id="validation_modal" class="modal modal-bottom sm:modal-middle h-full w-full">
-	<div class="modal-box bg-base-100 h-full max-h-none w-full max-w-none p-8">
+// TODO: change class:modal-open={open} when finished developing
+<dialog
+	id="validation_modal"
+	class="modal modal-bottom sm:modal-middle h-full w-full"
+	class:modal-open={true}
+>
+	<div class="modal-box bg-base-100 h-[90vh] max-h-none w-full !max-w-full p-8">
 		<!-- Stepper -->
 		<ul class="steps mb-8 w-full">
 			{#each steps as step, i}
@@ -82,30 +90,20 @@
 
 		<!-- Navigation -->
 		<div class="modal-action mt-8">
-			<button class="btn" onclick={closeModal}>Cancel</button>
+			<button class="btn" on:click={closeModal}>Close</button>
 			<div class="flex-1"></div>
 			{#if currentStep > 0}
-				<button class="btn btn-outline" onclick={prevStep}>Previous</button>
+				<button class="btn btn-outline" on:click={prevStep}>Previous</button>
 			{/if}
 			{#if currentStep < steps.length - 1}
-				<button class="btn btn-primary" onclick={nextStep}>Next</button>
+				<button class="btn btn-primary" on:click={nextStep}>Next</button>
 			{:else}
-				<button class="btn btn-primary" onclick={handleSubmit}>Submit</button>
+				<button class="btn btn-primary" on:click={handleSubmit}>Submit</button>
 			{/if}
 		</div>
 	</div>
 
-	<form method="dialog" class="modal-backdrop">
-		<button onclick={closeModal}>close</button>
-	</form>
+	<div class="modal-backdrop" on:click={closeModal}>
+		<button>close</button>
+	</div>
 </dialog>
-
-<style>
-	/* Make modal full screen */
-	:global(.modal-box) {
-		max-height: 100vh !important;
-		height: 100vh !important;
-		margin: 0 !important;
-		border-radius: 0 !important;
-	}
-</style>

@@ -1,18 +1,17 @@
 <script lang="ts">
 	import ValidationModal from './ValidationModal.svelte';
 
-	let modal: HTMLDialogElement;
+	let isModalOpen = false;
 
 	function openModal() {
-		modal = document.getElementById('validation_modal') as HTMLDialogElement;
-		modal.showModal();
+		isModalOpen = true;
 	}
 
 	function handleClose() {
-		modal?.close();
+		isModalOpen = false;
 	}
 </script>
 
-<button class="btn btn-primary" onclick={openModal}>New Validation</button>
+<button class="btn btn-primary" on:click={openModal}>New Validation</button>
 
-<ValidationModal onclose={handleClose} />
+<ValidationModal bind:open={isModalOpen} on:close={handleClose} />
