@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { models } from './models-api-example';
+	import SearchModelsModal from '$lib/components/ui/models/SearchModelsModal.svelte';
 
 	let modelUrl = $state('');
+	let isSearchModalOpen = $state(false);
 
 	const handleImport = () => {
 		console.log('Importing model:', modelUrl);
 	};
 
 	const handleFindRepositories = () => {
-		console.log('Finding repositories');
+		isSearchModalOpen = true;
 	};
 
 	const handleModelClick = (modelName: string) => {
@@ -31,8 +33,8 @@
 				bind:value={modelUrl}
 			/>
 		</div>
-		<button class="btn btn-primary" onclick={handleImport}>Import model</button>
-		<button class="btn btn-outline" onclick={handleFindRepositories}>Find repositories</button>
+		<button class="btn btn-primary" on:click={handleImport}>Import model</button>
+		<button class="btn btn-outline" on:click={handleFindRepositories}>Find repositories</button>
 	</div>
 
 	<!-- Models Section -->
@@ -66,7 +68,7 @@
 				<!-- Body -->
 				<tbody>
 					{#each models as model}
-						<tr class="hover cursor-pointer" onclick={() => handleModelClick(model.name)}>
+						<tr class="hover cursor-pointer" on:click={() => handleModelClick(model.name)}>
 							<td>{model.name}</td>
 							<td>{model.description}</td>
 							<td class="text-center">{model.validations}</td>
@@ -89,3 +91,5 @@
 		</div>
 	</div>
 </div>
+
+<SearchModelsModal bind:isOpen={isSearchModalOpen} />

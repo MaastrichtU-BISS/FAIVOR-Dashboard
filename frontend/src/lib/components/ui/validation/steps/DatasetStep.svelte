@@ -12,12 +12,16 @@
 		uploadedFile?: File | null;
 	}
 
-	let { userName = $bindable(''), date = $bindable(''), uploadedFile = $bindable(null) }: Props = $props();
+	let {
+		userName = $bindable(''),
+		date = $bindable(''),
+		uploadedFile = $bindable(null)
+	}: Props = $props();
 	let datasetDescription = $state('');
 	let datasetCharacteristics = $state('');
 	let isDragging = $state(false);
-	let dropZone: HTMLDivElement = $state();
-	let fileInput: HTMLInputElement = $state();
+	let dropZone: HTMLDivElement;
+	let fileInput: HTMLInputElement;
 
 	function handleFileUpload(event: Event) {
 		const input = event.target as HTMLInputElement;
@@ -55,7 +59,7 @@
 	}
 
 	function handleClick() {
-		fileInput.click();
+		fileInput?.click();
 	}
 
 	function removeFile() {

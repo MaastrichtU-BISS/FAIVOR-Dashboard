@@ -65,7 +65,7 @@
 
 <div class="container mx-auto space-y-8 p-4">
 	<!-- Back Button -->
-	<button class="btn btn-ghost gap-2" onclick={handleGoBack}>
+	<button class="btn btn-ghost gap-2" on:click={handleGoBack}>
 		<MaterialSymbolsArrowBack class="h-6 w-6" />
 		Go Back
 	</button>
@@ -80,16 +80,6 @@
 			<p class="text-base-content/70">{model.description}</p>
 		</div>
 	</div>
-
-	<!-- Tabs -->
-	<!-- <div class="tabs tabs-bordered">
-		<button class="tab tab-active">Validation Jobs</button>
-		<button class="tab">Last modified</button>
-		<button class="tab">Data provided</button>
-		<button class="tab">Data characteristics</button>
-		<button class="tab">Metrics</button>
-		<button class="tab">Published</button>
-	</div> -->
 
 	<!-- Validation Jobs Table -->
 	<div class="overflow-x-auto">
@@ -110,18 +100,6 @@
 					<tr class="hover">
 						<td>{job.name}</td>
 						<td>{job.lastModified}</td>
-						<!-- <td>
-							{#if job.dataProvided}
-								<button
-									class="btn btn-ghost btn-sm gap-2"
-									onclick={handleDownloadCsv}
-									title="Download CSV"
-								>
-									<HugeiconsCsv01 class="h-5 w-5" />
-									Download
-								</button>
-							{/if}
-						</td> -->
 						<td>
 							<div class="w-8">
 								{#if job.dataCharacteristics}
