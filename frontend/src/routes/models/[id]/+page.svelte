@@ -82,18 +82,18 @@
 	</div>
 
 	<!-- Tabs -->
-	<div class="tabs tabs-bordered">
+	<!-- <div class="tabs tabs-bordered">
 		<button class="tab tab-active">Validation Jobs</button>
 		<button class="tab">Last modified</button>
 		<button class="tab">Data provided</button>
 		<button class="tab">Data characteristics</button>
 		<button class="tab">Metrics</button>
 		<button class="tab">Published</button>
-	</div>
+	</div> -->
 
 	<!-- Validation Jobs Table -->
 	<div class="overflow-x-auto">
-		<table class="table w-full">
+		<table class="table h-full w-full">
 			<thead>
 				<tr>
 					<th>Validation Jobs</th>
@@ -110,7 +110,7 @@
 					<tr class="hover">
 						<td>{job.name}</td>
 						<td>{job.lastModified}</td>
-						<td>
+						<!-- <td>
 							{#if job.dataProvided}
 								<button
 									class="btn btn-ghost btn-sm gap-2"
@@ -121,7 +121,7 @@
 									Download
 								</button>
 							{/if}
-						</td>
+						</td> -->
 						<td>
 							<div class="w-8">
 								{#if job.dataCharacteristics}
