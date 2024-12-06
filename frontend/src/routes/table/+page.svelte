@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { validateModel } from '$lib/api/validation';
+	import Chart from 'chart.js/auto';
 
 	interface Feature {
 		count: number;
@@ -67,6 +68,59 @@
 		return { numerical, categorical };
 	}
 
+	function createHistogram(canvasId: string, labels: string[], data: number[]) {
+		const ctx = document.getElementById(canvasId) as HTMLCanvasElement;
+		if (!ctx) return;
+
+		const backgroundColor = Array(data.length).fill('hsl(var(--p) / 0.7)');
+		const borderColor = Array(data.length).fill('hsl(var(--p))');
+
+		new Chart(ctx, {
+			type: 'bar',
+			data: {
+				labels,
+				datasets: [
+					{
+						data,
+						backgroundColor,
+						borderColor,
+						borderWidth: 1
+					}
+				]
+			},
+			options: {
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					legend: {
+						display: false
+					}
+				},
+				scales: {
+					y: {
+						beginAtZero: true,
+						grid: {
+							color: 'hsl(var(--bc) / 0.1)'
+						},
+						ticks: {
+							color: 'hsl(var(--bc))'
+						}
+					},
+					x: {
+						grid: {
+							color: 'hsl(var(--bc) / 0.1)'
+						},
+						ticks: {
+							color: 'hsl(var(--bc))',
+							maxRotation: 45,
+							minRotation: 45
+						}
+					}
+				}
+			}
+		});
+	}
+
 	onMount(async () => {
 		try {
 			loading = true;
@@ -77,6 +131,15 @@
 			numerical = num;
 			categorical = cat;
 			histograms = response.data.categorical_histograms;
+
+			// Create histograms after data is loaded
+			setTimeout(() => {
+				Object.entries(histograms).forEach(([feature, distribution]) => {
+					const labels = Object.keys(distribution);
+					const data = Object.values(distribution);
+					createHistogram(`histogram-${feature}`, labels, data);
+				});
+			}, 0);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'An error occurred while fetching data';
 			console.error('Error fetching data:', e);
@@ -181,7 +244,7 @@
 			</div>
 		</div>
 
-		<!-- Categorical Histograms -->
+		<!-- Category Distributions (Histograms) -->
 		<div class="card bg-base-100 shadow-xl">
 			<div class="card-body">
 				<h2 class="card-title mb-4 text-2xl">Category Distributions</h2>
@@ -190,23 +253,8 @@
 						<div class="card bg-base-200">
 							<div class="card-body">
 								<h3 class="card-title">{feature}</h3>
-								<div class="overflow-x-auto">
-									<table class="table-zebra table w-full">
-										<thead>
-											<tr>
-												<th>Value</th>
-												<th>Count</th>
-											</tr>
-										</thead>
-										<tbody>
-											{#each Object.entries(distribution) as [value, count]}
-												<tr>
-													<td>{value}</td>
-													<td>{formatNumber(count)}</td>
-												</tr>
-											{/each}
-										</tbody>
-									</table>
+								<div class="h-[300px] w-full">
+									<canvas id="histogram-{feature}"></canvas>
 								</div>
 							</div>
 						</div>
