@@ -69,12 +69,29 @@
 		return { numerical, categorical };
 	}
 
+	function generateOrderedHuslColors(count: number) {
+		const colors = [];
+		// Use golden ratio to create visually pleasing color distribution
+		const goldenRatio = 0.618033988749895;
+		let hue = 0;
+
+		for (let i = 0; i < count; i++) {
+			// Generate evenly distributed hues
+			hue = (hue + goldenRatio * 360) % 360;
+			// Use HUSL-like values with controlled saturation and lightness
+			colors.push(`hsl(${hue}, 70%, 35%)`);
+		}
+
+		return colors;
+	}
+
 	function createHistogram(canvasId: string, labels: string[], data: number[]) {
 		const ctx = document.getElementById(canvasId) as HTMLCanvasElement;
 		if (!ctx) return;
 
-		const backgroundColor = Array(data.length).fill('hsl(var(--p) / 0.7)');
-		const borderColor = Array(data.length).fill('hsl(var(--p))');
+		const colors = generateOrderedHuslColors(data.length);
+		const backgroundColor = colors;
+		const borderColor = colors;
 
 		new Chart(ctx, {
 			type: 'bar',
