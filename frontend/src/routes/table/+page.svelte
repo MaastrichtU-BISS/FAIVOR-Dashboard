@@ -252,11 +252,47 @@
 					{#each Object.entries(histograms) as [feature, distribution]}
 						<div class="card bg-base-200">
 							<div class="card-body">
-								<h3 class="card-title">{feature}</h3>
+								<div class="mb-4 flex items-center justify-between">
+									<h3 class="card-title capitalize">{feature}</h3>
+									<!-- Modal open button -->
+									<label for="modal-{feature}" class="btn btn-secondary btn-outline btn-sm">
+										View Data
+									</label>
+								</div>
 								<div class="h-[300px] w-full">
 									<canvas id="histogram-{feature}"></canvas>
 								</div>
 							</div>
+						</div>
+
+						<!-- Modal for data table -->
+						<input type="checkbox" id="modal-{feature}" class="modal-toggle" />
+						<div class="modal">
+							<div class="modal-box">
+								<h3 class="mb-4 text-lg font-bold capitalize">{feature} Distribution Data</h3>
+								<div class="overflow-x-auto">
+									<table class="table-zebra table w-full">
+										<thead>
+											<tr>
+												<th>Category</th>
+												<th>Count</th>
+											</tr>
+										</thead>
+										<tbody>
+											{#each Object.entries(distribution) as [category, count]}
+												<tr>
+													<td>{category}</td>
+													<td>{formatNumber(count)}</td>
+												</tr>
+											{/each}
+										</tbody>
+									</table>
+								</div>
+								<div class="modal-action">
+									<label for="modal-{feature}" class="btn">Close</label>
+								</div>
+							</div>
+							<label class="modal-backdrop" for="modal-{feature}"></label>
 						</div>
 					{/each}
 				</div>
