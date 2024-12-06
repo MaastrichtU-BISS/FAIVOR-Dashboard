@@ -291,7 +291,7 @@
 						<div class="card bg-base-200">
 							<div class="card-body">
 								<div class="mb-4 flex items-center justify-between">
-									<h3 class="card-title">{feature}</h3>
+									<h3 class="card-title capitalize">{feature}</h3>
 									<!-- Modal open button -->
 									<label for="modal-{feature}" class="btn btn-primary btn-outline btn-sm">
 										View Data
@@ -307,7 +307,7 @@
 						<input type="checkbox" id="modal-{feature}" class="modal-toggle" />
 						<div class="modal">
 							<div class="modal-box">
-								<h3 class="mb-4 text-lg font-bold">{feature} Distribution Data</h3>
+								<h3 class="mb-4 text-lg font-bold capitalize">{feature} Distribution Data</h3>
 								<div class="overflow-x-auto">
 									<table class="table-zebra table w-full">
 										<thead>
