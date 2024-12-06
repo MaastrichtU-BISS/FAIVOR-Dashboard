@@ -26,6 +26,7 @@
 	let numerical: (Feature & { name: string })[] = [];
 	let categorical: (Feature & { name: string })[] = [];
 	let histograms: Record<string, Record<string, number>> = {};
+	let gridColumns = 3;
 
 	// Helper function to check if a feature is numerical
 	function isNumerical(feature: Feature): boolean {
@@ -121,6 +122,21 @@
 		});
 	}
 
+	function updateHistograms() {
+		Object.entries(histograms).forEach(([feature, distribution]) => {
+			const labels = Object.keys(distribution);
+			const data = Object.values(distribution);
+			createHistogram(`histogram-${feature}`, labels, data);
+		});
+	}
+
+	$: {
+		if (!loading && histograms) {
+			// Update histograms when grid columns change
+			setTimeout(updateHistograms, 0);
+		}
+	}
+
 	onMount(async () => {
 		try {
 			loading = true;
@@ -133,13 +149,7 @@
 			histograms = response.data.categorical_histograms;
 
 			// Create histograms after data is loaded
-			setTimeout(() => {
-				Object.entries(histograms).forEach(([feature, distribution]) => {
-					const labels = Object.keys(distribution);
-					const data = Object.values(distribution);
-					createHistogram(`histogram-${feature}`, labels, data);
-				});
-			}, 0);
+			setTimeout(updateHistograms, 0);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'An error occurred while fetching data';
 			console.error('Error fetching data:', e);
@@ -247,15 +257,43 @@
 		<!-- Category Distributions (Histograms) -->
 		<div class="card bg-base-100 shadow-xl">
 			<div class="card-body">
-				<h2 class="card-title mb-4 text-2xl">Category Distributions</h2>
-				<div class="grid grid-cols-1 gap-8 md:grid-cols-2">
+				<div class="mb-6 flex items-center justify-between">
+					<h2 class="card-title text-2xl">Category Distributions</h2>
+					<div class="join">
+						<button
+							class="join-item btn btn-sm {gridColumns === 2 ? 'btn-primary' : 'btn-ghost'}"
+							on:click={() => (gridColumns = 2)}
+						>
+							2 Columns
+						</button>
+						<button
+							class="join-item btn btn-sm {gridColumns === 3 ? 'btn-primary' : 'btn-ghost'}"
+							on:click={() => (gridColumns = 3)}
+						>
+							3 Columns
+						</button>
+						<button
+							class="join-item btn btn-sm {gridColumns === 4 ? 'btn-primary' : 'btn-ghost'}"
+							on:click={() => (gridColumns = 4)}
+						>
+							4 Columns
+						</button>
+					</div>
+				</div>
+				<div
+					class="grid grid-cols-1 gap-8 {gridColumns === 2
+						? 'md:grid-cols-2'
+						: gridColumns === 3
+							? 'md:grid-cols-3'
+							: 'md:grid-cols-4'}"
+				>
 					{#each Object.entries(histograms) as [feature, distribution]}
 						<div class="card bg-base-200">
 							<div class="card-body">
 								<div class="mb-4 flex items-center justify-between">
-									<h3 class="card-title capitalize">{feature}</h3>
+									<h3 class="card-title">{feature}</h3>
 									<!-- Modal open button -->
-									<label for="modal-{feature}" class="btn btn-secondary btn-outline btn-sm">
+									<label for="modal-{feature}" class="btn btn-primary btn-outline btn-sm">
 										View Data
 									</label>
 								</div>
@@ -269,7 +307,7 @@
 						<input type="checkbox" id="modal-{feature}" class="modal-toggle" />
 						<div class="modal">
 							<div class="modal-box">
-								<h3 class="mb-4 text-lg font-bold capitalize">{feature} Distribution Data</h3>
+								<h3 class="mb-4 text-lg font-bold">{feature} Distribution Data</h3>
 								<div class="overflow-x-auto">
 									<table class="table-zebra table w-full">
 										<thead>
