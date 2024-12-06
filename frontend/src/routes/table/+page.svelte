@@ -310,7 +310,7 @@
 								<div class="mb-4 flex items-center justify-between">
 									<h3 class="card-title capitalize">{feature}</h3>
 									<!-- Modal open button -->
-									<label for="modal-{feature}" class="btn btn-primary btn-outline btn-sm">
+									<label for="modal-{feature}" class="btn btn-secondary btn-outline btn-sm">
 										View Data
 									</label>
 								</div>
