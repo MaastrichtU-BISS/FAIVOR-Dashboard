@@ -17,8 +17,8 @@ This project includes Docker configuration for easy deployment and development. 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/FAIRmodels-validator-1.git
-cd FAIRmodels-validator-1
+git clone https://github.com/your-username/FAIRmodels-validator.git
+cd FAIRmodels-validator
 ```
 
 2. Build and start the containers:
