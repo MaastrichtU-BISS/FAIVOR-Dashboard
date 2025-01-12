@@ -1,9 +1,13 @@
-# FAIRmodels-validator
+# FAIRmodels-validator Dashboard
 
 
+FAIRmodels-validator Dashboard is a web application that allows users to validate their FAIRmodels.
 
+Architecture
 ![techstack](./techstack.excalidraw.png)
 
+Database schema
+![database](./db-schema.drawio.png)
 
 ## Docker Setup
 
