@@ -1,8 +1,6 @@
 <script lang="ts">
-	import { preventDefault } from 'svelte/legacy';
-
 	import { goto } from '$app/navigation';
-	let password = $state('');
+	import LoginForm from './Login/LoginForm.svelte';
 
 	const handleSubmit = () => {
 		// TODO: Implement actual password validation in a store
@@ -17,8 +15,10 @@
 		<h1 class="text-4xl font-bold">Organization Name</h1>
 	</div>
 
+	<LoginForm />
+
 	<!-- Password Form -->
-	<div class="card bg-base-100 w-full max-w-md shadow-xl">
+	<!-- <div class="card bg-base-100 w-full max-w-md shadow-xl">
 		<div class="card-body">
 			<form onsubmit={preventDefault(handleSubmit)} class="space-y-4">
 				<div class="form-control">
@@ -36,5 +36,5 @@
 				<button type="submit" class="btn btn-primary w-full">Access</button>
 			</form>
 		</div>
-	</div>
+	</div> -->
 </div>

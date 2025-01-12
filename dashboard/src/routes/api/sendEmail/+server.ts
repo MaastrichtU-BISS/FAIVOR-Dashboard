@@ -18,7 +18,7 @@ export const POST: RequestHandler = async ({ request }) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'feedback-faivor@ctwhome.com',
+        from: 'feedback-top-sveltekit@ctwhome.com',
         to: 'ctw@ctwhome.com', // Replace with your support email
         subject: subject,
         html: html,
