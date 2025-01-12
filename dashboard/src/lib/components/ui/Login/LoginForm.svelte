@@ -9,10 +9,10 @@
 	}
 </script>
 
-<div class="p-5">
-	<h1 class="mb-5 text-center text-2xl font-bold">
+<div class="w-full max-w-md space-y-8 rounded-lg p-8 shadow-lg">
+	<!-- <h1 class="mb-5 text-center text-2xl font-bold">
 		{isRegistering ? 'Create Account' : 'Login Access'}
-	</h1>
+	</h1> -->
 
 	<div class="flex flex-col gap-4">
 		{#if isRegistering}
@@ -22,7 +22,7 @@
 				<EmailLoginForm />
 			</div>
 		{/if}
-
+		<!--
 		<div class="mt-4 text-center">
 			{#if isRegistering}
 				<span>Already have an account?</span>
@@ -44,5 +44,6 @@
 				</button>
 			{/if}
 		</div>
+		-->
 	</div>
 </div>

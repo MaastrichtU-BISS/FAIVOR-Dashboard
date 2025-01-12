@@ -12,11 +12,11 @@
 				type="button"
 				aria-haspopup="true"
 				aria-expanded="false"
-				class="flex h-12 w-12 items-center justify-center rounded-full transition hover:bg-base-200 active:scale-95"
+				class="hover:bg-base-200 flex h-12 w-12 items-center justify-center rounded-full transition active:scale-95"
 			>
 				<img
 					alt="User avatar"
-					class="size-8 cursor-pointer rounded-full ring-primary ring-offset-2 ring-offset-base-100"
+					class="ring-primary ring-offset-base-100 size-8 cursor-pointer rounded-full ring-offset-2"
 					class:ring-2={$page.data.session?.user?.roles?.includes(Role.ADMIN)}
 					src={$page.data?.session?.user?.image ?? '/images/profile.avif'}
 					referrerpolicy="no-referrer"
@@ -29,7 +29,7 @@
 					}}
 				/>
 			</button>
-			<ul class="menu dropdown-content z-[1] w-52 rounded-box bg-base-100 p-2 shadow" role="menu">
+			<ul class="menu dropdown-content rounded-box bg-base-100 z-[1] w-52 p-2 shadow" role="menu">
 				<li class="flex gap-2">
 					<a href="/profile" class="flex items-center gap-2">Profile</a>
 				</li>
@@ -37,9 +37,9 @@
 					<li class="flex gap-2">
 						<a
 							href="/admin"
-							class="hover:text-primary-focus flex items-center gap-2 font-medium text-primary"
+							class="hover:text-primary-focus text-primary flex items-center gap-2 font-medium"
 						>
-							<span class="rounded-md bg-primary/10 p-1">Admin Panel</span>
+							<span class="bg-primary/10 rounded-md p-1">Admin Panel</span>
 						</a>
 					</li>
 				{/if}
@@ -52,21 +52,5 @@
 			</ul>
 		</div>
 		<!-- Not logged in-->
-	{:else}
-		<div>
-			<div>
-				<label for="login-modal" class="modal-button btn btn-primary btn-md">Login access</label>
-				<input id="login-modal" type="checkbox" class="modal-toggle" />
-				<div class="modal h-screen">
-					<div class="modal-box">
-						<LoginForm />
-
-						<div class="modal-action">
-							<label for="login-modal" class="btn">Close</label>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
 	{/if}
 </div>

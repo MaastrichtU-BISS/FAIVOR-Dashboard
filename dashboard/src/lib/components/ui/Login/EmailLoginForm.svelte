@@ -82,9 +82,9 @@
 			/>
 		</div>
 
-		{#if error}
+		<!-- {#if error}
 			<div class="alert alert-error" role="alert">{error}</div>
-		{/if}
+		{/if} -->
 
 		<button
 			type="submit"

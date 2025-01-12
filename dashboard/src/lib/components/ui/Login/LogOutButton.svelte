@@ -2,7 +2,7 @@
 	import { signOut } from '@auth/sveltekit/client';
 
 	async function handleSignOut() {
-		await signOut({ callbackUrl: '/?signout' });
+		await signOut();
 	}
 </script>
 

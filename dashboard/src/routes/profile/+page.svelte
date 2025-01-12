@@ -15,9 +15,9 @@
 	{#if $page.data.session}
 		<UserInfo />
 
-		{#if dev}
+		<!-- {#if dev}
 			<pre>{JSON.stringify($page.data.session, null, 2)}</pre>
-		{/if}
+		{/if} -->
 	{:else}
 		Not logged in
 	{/if}
