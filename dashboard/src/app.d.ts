@@ -1,5 +1,5 @@
-// See https://kit.svelte.dev/docs/types#app
-// for information about these interfaces
+import type { DefaultSession } from '@auth/core/types';
+
 declare global {
 	namespace App {
 		// interface Error {}
@@ -9,4 +9,14 @@ declare global {
 	}
 }
 
-export {};
+interface CustomUser extends DefaultSession['user'] {
+	id: string;
+	name: string;
+	roles: string[];
+}
+
+export interface CustomSession extends DefaultSession {
+	user: CustomUser;
+}
+
+export { };

@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { pool } from '$lib/db/db';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 export const POST: RequestHandler = async ({ request }) => {
-  const { email, password } = await request.json();
+  const { email, password, name } = await request.json();
 
   try {
     // Check if user already exists
@@ -18,8 +18,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
     // Insert new user
     const result = await pool.query(
-      'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email',
-      [email, hashedPassword]
+      'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name',
+      [email, hashedPassword, name]
     );
 
     return json({ user: result.rows[0] });

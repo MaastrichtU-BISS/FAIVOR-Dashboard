@@ -42,9 +42,10 @@ export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth({
     async jwt({ token, user }) {
       if (user) {
         // Get user data including role on initial sign in
-        const userData = (await pool.query('SELECT id, role FROM users WHERE id = $1', [user.id])).rows[0];
+        const userData = (await pool.query('SELECT id, role, name FROM users WHERE id = $1', [user.id])).rows[0];
         token.id = userData.id;
         token.role = userData.role || 'user';
+        token.name = userData.name;
       }
       return token;
     },
@@ -56,6 +57,7 @@ export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth({
         user: {
           ...session.user,
           id: token.id as string,
+          name: token.name as string,
           roles: [token.role as string] // Use role from JWT token
         }
       } as CustomSession;
