@@ -72,7 +72,7 @@
 	<div class="flex items-center justify-between">
 		<div>
 			<h1 class="text-2xl font-bold">User Management</h1>
-			<div class="badge badge-primary mt-2">{users.length} Users</div>
+			<div class="badge mt-2">{users.length} Users</div>
 		</div>
 
 		<CreateUserModal

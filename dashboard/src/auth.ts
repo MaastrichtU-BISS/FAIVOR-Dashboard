@@ -39,13 +39,15 @@ export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth({
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         // Get user data including role on initial sign in
         const userData = (await pool.query('SELECT id, role, name FROM users WHERE id = $1', [user.id])).rows[0];
         token.id = userData.id;
         token.role = userData.role || 'user';
         token.name = userData.name;
+        // Store the provider in the token
+        token.provider = account?.provider || 'credentials';
       }
       return token;
     },
@@ -54,6 +56,7 @@ export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth({
 
       return {
         ...session,
+        provider: token.provider as string,
         user: {
           ...session.user,
           id: token.id as string,

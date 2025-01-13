@@ -1,6 +1,11 @@
 <script lang="ts">
 	// import LogOutButton from '$lib/components/Login/LogOutButton.svelte';
 	import { page } from '$app/stores';
+	import Key from '~icons/lucide/key';
+	import ChangePasswordModal from './ChangePasswordModal.svelte';
+
+	let showPasswordModal = false;
+	$: isCredentialsProvider = $page.data?.session?.provider === 'credentials';
 </script>
 
 <div class="w-11/12">
@@ -34,10 +39,16 @@
 				</div>
 			</div>
 
-			<!-- <pre>{JSON.stringify($page.data?.session?.user, null, 2)}</pre> -->
-
 			<!-- <LogOutButton /> -->
+			{#if isCredentialsProvider}
+				<button class="btn btn-outline mt-4" on:click={() => (showPasswordModal = true)}>
+					<Key />
+					Change Password
+				</button>
+			{/if}
 		</div>
 	</div>
-	<div class="border-base-300 border-b"></div>
+	<div class="border-b border-base-300"></div>
+
+	<ChangePasswordModal bind:showModal={showPasswordModal} />
 </div>
