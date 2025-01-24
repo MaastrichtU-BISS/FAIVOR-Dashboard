@@ -6,13 +6,15 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
+    "migrate": "source .env.local && node-pg-migrate",
+    "migrate:production": "source .env && node-pg-migrate",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write .",
     "postbuild": "vite build --mode preview",
-    "seed:dev": "bun scripts/seed-data.ts",
-    "seed:clean": "bun scripts/seed-data.ts --clean"
+    "seed:dev": "source .env.local && psql $DATABASE_URL -f seed-database/seed.sql",
+    "seed:clean": "source .env.local && psql $DATABASE_URL -f seed-database/seed.sql"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.2.11",
@@ -59,6 +61,7 @@
     "vite": "^6.0.5",
     "vite-plugin-restart": "^0.4.2",
     "vite-plugin-static-copy": "^2.2.0",
+    "dotenv": "^16.4.7",
     "vitest": "^2.1.8"
   },
   "type": "module",
@@ -72,12 +75,10 @@
     "bcryptjs": "^2.4.3",
     "chart.js": "^4.4.7",
     "date-fns": "^4.1.0",
-    "dotenv": "^16.4.7",
     "node-html-parser": "^6.1.13",
     "node-pg-migrate": "^7.8.0",
     "pg": "^8.13.1",
     "postgres": "^3.4.5",
-    "sortablejs": "^1.15.6",
     "svelte-french-toast": "^1.2.0",
     "svelte-persisted-store": "^0.12.0",
     "theme-change": "^2.5.0",

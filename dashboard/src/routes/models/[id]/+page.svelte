@@ -16,10 +16,10 @@
 	}
 
 	let { data }: Props = $props();
-	import type { Model } from '$lib/stores/models/index.svelte';
+	import type { Model } from '$lib/stores/models/types';
 
 	const { model } = data;
-	$: typedModel = model as Model;
+	let typedModel = $derived(model as Model);
 
 	const handleGoBack = () => {
 		goto('/models');
@@ -42,21 +42,23 @@
 		};
 	}
 
-	$: validationJobs = typedModel.validations?.latest
-		? [
-				{
-					val_id: 'latest',
-					start_datetime: typedModel.validations.latest.date,
-					validation_status: typedModel.validations.latest.status,
-					validation_result: {
-						dataProvided: true,
-						dataCharacteristics: true,
-						metrics: true,
-						published: typedModel.validations.latest.status === 'completed'
+	let validationJobs = $derived(
+		typedModel.validations?.latest
+			? [
+					{
+						val_id: 'latest',
+						start_datetime: typedModel.validations.latest.date,
+						validation_status: typedModel.validations.latest.status,
+						validation_result: {
+							dataProvided: true,
+							dataCharacteristics: true,
+							metrics: true,
+							published: typedModel.validations.latest.status === 'completed'
+						}
 					}
-				}
-			]
-		: [];
+				]
+			: []
+	);
 </script>
 
 <div class="container mx-auto space-y-8 p-4">
