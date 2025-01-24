@@ -2,51 +2,48 @@
 	import MaterialSymbolsSearch from '~icons/material-symbols/search';
 	import MaterialSymbolsClose from '~icons/material-symbols/close';
 	import MaterialSymbolsDocumentScannerOutline from '~icons/material-symbols/document-scanner-outline';
+	import { searchModels } from '$lib/stores/models/index.svelte';
+	import type { Model } from '$lib/stores/models/index.svelte';
 
-	export let isOpen = false;
+	const props = $props();
 
-	const dummyModels = [
-		{
-			name: 'Model name 1',
-			description: 'Description of model 1'
-		},
-		{
-			name: 'Model name 2',
-			description: 'Description of model 2'
-		},
-		{
-			name: 'Model name 3',
-			description: 'Description of model 3'
-		},
-		{
-			name: 'Model name 4',
-			description: 'Description of model 4'
+	let searchQuery = $state('');
+	let searchResults = $state<Model[]>([]);
+	let isSearching = $state(false);
+
+	$effect(() => {
+		if (!searchQuery) {
+			searchResults = [];
+			return;
 		}
-	];
 
-	let searchQuery = '';
+		const debounce = setTimeout(async () => {
+			isSearching = true;
+			try {
+				searchResults = await searchModels(searchQuery);
+			} catch (error) {
+				console.error('Error searching models:', error);
+				searchResults = [];
+			} finally {
+				isSearching = false;
+			}
+		}, 300);
 
-	const filteredModels = () => {
-		if (!searchQuery) return dummyModels;
-		const query = searchQuery.toLowerCase();
-		return dummyModels.filter(
-			(model) =>
-				model.name.toLowerCase().includes(query) || model.description.toLowerCase().includes(query)
-		);
-	};
+		return () => clearTimeout(debounce);
+	});
 
-	const handleUseModel = (model: (typeof dummyModels)[0]) => {
-		console.log('Using model:', model.name);
-		isOpen = false;
+	const handleUseModel = (model: Model) => {
+		window.location.href = `/models/${encodeURIComponent(model.checkpoint_id)}`;
+		props.onClose?.();
 	};
 </script>
 
-<dialog class="modal" class:modal-open={isOpen}>
+<dialog class="modal" class:modal-open={props.open}>
 	<div class="modal-box max-w-6xl">
 		<!-- Top bar -->
 		<div class="mb-6 flex items-center justify-between">
 			<h3 class="text-2xl font-bold">Available models</h3>
-			<button class="btn btn-ghost btn-sm" on:click={() => (isOpen = false)}>
+			<button class="btn btn-ghost btn-sm" on:click={props.onClose}>
 				<MaterialSymbolsClose class="h-5 w-5" />
 			</button>
 		</div>
@@ -70,19 +67,39 @@
 
 				<!-- Models list -->
 				<div class="mb-6 space-y-4">
-					{#each filteredModels() as model}
-						<div class="bg-base-200 flex items-center justify-between rounded-lg p-4">
-							<div>
-								<h4 class="font-semibold">{model.name}</h4>
-								<p class="text-base-content/70">{model.description}</p>
-							</div>
-							<button class="btn btn-primary gap-2" on:click={() => handleUseModel(model)}>
-								Use model
-							</button>
+					{#if isSearching}
+						<div class="flex justify-center py-8">
+							<span class="loading loading-spinner loading-lg"></span>
 						</div>
-					{/each}
+					{:else if searchResults.length === 0 && searchQuery}
+						<div class="text-base-content/70 py-8 text-center">
+							No models found matching "{searchQuery}"
+						</div>
+					{:else if searchResults.length > 0}
+						{#each searchResults as model}
+							<div class="bg-base-200 flex items-center justify-between rounded-lg p-4">
+								<div>
+									<h4 class="font-semibold">{model.fair_model_id}</h4>
+									<p class="text-base-content/70">{model.description}</p>
+									{#if model.metadata.applicabilityCriteria}
+										<div class="mt-2 flex flex-wrap gap-2">
+											{#each model.metadata.applicabilityCriteria as criteria}
+												<span class="badge badge-sm badge-outline">{criteria}</span>
+											{/each}
+										</div>
+									{/if}
+								</div>
+								<button class="btn btn-primary gap-2" on:click={() => handleUseModel(model)}>
+									View model
+								</button>
+							</div>
+						{/each}
+					{:else}
+						<div class="text-base-content/70 py-8 text-center">Type to search for models</div>
+					{/if}
 				</div>
 			</div>
+
 			<!-- Learn how to containerize -->
 			<div class="btn btn-outline text-left">
 				<MaterialSymbolsDocumentScannerOutline class="mr-2 h-8 w-8" />
@@ -93,6 +110,6 @@
 		</div>
 	</div>
 	<form method="dialog" class="modal-backdrop">
-		<button on:click={() => (isOpen = false)}>close</button>
+		<button on:click={props.onClose}>close</button>
 	</form>
 </dialog>

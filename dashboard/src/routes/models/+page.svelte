@@ -1,21 +1,50 @@
 <script lang="ts">
+	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
-	import { models } from './models-api-example';
 	import SearchModelsModal from '$lib/components/ui/models/SearchModelsModal.svelte';
+
+	const props = $props();
+	const models = $derived(props.data.models);
 
 	let modelUrl = $state('');
 	let isSearchModalOpen = $state(false);
+	let isImporting = $state(false);
 
-	const handleImport = () => {
-		console.log('Importing model:', modelUrl);
-	};
+	async function handleImport() {
+		if (!modelUrl) return;
+
+		isImporting = true;
+		try {
+			const response = await fetch('/api/models', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ url: modelUrl })
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to import model');
+			}
+
+			// Refresh the page to show the new model
+			window.location.reload();
+		} catch (error) {
+			console.error('Error importing model:', error);
+			// TODO: Show error toast
+		} finally {
+			isImporting = false;
+		}
+	}
 
 	const handleFindRepositories = () => {
 		isSearchModalOpen = true;
 	};
 
-	const handleModelClick = (modelName: string) => {
-		goto(`/models/${encodeURIComponent(modelName)}`);
+	const handleModelClick = (checkpointId: string) => {
+		goto(`/models/${encodeURIComponent(checkpointId)}`);
+	};
+
+	const handleModalClose = () => {
+		isSearchModalOpen = false;
 	};
 </script>
 
@@ -68,21 +97,33 @@
 				<!-- Body -->
 				<tbody>
 					{#each models as model}
-						<tr class="hover cursor-pointer" on:click={() => handleModelClick(model.name)}>
-							<td>{model.name}</td>
+						<tr class="hover cursor-pointer" on:click={() => handleModelClick(model.checkpoint_id)}>
+							<td>{model.fair_model_id}</td>
 							<td>{model.description}</td>
-							<td class="text-center">{model.validations}</td>
-							<td class="text-center">{model.lastValidation}</td>
+							<td class="text-center">{model.validations?.count ?? 0}</td>
 							<td class="text-center">
-								<span
-									class="badge {model.status === 'Done'
-										? 'badge-success'
-										: model.status === 'Failed'
-											? 'badge-error'
-											: 'badge-warning'}"
-								>
-									{model.status}
-								</span>
+								{#if model.validations?.latest}
+									{new Date(model.validations.latest.date).toLocaleDateString()}
+								{:else}
+									-
+								{/if}
+							</td>
+							<td class="text-center">
+								{#if model.validations?.latest}
+									<span
+										class="badge {model.validations.latest.status === 'completed'
+											? 'badge-success'
+											: model.validations.latest.status === 'failed'
+												? 'badge-error'
+												: model.validations.latest.status === 'running'
+													? 'badge-warning'
+													: 'badge-ghost'}"
+									>
+										{model.validations.latest.status}
+									</span>
+								{:else}
+									<span class="badge badge-ghost">No validations</span>
+								{/if}
 							</td>
 						</tr>
 					{/each}
@@ -92,4 +133,4 @@
 	</div>
 </div>
 
-<SearchModelsModal bind:isOpen={isSearchModalOpen} />
+<SearchModelsModal open={isSearchModalOpen} onClose={handleModalClose} />

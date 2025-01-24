@@ -1,15 +1,25 @@
-import type { PageLoad } from './$types';
+import type { PageLoad } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
-import { models } from '../models-api-example';
 
-export const load: PageLoad = ({ params }) => {
-  const model = models.find(m => m.name === decodeURIComponent(params.id));
+export const load = (async ({ fetch, params }) => {
+  try {
+    const response = await fetch(`/api/models/${params.id}`);
+    if (!response.ok) {
+      throw error(response.status, 'Failed to load model');
+    }
 
-  if (!model) {
-    throw error(404, 'Model not found');
+    const data = await response.json();
+    if (!data.success) {
+      throw error(500, data.error || 'Failed to load model');
+    }
+
+    return {
+      model: data.model
+    };
+  } catch (e) {
+    if (e instanceof Error) {
+      throw error(500, e.message);
+    }
+    throw error(500, 'Failed to load model');
   }
-
-  return {
-    model
-  };
-};
+}) satisfies PageLoad;

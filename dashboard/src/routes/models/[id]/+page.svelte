@@ -16,7 +16,10 @@
 	}
 
 	let { data }: Props = $props();
+	import type { Model } from '$lib/stores/models/index.svelte';
+
 	const { model } = data;
+	$: typedModel = model as Model;
 
 	const handleGoBack = () => {
 		goto('/models');
@@ -27,40 +30,33 @@
 		console.log('Downloading CSV...');
 	};
 
-	const validationJobs = [
-		{
-			name: 'Short validation_1',
-			lastModified: '22 Jun 2025',
-			dataProvided: true,
-			dataCharacteristics: false,
-			metrics: false,
-			published: false
-		},
-		{
-			name: 'Full validation',
-			lastModified: '03 March 2025',
-			dataProvided: true,
-			dataCharacteristics: false,
-			metrics: true,
-			published: true
-		},
-		{
-			name: 'Quality assurance (monitoring)',
-			lastModified: '12 May 2024',
-			dataProvided: true,
-			dataCharacteristics: true,
-			metrics: true,
-			published: true
-		},
-		{
-			name: 'Short validation_2',
-			lastModified: '22 Jun 2025',
-			dataProvided: true,
-			dataCharacteristics: false,
-			metrics: false,
-			published: false
-		}
-	];
+	interface ValidationJob {
+		val_id: string;
+		start_datetime: string;
+		validation_status: 'pending' | 'running' | 'completed' | 'failed';
+		validation_result: {
+			dataProvided?: boolean;
+			dataCharacteristics?: boolean;
+			metrics?: boolean;
+			published?: boolean;
+		};
+	}
+
+	$: validationJobs = typedModel.validations?.latest
+		? [
+				{
+					val_id: 'latest',
+					start_datetime: typedModel.validations.latest.date,
+					validation_status: typedModel.validations.latest.status,
+					validation_result: {
+						dataProvided: true,
+						dataCharacteristics: true,
+						metrics: true,
+						published: typedModel.validations.latest.status === 'completed'
+					}
+				}
+			]
+		: [];
 </script>
 
 <div class="container mx-auto space-y-8 p-4">
@@ -76,8 +72,45 @@
 			<MaterialSymbolsScreenshotMonitorOutline class="h-8 w-8" />
 		</div>
 		<div>
-			<h1 class="text-2xl font-bold">{model.name}</h1>
-			<p class="text-base-content/70">{model.description}</p>
+			<h1 class="text-2xl font-bold">{typedModel.fair_model_id}</h1>
+			<p class="text-base-content/70">{typedModel.description}</p>
+			<div class="mt-2 flex flex-wrap gap-2">
+				{#if typedModel.metadata.applicabilityCriteria}
+					{#each typedModel.metadata.applicabilityCriteria as criteria}
+						<span class="badge badge-outline">{criteria}</span>
+					{/each}
+				{/if}
+			</div>
+			<div class="text-base-content/70 mt-4 text-sm">
+				<p>
+					<strong>Primary Use:</strong>
+					{typedModel.metadata.primaryIntendedUse}
+				</p>
+				<p>
+					<strong>Repository:</strong>
+					<a
+						href={typedModel.fair_model_url}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="link"
+					>
+						{typedModel.fair_model_url}
+					</a>
+				</p>
+				{#if typedModel.metadata.reference.paper}
+					<p>
+						<strong>Paper:</strong>
+						<a
+							href={typedModel.metadata.reference.paper}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="link"
+						>
+							View Paper
+						</a>
+					</p>
+				{/if}
+			</div>
 		</div>
 	</div>
 
@@ -96,55 +129,78 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each validationJobs as job}
-					<tr class="hover">
-						<td>{job.name}</td>
-						<td>{job.lastModified}</td>
-						<td>
-							<div class="w-8">
-								{#if job.dataCharacteristics}
-									<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
-								{:else}
-									<MaterialSymbolsClose class="text-error h-6 w-6" />
-								{/if}
-							</div>
-						</td>
-						<td>
-							<div class="w-8">
-								{#if job.metrics}
-									<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
-								{:else}
-									<MaterialSymbolsClose class="text-error h-6 w-6" />
-								{/if}
-							</div>
-						</td>
-						<td>
-							<button class="btn btn-sm">View details</button>
-						</td>
-						<td>
-							<div class="dropdown dropdown-end">
-								<button tabindex="0" class="btn btn-ghost btn-circle">
-									<MaterialSymbolsMoreVert class="h-5 w-5" />
-								</button>
-								<ul
-									tabindex="0"
-									class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow"
-								>
-									<li>
-										<button class="flex items-center gap-2">
-											<MaterialSymbolsContentCopyOutline class="h-5 w-5" />Duplicate
-										</button>
-									</li>
-									<li>
-										<button class="flex items-center gap-2">
-											<MaterialSymbolsDeleteOutline class="h-5 w-5" />Delete
-										</button>
-									</li>
-								</ul>
-							</div>
+				{#if validationJobs.length === 0}
+					<tr>
+						<td colspan="7" class="text-base-content/70 text-center">
+							No validations yet. Click the button below to start a new validation.
 						</td>
 					</tr>
-				{/each}
+				{:else}
+					{#each validationJobs as job}
+						<tr class="hover">
+							<td>Validation {job.val_id}</td>
+							<td>{new Date(job.start_datetime).toLocaleDateString()}</td>
+							<td>
+								<div class="w-8">
+									{#if job.validation_result.dataProvided}
+										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
+									{:else}
+										<MaterialSymbolsClose class="text-error h-6 w-6" />
+									{/if}
+								</div>
+							</td>
+							<td>
+								<div class="w-8">
+									{#if job.validation_result.dataCharacteristics}
+										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
+									{:else}
+										<MaterialSymbolsClose class="text-error h-6 w-6" />
+									{/if}
+								</div>
+							</td>
+							<td>
+								<div class="w-8">
+									{#if job.validation_result.metrics}
+										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
+									{:else}
+										<MaterialSymbolsClose class="text-error h-6 w-6" />
+									{/if}
+								</div>
+							</td>
+							<td>
+								<div class="w-8">
+									{#if job.validation_result.published}
+										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
+									{:else}
+										<MaterialSymbolsClose class="text-error h-6 w-6" />
+									{/if}
+								</div>
+							</td>
+							<td>
+								<div class="dropdown dropdown-end">
+									<button tabindex="0" class="btn btn-ghost btn-circle">
+										<MaterialSymbolsMoreVert class="h-5 w-5" />
+									</button>
+									<ul
+										tabindex="0"
+										class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow"
+									>
+										<li>
+											<button class="flex items-center gap-2">
+												<MaterialSymbolsContentCopyOutline class="h-5 w-5" />Duplicate
+											</button>
+										</li>
+										<li>
+											<button class="flex items-center gap-2">
+												<MaterialSymbolsDeleteOutline class="h-5 w-5" />Delete
+											</button>
+										</li>
+									</ul>
+								</div>
+							</td>
+						</tr>
+					{/each}
+				{/if}
 			</tbody>
 		</table>
 	</div>
