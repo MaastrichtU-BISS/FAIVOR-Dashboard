@@ -1,25 +1,22 @@
 # Build stage
-FROM node:20-alpine AS builder
-
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json bun.lockb ./
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN bun install
 
 # Copy source code
 COPY . .
 
 # Build the application
-RUN pnpm build
+RUN bun run build
 
 # Production stage
-FROM node:20-alpine
+FROM oven/bun:1
 
 WORKDIR /app
 
@@ -32,4 +29,4 @@ COPY --from=builder /app/node_modules ./node_modules
 EXPOSE 3000
 
 # Start the application
-CMD ["node", "build"]
+CMD ["bun", "build"]
