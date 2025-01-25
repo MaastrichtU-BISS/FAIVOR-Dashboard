@@ -1,9 +1,7 @@
-import postgres from 'postgres';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { DBModelRow, ValidationRow } from '$lib/stores/models/types';
-
-const sql = postgres();
+import { sql } from '$lib/db/db';
 
 export const GET: RequestHandler = async ({ params }) => {
   const id = params.id;
@@ -41,7 +39,10 @@ export const GET: RequestHandler = async ({ params }) => {
       }
     };
 
-    return json(result);
+    return json({
+      success: true,
+      model: result
+    });
   } catch (e) {
     console.error('Error loading model:', e);
     return new Response(JSON.stringify({ error: 'Failed to load model' }), {
