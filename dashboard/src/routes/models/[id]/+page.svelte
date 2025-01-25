@@ -117,8 +117,8 @@
 	</div>
 
 	<!-- Validation Jobs Table -->
-	<div class="overflow-x-auto">
-		<table class="table h-full w-full">
+	<div>
+		<table class="table">
 			<thead>
 				<tr>
 					<th>Validation Jobs</th>
@@ -206,7 +206,6 @@
 			</tbody>
 		</table>
 	</div>
-
 	<!-- Add Validation Job Button -->
 	<NewValidationButton />
 </div>
