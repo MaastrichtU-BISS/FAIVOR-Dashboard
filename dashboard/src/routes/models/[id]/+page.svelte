@@ -88,11 +88,16 @@
 </script>
 
 <div class="container mx-auto space-y-8 p-4">
-	<!-- Back Button -->
-	<button class="btn btn-ghost gap-2" on:click={handleGoBack}>
-		<MaterialSymbolsArrowBack class="h-6 w-6" />
-		Go Back
-	</button>
+	<div class="flex justify-between">
+		<!-- Back Button -->
+		<button class="btn btn-ghost gap-2" on:click={handleGoBack}>
+			<MaterialSymbolsArrowBack class="h-6 w-6" />
+			Go Back
+		</button>
+
+		<!-- Add Validation Job Button -->
+		<button class="btn btn-primary" on:click={openNewValidation}>New Validation</button>
+	</div>
 
 	<!-- Model Header -->
 	<div class="flex items-start gap-4">
@@ -236,9 +241,6 @@
 			</tbody>
 		</table>
 	</div>
-
-	<!-- Add Validation Job Button -->
-	<button class="btn btn-primary" on:click={openNewValidation}>New Validation</button>
 
 	<SharedValidationModal
 		bind:open={isModalOpen}
