@@ -9,7 +9,8 @@
 	import MaterialSymbolsMoreVert from '~icons/material-symbols/more-vert';
 	import MaterialSymbolsContentCopyOutline from '~icons/material-symbols/content-copy-outline';
 	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
-	import NewValidationButton from '$lib/components/ui/validation/NewValidationButton.svelte';
+	import SharedValidationModal from '$lib/components/ui/validation/SharedValidationModal.svelte';
+	import { stopPropagation } from 'svelte/legacy';
 
 	interface Props {
 		data: PageData;
@@ -40,6 +41,10 @@
 			metrics?: boolean;
 			published?: boolean;
 		};
+		userName?: string;
+		datasetDescription?: string;
+		metricsDescription?: string;
+		performanceMetrics?: string;
 	}
 
 	let validationJobs = $derived(
@@ -59,6 +64,27 @@
 				]
 			: []
 	);
+
+	let isModalOpen = $state(false);
+	let selectedValidation = $state<ValidationJob | undefined>(undefined);
+	let modalMode = $state<'create' | 'view' | 'edit'>('create');
+
+	function openNewValidation() {
+		selectedValidation = undefined;
+		modalMode = 'create';
+		isModalOpen = true;
+	}
+
+	function openValidation(validation: ValidationJob) {
+		selectedValidation = validation;
+		modalMode = 'view';
+		isModalOpen = true;
+	}
+
+	function handleModalClose() {
+		isModalOpen = false;
+		selectedValidation = undefined;
+	}
 </script>
 
 <div class="container mx-auto space-y-8 p-4">
@@ -139,10 +165,14 @@
 					</tr>
 				{:else}
 					{#each validationJobs as job}
-						<tr class="hover">
-							<td>Validation {job.val_id}</td>
-							<td>{new Date(job.start_datetime).toLocaleDateString()}</td>
-							<td>
+						<tr class="hover cursor-pointer">
+							<td on:click={() => openValidation(job)}>
+								Validation {job.val_id}
+							</td>
+							<td on:click={() => openValidation(job)}>
+								{new Date(job.start_datetime).toLocaleDateString()}
+							</td>
+							<td on:click={() => openValidation(job)}>
 								<div class="w-8">
 									{#if job.validation_result.dataProvided}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
@@ -151,7 +181,7 @@
 									{/if}
 								</div>
 							</td>
-							<td>
+							<td on:click={() => openValidation(job)}>
 								<div class="w-8">
 									{#if job.validation_result.dataCharacteristics}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
@@ -160,7 +190,7 @@
 									{/if}
 								</div>
 							</td>
-							<td>
+							<td on:click={() => openValidation(job)}>
 								<div class="w-8">
 									{#if job.validation_result.metrics}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
@@ -169,7 +199,7 @@
 									{/if}
 								</div>
 							</td>
-							<td>
+							<td on:click={() => openValidation(job)}>
 								<div class="w-8">
 									{#if job.validation_result.published}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
@@ -206,6 +236,14 @@
 			</tbody>
 		</table>
 	</div>
+
 	<!-- Add Validation Job Button -->
-	<NewValidationButton />
+	<button class="btn btn-primary" on:click={openNewValidation}>New Validation</button>
+
+	<SharedValidationModal
+		bind:open={isModalOpen}
+		validation={selectedValidation}
+		mode={modalMode}
+		on:close={handleModalClose}
+	/>
 </div>

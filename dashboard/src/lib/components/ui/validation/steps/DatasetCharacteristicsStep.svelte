@@ -1,19 +1,20 @@
 <script lang="ts">
 	interface Props {
 		datasetDescription?: string;
+		readonly?: boolean;
 	}
 
-	let { datasetDescription = $bindable('') }: Props = $props();
+	let { datasetDescription = $bindable(''), readonly = false }: Props = $props();
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<div>
-		<label class="label" for="datasetDescription">Dataset description</label>
+		<h3 class="text-lg font-medium">Dataset characteristics</h3>
 		<textarea
-			id="datasetDescription"
 			class="textarea textarea-bordered h-48 w-full"
-			placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
+			placeholder="Description of dataset characteristics"
 			bind:value={datasetDescription}
+			{readonly}
 		></textarea>
 	</div>
 </div>

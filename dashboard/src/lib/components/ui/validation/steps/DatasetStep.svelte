@@ -10,13 +10,16 @@
 		userName?: string;
 		date?: string;
 		uploadedFile?: File | null;
+		readonly?: boolean;
 	}
 
 	let {
 		userName = $bindable(''),
 		date = $bindable(''),
-		uploadedFile = $bindable(null)
+		uploadedFile = $bindable(null),
+		readonly = false
 	}: Props = $props();
+
 	let datasetDescription = $state('');
 	let datasetCharacteristics = $state('');
 	let isDragging = $state(false);
@@ -31,16 +34,19 @@
 	}
 
 	function handleDragEnter(event: DragEvent) {
+		if (readonly) return;
 		event.preventDefault();
 		isDragging = true;
 	}
 
 	function handleDragOver(event: DragEvent) {
+		if (readonly) return;
 		event.preventDefault();
 		isDragging = true;
 	}
 
 	function handleDragLeave(event: DragEvent) {
+		if (readonly) return;
 		event.preventDefault();
 		const target = event.target as HTMLElement;
 		if (target === dropZone) {
@@ -49,6 +55,7 @@
 	}
 
 	function handleDrop(event: DragEvent) {
+		if (readonly) return;
 		event.preventDefault();
 		isDragging = false;
 
@@ -59,10 +66,12 @@
 	}
 
 	function handleClick() {
+		if (readonly) return;
 		fileInput?.click();
 	}
 
 	function removeFile() {
+		if (readonly) return;
 		uploadedFile = null;
 		if (fileInput) {
 			fileInput.value = '';
@@ -91,15 +100,22 @@
 				class="input input-bordered w-full"
 				placeholder="Add user name (Sam Smith)"
 				bind:value={userName}
+				{readonly}
 			/>
 		</div>
 
 		<div>
 			<label class="label" for="date">Date</label>
-			<input type="date" id="date" class="input input-bordered w-full" bind:value={date} />
+			<input
+				type="date"
+				id="date"
+				class="input input-bordered w-full"
+				bind:value={date}
+				{readonly}
+			/>
 		</div>
 
-		<div>
+		{#if !readonly}
 			<div
 				bind:this={dropZone}
 				class="border-base-300 hover:border-primary/50 relative cursor-pointer rounded-lg border-2 border-dashed p-8 transition-all duration-200 ease-in-out {isDragging
@@ -141,7 +157,14 @@
 					</div>
 				{/if}
 			</div>
-		</div>
+		{:else if uploadedFile}
+			<div class="border-base-300 rounded-lg border-2 p-4">
+				<div class="flex items-center gap-2">
+					<p>Uploaded file:</p>
+					<p class="text-success">{uploadedFile.name}</p>
+				</div>
+			</div>
+		{/if}
 	</div>
 
 	<!-- Right Column -->
@@ -153,6 +176,7 @@
 					class="textarea textarea-bordered h-48 w-full"
 					placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
 					bind:value={datasetDescription}
+					{readonly}
 				></textarea>
 			</div>
 			<div>
@@ -161,28 +185,33 @@
 					class="textarea textarea-bordered h-48 w-full"
 					placeholder="Characteristics of dataset that are not given in the data file (as sex distribution, ethnicity, characteristics of groups)"
 					bind:value={datasetCharacteristics}
+					{readonly}
 				></textarea>
 			</div>
 		</div>
 
 		<!-- Right Column -->
 		<div class="mt-8 space-y-4">
-			<div>
-				<button class="btn btn-outline w-auto gap-2" onclick={calculateSummary}>
-					<SolarCalculatorMinimalisticLinear />
-					Calculate the summary
-				</button>
-			</div>
+			{#if !readonly}
+				<div>
+					<button class="btn btn-outline w-auto gap-2" onclick={calculateSummary}>
+						<SolarCalculatorMinimalisticLinear />
+						Calculate the summary
+					</button>
+				</div>
+			{/if}
 			<textarea
 				class="textarea textarea-bordered h-48 w-full"
 				placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
 				readonly
 			></textarea>
 
-			<button class="btn btn-outline gap-2" onclick={checkDataset}>
-				<MaterialSymbolsCheck />
-				Check the dataset
-			</button>
+			{#if !readonly}
+				<button class="btn btn-outline gap-2" onclick={checkDataset}>
+					<MaterialSymbolsCheck />
+					Check the dataset
+				</button>
+			{/if}
 			<textarea
 				class="textarea textarea-bordered h-48 w-full"
 				placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
