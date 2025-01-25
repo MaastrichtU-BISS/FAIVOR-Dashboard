@@ -48,20 +48,24 @@
 	}
 
 	let validationJobs = $derived(
-		typedModel.validations?.latest
-			? [
-					{
-						val_id: 'latest',
-						start_datetime: typedModel.validations.latest.date,
-						validation_status: typedModel.validations.latest.status,
-						validation_result: {
-							dataProvided: true,
-							dataCharacteristics: true,
-							metrics: true,
-							published: typedModel.validations.latest.status === 'completed'
-						}
-					}
-				]
+		typedModel.validations?.all
+			? typedModel.validations.all.map((v) => ({
+					val_id: v.val_id.toString(),
+					start_datetime: v.start_date,
+					validation_status: v.status,
+					validation_result: {
+						dataProvided: Boolean(v.dataset),
+						dataCharacteristics: Boolean(v.description),
+						metrics: Boolean(v.result?.metrics),
+						published: v.status === 'completed'
+					},
+					userName: undefined,
+					datasetDescription: v.dataset || undefined,
+					metricsDescription: v.result?.metrics
+						? JSON.stringify(v.result.metrics, null, 2)
+						: undefined,
+					performanceMetrics: undefined
+				}))
 			: []
 	);
 

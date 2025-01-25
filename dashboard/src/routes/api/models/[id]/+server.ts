@@ -35,7 +35,17 @@ export const GET: RequestHandler = async ({ params }) => {
         latest: validationRows[0] ? {
           status: validationRows[0].validation_status,
           date: validationRows[0].start_datetime
-        } : undefined
+        } : undefined,
+        all: validationRows.map(row => ({
+          val_id: row.val_id,
+          status: row.validation_status,
+          start_date: row.start_datetime,
+          end_date: row.end_datetime,
+          description: row.description,
+          dataset: row.validation_dataset,
+          result: row.validation_result,
+          user_id: row.user_id
+        }))
       }
     };
 
