@@ -78,6 +78,7 @@
     "node-html-parser": "^6.1.13",
     "node-pg-migrate": "^7.8.0",
     "pg": "^8.13.1",
+    "pg-native": "^3.2.0",
     "postgres": "^3.4.5",
     "svelte-french-toast": "^1.2.0",
     "svelte-persisted-store": "^0.12.0",
