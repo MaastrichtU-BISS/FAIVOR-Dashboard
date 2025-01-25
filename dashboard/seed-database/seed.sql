@@ -159,6 +159,61 @@ SELECT
   'training',
   'Training data statistics for LightGBM Time Series Forecaster';
 
+-- Insert additional validations for LightGBM Time Series Forecaster (Industrial IoT)
+INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, validation_result, start_datetime)
+SELECT
+  encode(digest('LightGBM Time Series Forecaster', 'sha256'), 'hex'),
+  'LightGBM Time Series Forecaster',
+  'running',
+  jsonb_build_object(
+    'metrics', jsonb_build_object(
+      'mape', 3.8,
+      'rmse', 0.072,
+      'mae', 0.058,
+      'r2Score', 0.95
+    ),
+    'validationDataset', 'Industrial IoT sensor data 2023-2024',
+    'crossValidation', 'Sequential time series validation'
+  ),
+  NOW() - interval '2 hours';
+
+-- Insert failed validation for LightGBM (Financial Market Data)
+INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, validation_result, start_datetime)
+SELECT
+  encode(digest('LightGBM Time Series Forecaster', 'sha256'), 'hex'),
+  'LightGBM Time Series Forecaster',
+  'failed',
+  jsonb_build_object(
+    'metrics', jsonb_build_object(
+      'mape', 12.5,
+      'rmse', 0.245,
+      'mae', 0.198,
+      'r2Score', 0.67
+    ),
+    'validationDataset', 'Financial market data 2023',
+    'crossValidation', 'Time series walk-forward validation',
+    'failureReason', 'Performance metrics below acceptable thresholds for financial forecasting'
+  ),
+  NOW() - interval '1 day';
+
+-- Insert completed validation for LightGBM (Weather Data)
+INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, validation_result, start_datetime)
+SELECT
+  encode(digest('LightGBM Time Series Forecaster', 'sha256'), 'hex'),
+  'LightGBM Time Series Forecaster',
+  'completed',
+  jsonb_build_object(
+    'metrics', jsonb_build_object(
+      'mape', 4.5,
+      'rmse', 0.092,
+      'mae', 0.071,
+      'r2Score', 0.91
+    ),
+    'validationDataset', 'Weather forecasting data 2022-2024',
+    'crossValidation', 'Rolling window validation'
+  ),
+  NOW() - interval '12 hours';
+
 -- BERT-Based Text Classifier
 WITH model_data AS (
   SELECT
