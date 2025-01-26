@@ -98,7 +98,7 @@
 				<tbody>
 					{#each models as model}
 						<tr class="hover cursor-pointer" on:click={() => handleModelClick(model.checkpoint_id)}>
-							<td>{model.fair_model_id}</td>
+							<td class="font-bold">{model.fair_model_id}</td>
 							<td>{model.description}</td>
 							<td class="text-center">{model.validations?.count ?? 0}</td>
 							<td class="text-center">
