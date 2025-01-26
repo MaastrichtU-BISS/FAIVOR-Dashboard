@@ -11,29 +11,6 @@ CREATE TABLE users (
   role VARCHAR(50)
 );
 
-CREATE TABLE verification_token (
-  identifier TEXT NOT NULL,
-  expires TIMESTAMPTZ NOT NULL,
-  token TEXT NOT NULL,
-  PRIMARY KEY (identifier, token)
-);
-
-CREATE TABLE accounts (
-  id SERIAL PRIMARY KEY,
-  "userId" INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  type VARCHAR(255) NOT NULL,
-  provider VARCHAR(255) NOT NULL,
-  "providerAccountId" VARCHAR(255) NOT NULL,
-  refresh_token TEXT,
-  access_token TEXT,
-  expires_at BIGINT,
-  id_token TEXT,
-  scope TEXT,
-  session_state TEXT,
-  token_type TEXT,
-  UNIQUE("provider", "providerAccountId")
-);
-
 -- Insert sample admin user (password: password)
 INSERT INTO users (name, email, password, "emailVerified", image) VALUES
 ('Alice Doe', 'alice@ctwhome.com', '$2a$12$qZNxIFh/Yayqshdz.3ZH2Oy2uORW/MqDS9NlfkIZsm6xnK5ZtCyJG', '2023-10-10', 'https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp'),
@@ -75,6 +52,4 @@ CREATE INDEX accounts_user_id_idx ON accounts ("userId");
 CREATE INDEX accounts_provider_id_idx ON accounts ("providerAccountId");
 
 -- Down Migration
-DROP TABLE accounts;
 DROP TABLE users;
-DROP TABLE verification_token;
