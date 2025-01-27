@@ -29,6 +29,7 @@ services:
       - dashboard/.env
     environment:
       - NODE_ENV=development
+      - DB_HOST=postgres
     # command: sh -c "bun install && bun run migrate:dev up && bun run dev"
     command: sh -c "bun install && DATABASE_URL='postgres://postgres:postgres@postgres:5432/faivor' bunx node-pg-migrate up && bun run dev"
     depends_on:

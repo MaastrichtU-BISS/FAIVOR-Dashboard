@@ -7,7 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "bun run build/index.js",
-    "migrate": "source .env.local && node-pg-migrate",
+    "migrate": "source .env && DATABASE_URL=postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME node-pg-migrate",
     "migrate:dev": "node-pg-migrate",
     "migrate:production": "source .env && node-pg-migrate",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
