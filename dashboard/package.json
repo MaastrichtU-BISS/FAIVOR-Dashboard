@@ -6,7 +6,9 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
+    "start": "bun run build/index.js",
     "migrate": "source .env.local && node-pg-migrate",
+    "migrate:dev": "node-pg-migrate",
     "migrate:production": "source .env && node-pg-migrate",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -14,11 +16,10 @@
     "format": "prettier --write .",
     "postbuild": "vite build --mode preview",
     "seed:dev": "source .env.local && psql $DATABASE_URL -f seed-database/seed.sql",
-    "seed:clean": "source .env.local && psql $DATABASE_URL -f seed-database/seed.sql"
+    "seed:clean": "source .env.local && psql $DATABASE_URL -f seed-database/seed.sql",
+    "seed:docker": "docker compose exec postgres psql -U postgres -d faivor -f /seed-database/seed.sql"
   },
   "devDependencies": {
-    "@sveltejs/adapter-node": "^5.2.11",
-    "@sveltejs/adapter-vercel": "^5.5.2",
     "@sveltejs/enhanced-img": "^0.4.4",
     "@sveltejs/kit": "^2.13.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
@@ -32,6 +33,7 @@
     "@vcarl/remark-headings": "^0.1.0",
     "autoprefixer": "^10.4.20",
     "daisyui": "^4.12.22",
+    "dotenv": "^16.4.7",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-svelte": "^2.46.1",
@@ -50,6 +52,7 @@
     "remark-reading-time": "^2.0.1",
     "remark-toc": "^9.0.0",
     "svelte": "^5.15.0",
+    "svelte-adapter-bun": "^0.5.2",
     "svelte-check": "^4.1.1",
     "svelte-preprocess-import-assets": "^1.1.0",
     "svelte-youtube-embed": "^0.4.2",
@@ -61,7 +64,6 @@
     "vite": "^6.0.5",
     "vite-plugin-restart": "^0.4.2",
     "vite-plugin-static-copy": "^2.2.0",
-    "dotenv": "^16.4.7",
     "vitest": "^2.1.8"
   },
   "type": "module",

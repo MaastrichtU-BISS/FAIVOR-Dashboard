@@ -7,6 +7,10 @@ import VitePluginRestart from 'vite-plugin-restart';
 
 
 export default defineConfig({
+	server: {
+		host: '0.0.0.0',
+		port: 5173
+	},
 	plugins: [
 		enhancedImages(),
 

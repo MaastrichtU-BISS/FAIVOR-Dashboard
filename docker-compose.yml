@@ -1,44 +1,53 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:latest
+    env_file:
+      - dashboard/.env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: faivor
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-faivor}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./dashboard/seed-database:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   frontend:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile
+    image: oven/bun:1
+    working_dir: /app
+    volumes:
+      - ./dashboard:/app
     ports:
-      - "3000:3000"
+      - "5173:5173"
+    env_file:
+      - dashboard/.env
     environment:
-      - NODE_ENV=production
-      - PUBLIC_DB_HOST=postgres
-      - PUBLIC_DB_PORT=5432
-      - PUBLIC_DB_USER=postgres
-      - PUBLIC_DB_PASSWORD=postgres
-      - PUBLIC_DB_NAME=faivor
+      - NODE_ENV=development
+    # command: sh -c "bun install && bun run migrate:dev up && bun run dev"
+    command: sh -c "bun install && DATABASE_URL='postgres://postgres:postgres@postgres:5432/faivor' bunx node-pg-migrate up && bun run dev"
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+
+  seed:
+    image: postgres:latest
+    env_file:
+      - dashboard/.env
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-postgres}
+    command: psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-faivor} -f /seed-database/seed.sql
+    volumes:
+      - ./dashboard/seed-database:/seed-database
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:

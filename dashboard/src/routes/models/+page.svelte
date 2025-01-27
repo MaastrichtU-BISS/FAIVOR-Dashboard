@@ -50,7 +50,7 @@
 
 <div class="container mx-auto space-y-8 p-4">
 	<!-- Header -->
-	<div class="text-2xl font-bold">ORGANIZATION NAME / LOGO</div>
+	<div class="text-2xl font-bold">ORGANIZATION NAME / LOGOoooo</div>
 
 	<!-- URL Input and Buttons -->
 	<div class="flex items-center gap-4">

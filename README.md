@@ -1,6 +1,5 @@
 # FAIRmodels-validator Dashboard
 
-
 FAIRmodels-validator Dashboard is a web application that allows users to validate their FAIRmodels.
 
 Architecture
@@ -17,49 +16,88 @@ This project includes Docker configuration for easy deployment and development. 
 - Docker installed on your system
 - Docker Compose installed on your system
 
-### Running with Docker Compose
+### Environment Setup
 
-1. Clone the repository:
+1. Create a `.env` file in the root directory:
 ```bash
-git clone https://github.com/your-username/FAIRmodels-validator.git
-cd FAIRmodels-validator
+cp dashboard/_example .env dashboard/.env
 ```
 
-2. Build and start the containers:
+2. Update the `.env` file with your desired configuration:
+- Generate an AUTH_SECRET using: `npx auth secret`
+- Modify database credentials if needed (default values are secure for local development)
+
+### Development Environment
+
+1. Start the development environment:
 ```bash
-docker compose up --build
+docker compose up
 ```
 
 This will:
-- Build the frontend container
-- Start the development server
+- Start the PostgreSQL database
+- Run database migrations automatically
+- Install dependencies
+- Start the development server with hot-reload
 - The application will be available at `http://localhost:5173`
 
-### Development with Docker
-
-- The frontend application is configured with hot-reload enabled
-- Any changes made to the source code will automatically reflect in the running container
-- Logs will be visible in the terminal where you ran `docker compose up`
-
-### Stopping the Application
-
-To stop the running containers:
+2. (Optional) Seed the database with sample data:
 ```bash
+docker compose run seed
+```
+
+### Production Deployment
+
+For production deployment, use the production Docker Compose file:
+
+```bash
+docker compose -f docker-compose.prod.yml up
+```
+
+This will:
+- Start the PostgreSQL database
+- Run database migrations
+- Build and start the production-optimized application
+- The application will be available at `http://localhost:3000`
+
+Key differences in production:
+- Uses production-optimized Node.js build
+- Runs on port 3000 instead of 5173
+- Includes health checks for both database and frontend
+- No sample data seeding available
+- No hot-reload (changes require rebuild)
+
+### Managing the Application
+
+Stop the application:
+```bash
+# Development
 docker compose down
+
+# Production
+docker compose -f docker-compose.prod.yml down
 ```
 
-### Additional Docker Commands
-
-- View running containers:
+View logs:
 ```bash
-docker ps
-```
+# All services
+docker compose logs
 
-- View container logs:
-```bash
+# Specific service
+docker compose logs postgres
 docker compose logs frontend
 ```
 
-- Rebuild containers after dependencies change:
+Remove volumes (deletes database data):
 ```bash
-docker compose up --build
+docker compose down -v
+```
+
+### Production Considerations
+
+For production deployment:
+1. Ensure your `.env` file contains secure credentials
+2. Consider using Docker secrets for sensitive data
+3. Use a reverse proxy (like Nginx) for SSL termination
+4. Configure appropriate firewall rules
+5. Set up regular database backups
