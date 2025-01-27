@@ -21,17 +21,17 @@ services:
       retries: 5
 
   frontend:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile.prod
+    image: oven/bun:1
+    working_dir: /app
+    volumes:
+      - ./dashboard:/app
     ports:
       - "${PORT:-3000}:3000"
     env_file:
-      - .env
       - dashboard/.env
     environment:
       - NODE_ENV=production
-    command: sh -c "bun run migrate up && bun run start"
+    command: sh -c "bun install && DATABASE_URL='postgres://postgres:postgres@postgres:5432/faivor' bunx node-pg-migrate up && bun run build && cd build && bun run start"
     depends_on:
       postgres:
         condition: service_healthy

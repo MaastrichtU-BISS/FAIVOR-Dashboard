@@ -101,3 +101,24 @@ For production deployment:
 3. Use a reverse proxy (like Nginx) for SSL termination
 4. Configure appropriate firewall rules
 5. Set up regular database backups
+
+### HTTPS Requirements
+
+The application requires HTTPS in production for authentication to work properly:
+- Required for Google OAuth authentication
+- Necessary for secure JWT token transmission
+- Required by Auth.js for production environments
+
+You have two options to implement HTTPS:
+
+1. Using a reverse proxy (recommended):
+   - Configure Nginx or similar to handle SSL termination
+   - Forward requests to the application
+   - Handles certificates management
+
+2. Direct HTTPS configuration:
+   Add to your production .env:
+   ```env
+   PROTOCOL_HEADER=x-forwarded-proto
+   HOST_HEADER=x-forwarded-host
+   ```
