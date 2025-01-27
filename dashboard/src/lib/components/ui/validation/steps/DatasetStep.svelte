@@ -11,14 +11,46 @@
 		date?: string;
 		uploadedFile?: File | null;
 		readonly?: boolean;
+		onFieldChange?: () => void;
 	}
 
 	let {
 		userName = $bindable(''),
 		date = $bindable(''),
 		uploadedFile = $bindable(null),
-		readonly = false
+		readonly = false,
+		onFieldChange = () => {}
 	}: Props = $props();
+
+	// Store initial values to track actual changes
+	let initialValues = $state({
+		userName: userName || '',
+		date: date || '',
+		uploadedFile: uploadedFile
+	});
+
+	// Track actual value changes
+	$effect(() => {
+		if (!readonly && onFieldChange) {
+			const hasChanges =
+				userName !== initialValues.userName ||
+				date !== initialValues.date ||
+				uploadedFile !== initialValues.uploadedFile;
+
+			if (hasChanges) {
+				onFieldChange();
+			}
+		}
+	});
+
+	// Reset initial values when props change
+	$effect(() => {
+		initialValues = {
+			userName: userName || '',
+			date: date || '',
+			uploadedFile: uploadedFile
+		};
+	});
 
 	let datasetDescription = $state('');
 	let datasetCharacteristics = $state('');
@@ -101,6 +133,7 @@
 				placeholder="Add user name (Sam Smith)"
 				bind:value={userName}
 				{readonly}
+				oninput={onFieldChange}
 			/>
 		</div>
 
@@ -112,6 +145,7 @@
 				class="input input-bordered w-full"
 				bind:value={date}
 				{readonly}
+				onchange={onFieldChange}
 			/>
 		</div>
 
@@ -142,14 +176,24 @@
 						<h3 class="text-lg font-semibold">Upload dataset</h3>
 						<p class="text-base-content/70 text-sm">or drag and drop</p>
 					</div>
-					<input bind:this={fileInput} type="file" class="hidden" onchange={handleFileUpload} />
+					<input
+						bind:this={fileInput}
+						type="file"
+						class="hidden"
+						onchange={handleFileUpload}
+						oninput={onFieldChange}
+					/>
 				</div>
 				{#if uploadedFile}
 					<div class="mt-4 flex items-center justify-center gap-2">
 						<p class="text-success">{uploadedFile.name}</p>
 						<button
 							class="btn btn-ghost btn-sm text-error"
-							onclick={stopPropagation(removeFile)}
+							onclick={(e) => {
+								e.stopPropagation();
+								removeFile();
+								onFieldChange();
+							}}
 							title="Remove file"
 						>
 							<MaterialSymbolsDeleteOutline />

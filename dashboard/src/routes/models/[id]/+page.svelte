@@ -16,11 +16,11 @@
 		data: PageData;
 	}
 
-	let { data }: Props = $props();
 	import type { Model } from '$lib/stores/models/types';
 
-	const { model } = data;
-	let typedModel = $derived(model as Model);
+	let { data }: Props = $props();
+	let modelData = $state(data.model);
+	let typedModel = $derived(modelData as Model);
 
 	const handleGoBack = () => {
 		goto('/models');
@@ -85,6 +85,54 @@
 		isModalOpen = true;
 	}
 
+	async function refreshModelData() {
+		console.log('Refreshing model data for:', typedModel.checkpoint_id);
+		const response = await fetch(`/api/models/${typedModel.checkpoint_id}`);
+		if (!response.ok) {
+			console.error('Failed to refresh model data:', response.statusText);
+			return;
+		}
+
+		const data = await response.json();
+		console.log('Received updated model data:', data);
+
+		if (data.success && data.model) {
+			// Update the model data which will trigger reactivity
+			modelData = {
+				...data.model,
+				validations: {
+					...data.model.validations,
+					all: data.model.validations.all.map((v) => ({
+						val_id: v.val_id.toString(),
+						start_datetime: v.start_date,
+						validation_status: v.status,
+						validation_result: {
+							dataProvided: Boolean(v.dataset),
+							dataCharacteristics: Boolean(v.description),
+							metrics: Boolean(v.result?.metrics),
+							published: v.status === 'completed'
+						},
+						userName: undefined,
+						datasetDescription: v.dataset || undefined,
+						metricsDescription: v.result?.metrics
+							? JSON.stringify(v.result.metrics, null, 2)
+							: undefined,
+						performanceMetrics: undefined
+					}))
+				}
+			};
+			console.log('Updated model data:', modelData);
+			console.log('Updated validationJobs:', validationJobs);
+		} else {
+			console.error('Invalid response format:', data);
+		}
+	}
+
+	async function handleValidationChange() {
+		console.log('Validation change event received');
+		await refreshModelData();
+	}
+
 	function handleModalClose() {
 		isModalOpen = false;
 		selectedValidation = undefined;
@@ -94,13 +142,13 @@
 <div class="container mx-auto space-y-8 p-4">
 	<div class="flex justify-between">
 		<!-- Back Button -->
-		<button class="btn btn-ghost gap-2" on:click={handleGoBack}>
+		<button class="btn btn-ghost gap-2" onclick={handleGoBack}>
 			<MaterialSymbolsArrowBack class="h-6 w-6" />
 			Go Back
 		</button>
 
 		<!-- Add Validation Job Button -->
-		<button class="btn btn-primary" on:click={openNewValidation}>New Validation</button>
+		<button class="btn btn-primary" onclick={openNewValidation}>New Validation</button>
 	</div>
 
 	<!-- Model Header -->
@@ -175,13 +223,13 @@
 				{:else}
 					{#each validationJobs as job}
 						<tr class="hover cursor-pointer">
-							<td on:click={() => openValidation(job)}>
+							<td onclick={() => openValidation(job)}>
 								Validation {job.val_id}
 							</td>
-							<td on:click={() => openValidation(job)}>
+							<td onclick={() => openValidation(job)}>
 								{new Date(job.start_datetime).toLocaleDateString()}
 							</td>
-							<td on:click={() => openValidation(job)}>
+							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
 									{#if job.validation_result.dataProvided}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
@@ -190,7 +238,7 @@
 									{/if}
 								</div>
 							</td>
-							<td on:click={() => openValidation(job)}>
+							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
 									{#if job.validation_result.dataCharacteristics}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
@@ -199,7 +247,7 @@
 									{/if}
 								</div>
 							</td>
-							<td on:click={() => openValidation(job)}>
+							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
 									{#if job.validation_result.metrics}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
@@ -208,7 +256,7 @@
 									{/if}
 								</div>
 							</td>
-							<td on:click={() => openValidation(job)}>
+							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
 									{#if job.validation_result.published}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
@@ -250,6 +298,11 @@
 		bind:open={isModalOpen}
 		validation={selectedValidation}
 		mode={modalMode}
-		on:close={handleModalClose}
+		modelId={typedModel.checkpoint_id}
+		on:close={async () => {
+			await refreshModelData();
+			handleModalClose();
+		}}
+		on:validationChange={handleValidationChange}
 	/>
 </div>

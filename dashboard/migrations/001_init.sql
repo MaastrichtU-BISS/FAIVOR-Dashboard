@@ -48,8 +48,6 @@ EXECUTE FUNCTION assign_admin_role();
 
 -- Create indexes
 CREATE INDEX users_email_idx ON users (email);
-CREATE INDEX accounts_user_id_idx ON accounts ("userId");
-CREATE INDEX accounts_provider_id_idx ON accounts ("providerAccountId");
 
 -- Down Migration
 DROP TABLE users;
