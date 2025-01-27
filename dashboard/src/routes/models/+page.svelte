@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
 	import SearchModelsModal from '$lib/components/ui/models/SearchModelsModal.svelte';
+	import { PUBLIC_ORGANIZATION_NAME } from '$env/static/public';
 
 	const props = $props();
 	const models = $derived(props.data.models);
@@ -50,7 +51,7 @@
 
 <div class="container mx-auto space-y-8 p-4">
 	<!-- Header -->
-	<div class="text-2xl font-bold">ORGANIZATION NAME / LOGOoooo</div>
+	<div class="text-2xl font-bold">{PUBLIC_ORGANIZATION_NAME}</div>
 
 	<!-- URL Input and Buttons -->
 	<div class="flex items-center gap-4">
