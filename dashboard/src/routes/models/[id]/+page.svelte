@@ -9,7 +9,7 @@
 	import MaterialSymbolsMoreVert from '~icons/material-symbols/more-vert';
 	import MaterialSymbolsContentCopyOutline from '~icons/material-symbols/content-copy-outline';
 	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
-	import SharedValidationModal from '$lib/components/ui/validation/SharedValidationModal.svelte';
+	import SharedValidationModal from './components/SharedValidationModal.svelte';
 	import { stopPropagation } from 'svelte/legacy';
 
 	interface Props {
