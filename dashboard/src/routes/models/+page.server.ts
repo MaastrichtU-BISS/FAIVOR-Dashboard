@@ -1,5 +1,5 @@
 import type { PageServerLoad } from '@sveltejs/kit';
-import { pool } from '$lib/db/db';
+import { pool } from '$lib/db';
 import type { Model } from '$lib/stores/models/index.svelte';
 
 export const load = (async () => {

@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
-import { pool } from '$lib/db/db';
+import { pool } from '$lib/db';
 import bcryptjs from 'bcryptjs';
 
 export async function PUT({ request, locals }: RequestEvent) {

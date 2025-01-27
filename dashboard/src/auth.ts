@@ -2,7 +2,7 @@ import { SvelteKitAuth } from "@auth/sveltekit";
 import Google from "@auth/sveltekit/providers/google";
 import Credentials from "@auth/sveltekit/providers/credentials";
 import PostgresAdapter from "@auth/pg-adapter";
-import { pool } from "$lib/db/db";
+import { pool } from "$lib/db";
 import type { CustomSession } from "./app";
 import bcrypt from 'bcryptjs';
 import Resend from "@auth/sveltekit/providers/resend";

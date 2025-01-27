@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { pool } from '$lib/db/db';
+import { pool } from '$lib/db';
 import { Role } from '$lib/types';
 import type { RequestEvent } from './$types';
 

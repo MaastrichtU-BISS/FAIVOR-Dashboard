@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { DBModelRow, ValidationRow } from '$lib/stores/models/types';
-import { sql } from '$lib/db/db';
+import { sql } from '$lib/db';
 
 export const GET: RequestHandler = async ({ params }) => {
   const id = params.id;
