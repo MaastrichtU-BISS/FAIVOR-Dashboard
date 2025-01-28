@@ -66,3 +66,5 @@ out/
 
 # Dependency directories
 vendor/
+cline_docs
+.clinerules

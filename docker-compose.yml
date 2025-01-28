@@ -1,4 +1,5 @@
 services:
+
   postgres:
     image: postgres:latest
     env_file:
@@ -11,12 +12,27 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./dashboard/seed-database:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  migrate:
+    image: oven/bun:1
+    working_dir: /app
+    volumes:
+      - ./dashboard/:/app
+    env_file:
+      - dashboard/.env
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgres
+    command: sh -c "sleep 5 && DATABASE_URL='postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:${DB_PORT:-5432}/${DB_NAME:-topsveltekit}' bunx node-pg-migrate up"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     image: oven/bun:1
@@ -30,25 +46,22 @@ services:
     environment:
       - NODE_ENV=development
       - DB_HOST=postgres
-    # command: sh -c "bun install && bun run migrate:dev up && bun run dev"
-    command: sh -c "bun install && DATABASE_URL='postgres://postgres:postgres@postgres:5432/faivor' bunx node-pg-migrate up && bun run dev"
-    depends_on:
-      postgres:
-        condition: service_healthy
+    command: sh -c "bun install && bun run dev"
+    # command: sh -c "bun install && bun run dev"
     restart: unless-stopped
 
   seed:
+    profiles:
+      - seed
     image: postgres:latest
     env_file:
-      - dashboard/.env
+      - .env
     environment:
       PGPASSWORD: ${DB_PASSWORD:-postgres}
     command: psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-faivor} -f /seed-database/seed.sql
     volumes:
       - ./dashboard/seed-database:/seed-database
-    depends_on:
-      postgres:
-        condition: service_healthy
+
 
 volumes:
   postgres_data:

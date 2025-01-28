@@ -8,67 +8,37 @@ Architecture
 Database schema
 ![database](./db-schema.drawio.png)
 
-# Running on Development
+## Quick Start
+1. Copy `.env.example` to `.env` and fill in the required variables
 
-This project includes Docker configuration for easy deployment and development. Follow these steps to run the application using Docker:
-
-### Prerequisites
-- Docker Compose installed on your system
-
-### Environment Setup
-
-1. Create a `.env` file in the root directory:
-```bash
-cp dashboard/_example .env dashboard/.env
-```
-
-2. Update the `.env` file with your desired configuration:
-- Generate an AUTH_SECRET using: `npx auth secret`
-- Modify database credentials if needed (default values are secure for local development)
-
-
-1. Start the development environment:
+## Runnin with Docker
+It will run the database, migrations and frontend services.
 ```bash
 docker compose up
 ```
-The application will be available at `http://localhost:5173`
-
-1. (Optional) Seed the database with sample data:
+### Feeding the database for devepment
 ```bash
-docker compose run seed
+# Start everything (including the seed service):
+docker compose --profile seed up
+# or just run the seed container on demand:
+docker compose --profile seed run seed
 ```
 
-### Production Deployment
-
+### Docker utils
 ```bash
-docker compose -f docker-compose.prod.yml up
-The application will be available at `http://localhost:3000`
+docker compose down -v # Remove all volumes, carefull all data will be lost.
+docker compose logs -f
 ```
 
-### Managing the Application
-Stop the application:
-```bash
-# Development
-docker compose down
 
-# Production
-docker compose -f docker-compose.prod.yml down
+## Running locally without docker and external database url (or i.e. local postgres running on port 5432)
+```bash
+bun install
+bun dev
 ```
 
-View logs:
-```bash
-# All services
-docker compose logs
+Visit [http://localhost:5173](http://localhost:5173) to open the application.
 
-# Specific service
-docker compose logs postgres
-docker compose logs frontend
-```
-
-Remove volumes (deletes database data):
-```bash
-docker compose down -v
-```
 
 ### Production Considerations
 
