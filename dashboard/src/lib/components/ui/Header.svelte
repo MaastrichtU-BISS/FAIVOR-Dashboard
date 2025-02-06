@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Logo from '$lib/assets/icons/Logo.svelte';
-	import FeedbackButton from '$lib/components/ui/feedback/FeedbackButton.svelte';
+	// import FeedbackButton from '$lib/components/ui/feedback/FeedbackButton.svelte';
 	import { onMount } from 'svelte';
 	import Login from '$lib/components/ui/Login/LoginButton.svelte';
 	import { toggleMenu } from '$lib/stores/menu.store';
@@ -60,7 +60,7 @@
 				{/each}
 			</div>
 
-			<FeedbackButton showButton={isDesktop} />
+			<!-- <FeedbackButton showButton={isDesktop} /> -->
 
 			<Login />
 		</header>
