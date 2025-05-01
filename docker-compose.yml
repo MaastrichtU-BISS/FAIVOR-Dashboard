@@ -1,4 +1,11 @@
+name: faivor
+
 services:
+  faivor-backend:
+    image: ghcr.io/maastrichtu-biss/faivor-ml-validator:pr-10
+    restart: always
+    ports:
+      - "8000:8000"
 
   postgres:
     image: postgres:latest
@@ -61,7 +68,6 @@ services:
     command: psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-faivor} -f /seed-database/seed.sql
     volumes:
       - ./dashboard/seed-database:/seed-database
-
 
 volumes:
   postgres_data:
