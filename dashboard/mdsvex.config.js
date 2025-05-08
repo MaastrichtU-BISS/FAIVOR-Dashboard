@@ -12,10 +12,7 @@ export default {
   smartypants: {
     dashes: 'oldschool'
   },
-  layout: {
-    md: "/src/lib/markdown-layouts/default.svelte",  // Only apply to .md files
-    svx: "/src/lib/markdown-layouts/default.svelte"  // Only apply to .svx files
-  },
+  layout: "./src/lib/markdown-layouts/default.svelte",
   remarkPlugins: [
     videos,
     relativeImages,
