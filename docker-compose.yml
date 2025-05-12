@@ -2,7 +2,7 @@ name: faivor
 
 services:
   faivor-backend:
-    image: ghcr.io/maastrichtu-biss/faivor-ml-validator:pr-10
+    image: ghcr.io/maastrichtu-biss/faivor-ml-validator
     restart: always
     ports:
       - "8000:8000"
