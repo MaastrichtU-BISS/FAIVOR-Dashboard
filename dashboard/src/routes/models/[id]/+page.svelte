@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
-	import HugeiconsCsv01 from '~icons/hugeicons/csv-01';
 	import MaterialSymbolsArrowBack from '~icons/material-symbols/arrow-back';
 	import MaterialSymbolsScreenshotMonitorOutline from '~icons/material-symbols/screenshot-monitor-outline';
 	import MaterialSymbolsCheckCircleOutline from '~icons/material-symbols/check-circle-outline';
@@ -10,13 +9,13 @@
 	import MaterialSymbolsContentCopyOutline from '~icons/material-symbols/content-copy-outline';
 	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
 	import SharedValidationModal from './components/SharedValidationModal.svelte';
-	import { stopPropagation } from 'svelte/legacy';
 
 	interface Props {
 		data: PageData;
 	}
 
 	import type { Model } from '$lib/stores/models/types';
+	import toast from 'svelte-french-toast';
 
 	let { data }: Props = $props();
 	let modelData = $state(data.model);
@@ -49,23 +48,28 @@
 
 	let validationJobs = $derived(
 		typedModel.validations?.all
-			? typedModel.validations.all.map((v) => ({
-					val_id: v.val_id.toString(),
-					start_datetime: v.start_date,
-					validation_status: v.status,
-					validation_result: {
-						dataProvided: Boolean(v.dataset),
-						dataCharacteristics: Boolean(v.description),
-						metrics: Boolean(v.result?.metrics),
-						published: v.status === 'completed'
-					},
-					userName: undefined,
-					datasetDescription: v.dataset || undefined,
-					metricsDescription: v.result?.metrics
-						? JSON.stringify(v.result.metrics, null, 2)
-						: undefined,
-					performanceMetrics: undefined
-				}))
+			? typedModel.validations.all
+					.filter((v) => !v.deleted_at) // Filter out deleted validations
+					.map((v) => {
+						// Ensure data consistency by checking each property
+						return {
+							val_id: v.val_id ? v.val_id.toString() : '',
+							start_datetime: v.start_date || '',
+							validation_status: v.status || 'pending',
+							validation_result: {
+								dataProvided: Boolean(v.dataset),
+								dataCharacteristics: Boolean(v.description),
+								metrics: Boolean(v.result?.metrics),
+								published: v.status === 'completed'
+							},
+							userName: undefined,
+							datasetDescription: v.dataset || undefined,
+							metricsDescription: v.result?.metrics
+								? JSON.stringify(v.result.metrics, null, 2)
+								: undefined,
+							performanceMetrics: undefined
+						};
+					})
 			: []
 	);
 
@@ -97,30 +101,28 @@
 		console.log('Received updated model data:', data);
 
 		if (data.success && data.model) {
-			// Update the model data which will trigger reactivity
+			// Process validations data first to ensure consistent format
+			const processedValidations = data.model.validations.all
+				.filter((v) => !v.deleted_at) // Filter out deleted validations
+				.map((v) => ({
+					val_id: v.val_id.toString(),
+					start_date: v.start_date,
+					status: v.status,
+					dataset: v.dataset,
+					description: v.description,
+					result: v.result,
+					deleted_at: v.deleted_at
+				}));
+
+			// Update the model data with properly formatted validations
 			modelData = {
 				...data.model,
 				validations: {
 					...data.model.validations,
-					all: data.model.validations.all.map((v) => ({
-						val_id: v.val_id.toString(),
-						start_datetime: v.start_date,
-						validation_status: v.status,
-						validation_result: {
-							dataProvided: Boolean(v.dataset),
-							dataCharacteristics: Boolean(v.description),
-							metrics: Boolean(v.result?.metrics),
-							published: v.status === 'completed'
-						},
-						userName: undefined,
-						datasetDescription: v.dataset || undefined,
-						metricsDescription: v.result?.metrics
-							? JSON.stringify(v.result.metrics, null, 2)
-							: undefined,
-						performanceMetrics: undefined
-					}))
+					all: processedValidations
 				}
 			};
+
 			console.log('Updated model data:', modelData);
 			console.log('Updated validationJobs:', validationJobs);
 		} else {
@@ -136,6 +138,53 @@
 	function handleModalClose() {
 		isModalOpen = false;
 		selectedValidation = undefined;
+	}
+
+	async function handleDeleteValidation(validationId: string) {
+		console.log('🎹 Deleting validation with ID:', validationId);
+
+		if (confirm('Are you sure you want to delete this validation?')) {
+			try {
+				// Optimistically update UI first
+				if (typedModel.validations?.all) {
+					// Make a deep copy of the validations array to prevent reference issues
+					const updatedValidations = typedModel.validations.all.map((v) => {
+						const validation = { ...v };
+						if (validation.val_id.toString() === validationId) {
+							validation.deleted_at = new Date().toISOString();
+						}
+						return validation;
+					});
+
+					// Create a new modelData object to ensure reactivity
+					modelData = {
+						...modelData,
+						validations: {
+							...modelData.validations,
+							all: updatedValidations
+						}
+					};
+				}
+
+				// Then perform the actual API call
+				const response = await fetch(`/api/validations/${validationId}`, {
+					method: 'DELETE'
+				});
+
+				if (!response.ok) {
+					throw new Error('Failed to delete validation');
+				}
+
+				toast.success('Validation deleted successfully!');
+				// Refresh data from server to ensure everything is in sync
+				await refreshModelData();
+			} catch (error) {
+				console.error('Error deleting validation:', error);
+				toast.error('Failed to delete validation.');
+				// Refresh data to restore state in case of error
+				await refreshModelData();
+			}
+		}
 	}
 </script>
 
@@ -280,7 +329,10 @@
 											</button>
 										</li>
 										<li>
-											<button class="flex items-center gap-2">
+											<button
+												class="flex items-center gap-2"
+												onclick={() => handleDeleteValidation(job.val_id)}
+											>
 												<MaterialSymbolsDeleteOutline class="h-5 w-5" />Delete
 											</button>
 										</li>

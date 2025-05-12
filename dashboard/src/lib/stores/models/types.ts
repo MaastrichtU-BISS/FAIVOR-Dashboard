@@ -65,6 +65,7 @@ export interface ValidationDetails {
   dataset: string | null;
   result: any;
   user_id: number | null;
+  deleted_at?: string | null;
 }
 
 export interface Model {

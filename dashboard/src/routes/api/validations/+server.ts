@@ -52,10 +52,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Validation created:', result[0]);
 
-    // Get updated validations for this model
+    // Get updated validations for this model (excluding deleted ones)
     const validations = await sql`
       SELECT * FROM validations
       WHERE model_checkpoint_id = ${data.modelId}
+      AND deleted_at IS NULL
       ORDER BY start_datetime DESC
     `;
 

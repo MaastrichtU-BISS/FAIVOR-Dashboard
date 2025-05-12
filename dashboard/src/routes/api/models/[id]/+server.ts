@@ -20,10 +20,11 @@ export const GET: RequestHandler = async ({ params }) => {
       });
     }
 
-    // Get validations
+    // Get validations (excluding deleted ones)
     const validationRows: ValidationRow[] = await sql`
       SELECT * FROM validations
       WHERE model_checkpoint_id = ${id}
+      AND deleted_at IS NULL
       ORDER BY start_datetime DESC
     `;
 

@@ -13,11 +13,12 @@ export const load = (async () => {
           SELECT validation_status
           FROM validations
           WHERE model_checkpoint_id = m.checkpoint_id
+          AND deleted_at IS NULL
           ORDER BY start_datetime DESC
           LIMIT 1
         ) as latest_validation_status
       FROM model_checkpoints m
-      LEFT JOIN validations v ON m.checkpoint_id = v.model_checkpoint_id
+      LEFT JOIN validations v ON m.checkpoint_id = v.model_checkpoint_id AND v.deleted_at IS NULL
       GROUP BY m.checkpoint_id
     `);
 
