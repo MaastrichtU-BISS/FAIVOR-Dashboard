@@ -16,7 +16,8 @@
 
 	import type { Model } from '$lib/stores/models/types';
 	import toast from 'svelte-french-toast';
-
+	import MaterialSymbolsSettingsSuggestRounded from '~icons/material-symbols/settings-suggest-rounded';
+	import MaterialSymbolsAutoGraphRounded from '~icons/material-symbols/auto-graph-rounded';
 	let { data }: Props = $props();
 	let modelData = $state(data.model);
 	let typedModel = $derived(modelData as Model);
@@ -86,6 +87,12 @@
 	function openValidation(validation: ValidationJob) {
 		selectedValidation = validation;
 		modalMode = 'view';
+		isModalOpen = true;
+	}
+
+	function openResults(validation: ValidationJob) {
+		selectedValidation = validation;
+		modalMode = 'results';
 		isModalOpen = true;
 	}
 
@@ -272,7 +279,7 @@
 				{:else}
 					{#each validationJobs as job}
 						<tr class="hover cursor-pointer">
-							<td onclick={() => openValidation(job)}>
+							<td class="font-bold" onclick={() => openValidation(job)}>
 								Validation {job.val_id}
 							</td>
 							<td onclick={() => openValidation(job)}>
@@ -313,6 +320,14 @@
 										<MaterialSymbolsClose class="text-error h-6 w-6" />
 									{/if}
 								</div>
+							</td>
+							<td onclick={() => openValidation(job)}>
+								<button class="btn">
+									<MaterialSymbolsSettingsSuggestRounded /> Edit
+								</button>
+							</td>
+							<td onclick={() => openResults(job)}>
+								<button class="btn"><MaterialSymbolsAutoGraphRounded /> Results</button>
 							</td>
 							<td>
 								<div class="dropdown dropdown-end">
