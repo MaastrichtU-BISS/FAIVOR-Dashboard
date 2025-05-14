@@ -17,8 +17,7 @@
 	const steps = $state([
 		{ title: 'Dataset', active: true },
 		{ title: 'Dataset Characteristics', active: false },
-		{ title: 'Metrics for validation', active: false },
-		{ title: 'Performance metrics', active: false }
+		{ title: 'Metrics for validation', active: false }
 	]);
 
 	// Form data
@@ -110,9 +109,7 @@
 			{:else if currentStep === 1}
 				<DatasetCharacteristicsStep bind:datasetDescription />
 			{:else if currentStep === 2}
-				<MetricsForValidationStep bind:metricsDescription />
-			{:else if currentStep === 3}
-				<PerformanceMetricsStep bind:performanceMetrics />
+				<MetricsForValidationStep bind:metricsDescription bind:performanceMetrics />
 			{/if}
 		</div>
 

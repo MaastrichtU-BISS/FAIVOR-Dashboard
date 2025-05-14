@@ -52,8 +52,7 @@
 	const steps = $state([
 		{ title: 'Dataset', active: true },
 		{ title: 'Dataset Characteristics', active: false },
-		{ title: 'Metrics for validation', active: false },
-		{ title: 'Performance metrics', active: false }
+		{ title: 'Metrics for validation', active: false }
 	]);
 
 	// Track actual changes by comparing with initial values
@@ -350,11 +349,6 @@
 			{:else if currentStep === 2}
 				<MetricsForValidationStep
 					bind:metricsDescription
-					readonly={mode === 'view'}
-					onFieldChange={trackChanges}
-				/>
-			{:else if currentStep === 3}
-				<PerformanceMetricsStep
 					bind:performanceMetrics
 					readonly={mode === 'view'}
 					onFieldChange={trackChanges}
