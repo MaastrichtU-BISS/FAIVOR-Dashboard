@@ -1,19 +1,36 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import {
+		validationStore,
+		type ValidationJob,
+		type ValidationMode
+	} from '$lib/stores/validation.store.ts';
 	import DatasetStep from './steps/DatasetStep.svelte';
 	import DatasetCharacteristicsStep from './steps/DatasetCharacteristicsStep.svelte';
 	import MetricsForValidationStep from './steps/MetricsForValidationStep.svelte';
 	import PerformanceMetricsStep from './steps/PerformanceMetricsStep.svelte';
 
-	const dispatch = createEventDispatcher();
+	const dispatch = createEventDispatcher<{
+		close: void;
+		validationChange: void;
+	}>();
 
 	interface Props {
-		open?: boolean;
+		modelId?: string;
 	}
 
-	let { open = $bindable(false) }: Props = $props();
+	let { modelId }: Props = $props();
 
 	let currentStep = $state(0);
+	let hasChanges = $state(false);
+	let initialFormData = $state({
+		userName: '',
+		date: '',
+		uploadedFile: null as File | null,
+		datasetDescription: '',
+		metricsDescription: '',
+		performanceMetrics: ''
+	});
 	const steps = $state([
 		{ title: 'Dataset', active: true },
 		{ title: 'Dataset Characteristics', active: false },
@@ -27,6 +44,81 @@
 	let datasetDescription = $state('');
 	let metricsDescription = $state('');
 	let performanceMetrics = $state('');
+
+	// Get data from store
+	$effect(() => {
+		const { currentValidation, mode } = $validationStore;
+
+		if (currentValidation) {
+			userName = currentValidation.userName || '';
+			date = currentValidation.start_datetime;
+			datasetDescription = currentValidation.datasetDescription || '';
+			metricsDescription = currentValidation.metricsDescription || '';
+			performanceMetrics = currentValidation.performanceMetrics || '';
+
+			// Store initial values
+			initialFormData = {
+				userName: userName,
+				date: date,
+				uploadedFile: null,
+				datasetDescription: datasetDescription,
+				metricsDescription: metricsDescription,
+				performanceMetrics: performanceMetrics
+			};
+		} else {
+			// Reset form for new validation
+			userName = '';
+			date = '';
+			uploadedFile = null;
+			datasetDescription = '';
+			metricsDescription = '';
+			performanceMetrics = '';
+
+			// Reset initial values
+			initialFormData = {
+				userName: '',
+				date: '',
+				uploadedFile: null,
+				datasetDescription: '',
+				metricsDescription: '',
+				performanceMetrics: ''
+			};
+		}
+		hasChanges = false;
+	});
+
+	// Track actual changes by comparing with initial values
+	$effect(() => {
+		if ($validationStore.mode !== 'view') {
+			const currentFormData = {
+				userName,
+				date,
+				uploadedFile,
+				datasetDescription,
+				metricsDescription,
+				performanceMetrics
+			};
+
+			const hasChanged = Object.entries(currentFormData).some(([key, value]) => {
+				return value !== initialFormData[key as keyof typeof initialFormData];
+			});
+
+			if (hasChanged !== hasChanges) {
+				hasChanges = hasChanged;
+			}
+		}
+	});
+
+	// Reset step when opening in view mode
+	$effect(() => {
+		if ($validationStore.mode === 'view') {
+			// Reset step to first when opening in view mode
+			currentStep = 0;
+			steps.forEach((step, i) => {
+				step.active = i === 0;
+			});
+		}
+	});
 
 	function goToStep(stepIndex: number) {
 		if (stepIndex >= 0 && stepIndex < steps.length) {
@@ -52,23 +144,148 @@
 		}
 	}
 
-	function closeModal() {
-		open = false;
+	async function closeModal() {
+		if (hasChanges) {
+			const confirmed = confirm('You have unsaved changes. Do you want to save before closing?');
+			if (confirmed) {
+				await handleSave();
+			}
+		}
+		validationStore.closeModal();
 		dispatch('close');
 	}
 
-	function handleSubmit() {
-		// TODO: Handle form submission
+	async function handleSubmit() {
+		// Only allow submit in create/edit modes
+		if ($validationStore.mode === 'view') return;
+
+		// Save any pending changes first
+		if (hasChanges) {
+			await handleSave();
+		}
+
+		console.log('Submitting validation with modelId:', modelId);
+
 		const formData = {
 			userName,
 			date,
 			uploadedFile,
 			datasetDescription,
 			metricsDescription,
-			performanceMetrics
+			performanceMetrics,
+			modelId
 		};
-		console.log('Form submitted:', formData);
-		closeModal();
+
+		try {
+			if ($validationStore.mode === 'create') {
+				const response = await fetch('/api/validations', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(formData)
+				});
+				const result = await response.json();
+				console.log('Validation creation response:', result);
+
+				if (!result.success) {
+					throw new Error(result.error || 'Failed to create validation');
+				}
+
+				dispatch('validationChange');
+				closeModal();
+			} else if ($validationStore.mode === 'edit' && $validationStore.currentValidation) {
+				const response = await fetch(
+					`/api/validations/${$validationStore.currentValidation.val_id}`,
+					{
+						method: 'PUT',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify(formData)
+					}
+				);
+				const result = await response.json();
+				console.log('Validation update response:', result);
+
+				if (!result.success) {
+					throw new Error(result.error || 'Failed to update validation');
+				}
+
+				hasChanges = false;
+				dispatch('validationChange');
+				closeModal();
+			}
+		} catch (error) {
+			console.error('Error submitting validation:', error);
+			// TODO: Show error toast
+		}
+	}
+
+	async function handleSave() {
+		const formData = {
+			userName,
+			date,
+			uploadedFile,
+			datasetDescription,
+			metricsDescription,
+			performanceMetrics,
+			modelId
+		};
+
+		try {
+			if ($validationStore.currentValidation?.val_id) {
+				await fetch(`/api/validations/${$validationStore.currentValidation.val_id}`, {
+					method: 'PUT',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(formData)
+				});
+			} else {
+				await fetch('/api/validations', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(formData)
+				});
+			}
+			hasChanges = false;
+			dispatch('validationChange');
+		} catch (error) {
+			console.error('Error saving validation:', error);
+			// TODO: Show error toast
+		}
+	}
+
+	async function handleResubmit() {
+		if (!$validationStore.currentValidation?.val_id) return;
+
+		const confirmed = confirm('Are you sure you want to resubmit this validation?');
+		if (!confirmed) return;
+
+		// Save any pending changes first
+		if (hasChanges) {
+			await handleSave();
+		}
+
+		try {
+			await fetch(`/api/validations/${$validationStore.currentValidation.val_id}/resubmit`, {
+				method: 'POST'
+			});
+			dispatch('validationChange');
+			closeModal();
+		} catch (error) {
+			console.error('Error resubmitting validation:', error);
+			// TODO: Show error toast
+		}
+	}
+
+	function trackChanges() {
+		if ($validationStore.mode !== 'view') {
+			hasChanges = true;
+		}
 	}
 
 	function handleKeydown(e: KeyboardEvent, index: number) {
@@ -78,11 +295,10 @@
 	}
 </script>
 
-<!-- TODO: change class:modal-open={open} when finished developing -->
 <dialog
 	id="validation_modal"
 	class="modal modal-bottom sm:modal-middle z-[10000] !mt-0 h-full w-full"
-	class:modal-open={open}
+	class:modal-open={$validationStore.isOpen}
 >
 	<div class="modal-box bg-base-100 h-[90vh] max-h-none w-full !max-w-full p-8">
 		<!-- Stepper -->
@@ -105,24 +321,59 @@
 		<!-- Content -->
 		<div class="h-[calc(100%-12rem)] w-full overflow-y-auto">
 			{#if currentStep === 0}
-				<DatasetStep bind:userName bind:date bind:uploadedFile />
+				<DatasetStep
+					bind:userName
+					bind:date
+					bind:uploadedFile
+					readonly={$validationStore.mode === 'view'}
+					onFieldChange={trackChanges}
+				/>
 			{:else if currentStep === 1}
-				<DatasetCharacteristicsStep bind:datasetDescription />
+				<DatasetCharacteristicsStep
+					bind:datasetDescription
+					readonly={$validationStore.mode === 'view'}
+					onFieldChange={trackChanges}
+				/>
 			{:else if currentStep === 2}
-				<MetricsForValidationStep bind:metricsDescription bind:performanceMetrics />
+				<MetricsForValidationStep
+					bind:metricsDescription
+					bind:performanceMetrics
+					readonly={$validationStore.mode === 'view'}
+					onFieldChange={trackChanges}
+				/>
 			{/if}
 		</div>
 
 		<!-- Navigation -->
 		<div class="modal-action mt-8">
+			<!-- Save Changes Button -->
+			{#if $validationStore.mode !== 'view' && hasChanges}
+				<button class="btn btn-outline" onclick={handleSave}>Save Changes</button>
+			{/if}
+
+			<!-- Edit Button -->
+			{#if $validationStore.mode === 'view'}
+				<button class="btn btn-outline" onclick={() => validationStore.setMode('edit')}>
+					Edit
+				</button>
+			{/if}
+
+			<!-- Resubmit Button -->
+			{#if $validationStore.currentValidation && $validationStore.mode !== 'create'}
+				<button class="btn btn-primary" onclick={handleResubmit}>Resubmit Validation</button>
+			{/if}
+
+			<!-- Close Button -->
 			<button class="btn" onclick={closeModal}>Close</button>
+
+			<!-- Standard Navigation -->
 			<div class="flex-1"></div>
 			{#if currentStep > 0}
 				<button class="btn btn-outline" onclick={prevStep}>Previous</button>
 			{/if}
 			{#if currentStep < steps.length - 1}
 				<button class="btn btn-primary" onclick={nextStep}>Next</button>
-			{:else}
+			{:else if $validationStore.mode !== 'view'}
 				<button class="btn btn-primary" onclick={handleSubmit}>Submit</button>
 			{/if}
 		</div>

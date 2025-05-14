@@ -8,7 +8,8 @@
 	import MaterialSymbolsMoreVert from '~icons/material-symbols/more-vert';
 	import MaterialSymbolsContentCopyOutline from '~icons/material-symbols/content-copy-outline';
 	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
-	import SharedValidationModal from './components/SharedValidationModal.svelte';
+	import ValidationModal from './components/ValidationModal.svelte';
+	import { validationStore } from '$lib/stores/validation.store.ts';
 
 	interface Props {
 		data: PageData;
@@ -74,26 +75,17 @@
 			: []
 	);
 
-	let isModalOpen = $state(false);
-	let selectedValidation = $state<ValidationJob | undefined>(undefined);
-	let modalMode = $state<'create' | 'view' | 'edit'>('create');
-
 	function openNewValidation() {
-		selectedValidation = undefined;
-		modalMode = 'create';
-		isModalOpen = true;
+		validationStore.openModal(undefined, 'create');
 	}
 
 	function openValidation(validation: ValidationJob) {
-		selectedValidation = validation;
-		modalMode = 'view';
-		isModalOpen = true;
+		validationStore.openModal(validation, 'view');
 	}
 
 	function openResults(validation: ValidationJob) {
-		selectedValidation = validation;
-		modalMode = 'results';
-		isModalOpen = true;
+		// For now, we're using view mode for results
+		validationStore.openModal(validation, 'view');
 	}
 
 	async function refreshModelData() {
@@ -143,8 +135,7 @@
 	}
 
 	function handleModalClose() {
-		isModalOpen = false;
-		selectedValidation = undefined;
+		validationStore.closeModal();
 	}
 
 	async function handleDeleteValidation(validationId: string) {
@@ -361,10 +352,7 @@
 		</table>
 	</div>
 
-	<SharedValidationModal
-		bind:open={isModalOpen}
-		validation={selectedValidation}
-		mode={modalMode}
+	<ValidationModal
 		modelId={typedModel.checkpoint_id}
 		on:close={async () => {
 			await refreshModelData();

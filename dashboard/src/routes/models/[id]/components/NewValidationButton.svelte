@@ -1,17 +1,15 @@
 <script lang="ts">
 	import ValidationModal from './ValidationModal.svelte';
-
-	let isModalOpen = $state(false);
+	import { validationStore } from '$lib/stores/validation.store.ts';
+	import { page } from '$app/stores';
 
 	function openModal() {
-		isModalOpen = true;
-	}
-
-	function handleClose() {
-		isModalOpen = false;
+		// Extract modelId from the page params if available
+		const modelId = $page.params.id;
+		validationStore.openModal(undefined, 'create');
 	}
 </script>
 
 <button class="btn btn-primary" onclick={openModal}>New Validation</button>
 
-<ValidationModal bind:open={isModalOpen} on:close={handleClose} />
+<ValidationModal modelId={$page.params.id} />
