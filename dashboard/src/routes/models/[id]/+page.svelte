@@ -333,7 +333,7 @@
 										tabindex="0"
 										class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow"
 									>
-										<li>
+										<li class="disabled">
 											<button class="flex items-center gap-2">
 												<MaterialSymbolsContentCopyOutline class="h-5 w-5" />Duplicate
 											</button>
