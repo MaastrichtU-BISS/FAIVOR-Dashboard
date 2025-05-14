@@ -9,11 +9,15 @@
 	import MaterialSymbolsContentCopyOutline from '~icons/material-symbols/content-copy-outline';
 	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
 	import ValidationModal from './components/ValidationModal.svelte';
+	import ResultsModal from './components/ResultsModal.svelte';
 	import { validationStore } from '$lib/stores/validation.store.ts';
 
 	interface Props {
 		data: PageData;
 	}
+
+	let showResultsModal = $state(false);
+	let currentValidationJob: ValidationJob | null = $state(null);
 
 	import type { Model } from '$lib/stores/models/types';
 	import toast from 'svelte-french-toast';
@@ -84,8 +88,8 @@
 	}
 
 	function openResults(validation: ValidationJob) {
-		// For now, we're using view mode for results
-		validationStore.openModal(validation, 'view');
+		currentValidationJob = validation;
+		showResultsModal = true;
 	}
 
 	async function refreshModelData() {
@@ -360,4 +364,12 @@
 		}}
 		on:validationChange={handleValidationChange}
 	/>
+
+	{#if showResultsModal}
+		<ResultsModal
+			validationJob={currentValidationJob}
+			isOpen={showResultsModal}
+			on:close={() => (showResultsModal = false)}
+		/>
+	{/if}
 </div>
