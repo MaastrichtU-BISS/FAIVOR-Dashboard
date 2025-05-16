@@ -1,10 +1,8 @@
 <script lang="ts">
-	import { stopPropagation } from 'svelte/legacy';
-
 	import MaterialSymbolsUpload2Rounded from '~icons/material-symbols/upload-2-rounded';
-	import MaterialSymbolsCheck from '~icons/material-symbols/check';
 	import SolarCalculatorMinimalisticLinear from '~icons/solar/calculator-minimalistic-linear';
 	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
+	import MaterialSymbolsCheck from '~icons/material-symbols/check';
 
 	interface Props {
 		userName?: string;
@@ -200,6 +198,13 @@
 				</div>
 			{/if}
 		</div>
+
+		<div class="flex justify-center">
+			<button class="btn btn-outline gap-2" onclick={checkDataset}>
+				<MaterialSymbolsCheck />
+				Check the dataset
+			</button>
+		</div>
 	</div>
 
 	<!-- Right Column -->
@@ -234,18 +239,6 @@
 						Calculate the summary
 					</button>
 				</div>
-			{/if}
-			<textarea
-				class="textarea textarea-bordered h-48 w-full"
-				placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
-				readonly
-			></textarea>
-
-			{#if !readonly}
-				<button class="btn btn-outline gap-2" onclick={checkDataset}>
-					<MaterialSymbolsCheck />
-					Check the dataset
-				</button>
 			{/if}
 			<textarea
 				class="textarea textarea-bordered h-48 w-full"

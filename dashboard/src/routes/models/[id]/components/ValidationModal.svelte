@@ -4,7 +4,7 @@
 		validationStore,
 		type ValidationJob,
 		type ValidationMode
-	} from '$lib/stores/validation.store.ts';
+	} from '$lib/stores/validation.store';
 	import DatasetStep from './steps/DatasetStep.svelte';
 	import DatasetCharacteristicsStep from './steps/DatasetCharacteristicsStep.svelte';
 	import MetricsForValidationStep from './steps/MetricsForValidationStep.svelte';
