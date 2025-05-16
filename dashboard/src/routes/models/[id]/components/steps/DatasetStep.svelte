@@ -66,19 +66,16 @@
 	}
 
 	function handleDragEnter(event: DragEvent) {
-		if (readonly) return;
 		event.preventDefault();
 		isDragging = true;
 	}
 
 	function handleDragOver(event: DragEvent) {
-		if (readonly) return;
 		event.preventDefault();
 		isDragging = true;
 	}
 
 	function handleDragLeave(event: DragEvent) {
-		if (readonly) return;
 		event.preventDefault();
 		const target = event.target as HTMLElement;
 		if (target === dropZone) {
@@ -87,19 +84,21 @@
 	}
 
 	function handleDrop(event: DragEvent) {
-		if (readonly) return;
 		event.preventDefault();
 		isDragging = false;
 
-		const files = event.dataTransfer?.files;
-		if (files && files[0]) {
-			uploadedFile = files[0];
+		if (!readonly) {
+			const files = event.dataTransfer?.files;
+			if (files && files[0]) {
+				uploadedFile = files[0];
+			}
 		}
 	}
 
 	function handleClick() {
-		if (readonly) return;
-		fileInput?.click();
+		if (!readonly) {
+			fileInput?.click();
+		}
 	}
 
 	function removeFile() {
@@ -149,66 +148,58 @@
 			/>
 		</div>
 
-		{#if !readonly}
+		<div
+			bind:this={dropZone}
+			class="border-base-300 hover:border-primary/50 relative cursor-pointer rounded-lg border-2 border-dashed p-8 transition-all duration-200 ease-in-out {isDragging
+				? 'border-primary bg-primary/5'
+				: ''}"
+			ondragenter={handleDragEnter}
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
+			ondrop={handleDrop}
+			onclick={handleClick}
+			onkeydown={(e) => e.key === 'Enter' && handleClick()}
+			role="button"
+			tabindex="0"
+		>
 			<div
-				bind:this={dropZone}
-				class="border-base-300 hover:border-primary/50 relative cursor-pointer rounded-lg border-2 border-dashed p-8 transition-all duration-200 ease-in-out {isDragging
-					? 'border-primary bg-primary/5'
+				class="flex flex-col items-center justify-center gap-4 transition-transform duration-200 {isDragging
+					? 'scale-105'
 					: ''}"
-				ondragenter={handleDragEnter}
-				ondragover={handleDragOver}
-				ondragleave={handleDragLeave}
-				ondrop={handleDrop}
-				onclick={handleClick}
-				onkeydown={(e) => e.key === 'Enter' && handleClick()}
-				role="button"
-				tabindex="0"
 			>
-				<div
-					class="flex flex-col items-center justify-center gap-4 transition-transform duration-200 {isDragging
-						? 'scale-105'
-						: ''}"
-				>
-					<div class="transition-transform duration-200 {isDragging ? 'scale-110' : ''}">
-						<MaterialSymbolsUpload2Rounded />
-					</div>
-					<div>
-						<h3 class="text-lg font-semibold">Upload dataset</h3>
-						<p class="text-base-content/70 text-sm">or drag and drop</p>
-					</div>
-					<input
-						bind:this={fileInput}
-						type="file"
-						class="hidden"
-						onchange={handleFileUpload}
-						oninput={onFieldChange}
-					/>
+				<div class="transition-transform duration-200 {isDragging ? 'scale-110' : ''}">
+					<MaterialSymbolsUpload2Rounded />
 				</div>
-				{#if uploadedFile}
-					<div class="mt-4 flex items-center justify-center gap-2">
-						<p class="text-success">{uploadedFile.name}</p>
-						<button
-							class="btn btn-ghost btn-sm text-error"
-							onclick={(e) => {
-								e.stopPropagation();
-								removeFile();
-								onFieldChange();
-							}}
-							title="Remove file"
-						>
-							<MaterialSymbolsDeleteOutline />
-						</button>
-					</div>
-				{/if}
+				<div>
+					<h3 class="text-lg font-semibold">Upload dataset</h3>
+					<p class="text-base-content/70 text-sm">or drag and drop</p>
+				</div>
+				<input
+					bind:this={fileInput}
+					type="file"
+					class="hidden"
+					onchange={handleFileUpload}
+					oninput={onFieldChange}
+				/>
 			</div>
-		{:else if uploadedFile}
-			<div class="border-base-300 rounded-lg border-2 p-4">
-				<div class="flex items-center gap-2">
-					<p>Uploaded file:</p>
+			{#if uploadedFile}
+				<div class="mt-4 flex items-center justify-center gap-2">
 					<p class="text-success">{uploadedFile.name}</p>
+					<button
+						class="btn btn-ghost btn-sm text-error"
+						onclick={(e) => {
+							e.stopPropagation();
+							removeFile();
+							onFieldChange();
+						}}
+						title="Remove file"
+						disabled={readonly}
+					>
+						<MaterialSymbolsDeleteOutline />
+					</button>
 				</div>
-			</div>
-		{/if}
+			{/if}
+		</div>
 	</div>
 
 	<!-- Right Column -->
