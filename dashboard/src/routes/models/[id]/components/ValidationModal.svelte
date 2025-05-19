@@ -364,7 +364,7 @@
 		<!-- Navigation -->
 		<div class="modal-action mt-8">
 			<!-- Save Changes Button -->
-			{#if $validationStore.mode !== 'view' && hasChanges}
+			{#if $validationStore.mode === 'edit'}
 				<button class="btn btn-outline" onclick={handleSave}>Save Changes</button>
 			{/if}
 
