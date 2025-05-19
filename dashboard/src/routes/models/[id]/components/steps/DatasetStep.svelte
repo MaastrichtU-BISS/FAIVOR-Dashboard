@@ -7,6 +7,7 @@
 	interface Props {
 		userName?: string;
 		date?: string;
+		datasetName?: string;
 		uploadedFile?: File | null;
 		readonly?: boolean;
 		onFieldChange?: () => void;
@@ -15,6 +16,7 @@
 	let {
 		userName = $bindable(''),
 		date = $bindable(''),
+		datasetName = $bindable(''),
 		uploadedFile = $bindable(null),
 		readonly = false,
 		onFieldChange = () => {}
@@ -24,6 +26,7 @@
 	let initialValues = $state({
 		userName: userName || '',
 		date: date || '',
+		datasetName: datasetName || '',
 		uploadedFile: uploadedFile
 	});
 
@@ -33,6 +36,7 @@
 			const hasChanges =
 				userName !== initialValues.userName ||
 				date !== initialValues.date ||
+				datasetName !== initialValues.datasetName ||
 				uploadedFile !== initialValues.uploadedFile;
 
 			if (hasChanges) {
@@ -46,6 +50,7 @@
 		initialValues = {
 			userName: userName || '',
 			date: date || '',
+			datasetName: datasetName || '',
 			uploadedFile: uploadedFile
 		};
 	});
@@ -60,6 +65,11 @@
 		const input = event.target as HTMLInputElement;
 		if (input.files && input.files[0]) {
 			uploadedFile = input.files[0];
+
+			// Set dataset name from file name if not already set
+			if (!datasetName) {
+				datasetName = uploadedFile.name;
+			}
 		}
 	}
 
@@ -89,6 +99,11 @@
 			const files = event.dataTransfer?.files;
 			if (files && files[0]) {
 				uploadedFile = files[0];
+
+				// Set dataset name from file name if not already set
+				if (!datasetName) {
+					datasetName = uploadedFile.name;
+				}
 			}
 		}
 	}
@@ -143,6 +158,19 @@
 				bind:value={date}
 				{readonly}
 				onchange={onFieldChange}
+			/>
+		</div>
+
+		<div>
+			<label class="label" for="datasetName">Dataset Name</label>
+			<input
+				type="text"
+				id="datasetName"
+				class="input input-bordered w-full"
+				placeholder="Enter dataset name"
+				bind:value={datasetName}
+				{readonly}
+				oninput={onFieldChange}
 			/>
 		</div>
 
