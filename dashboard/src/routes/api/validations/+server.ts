@@ -31,20 +31,25 @@ export const POST: RequestHandler = async ({ request }) => {
         validation_dataset,
         validation_status,
         start_datetime,
-        validation_result
+        validation_result,
+        dataset_info
       ) VALUES (
         ${model[0].fair_model_id},
         ${data.modelId},
         ${data.datasetDescription || ''},
-        ${JSON.stringify({
-      userName: data.userName,
-      dataset: data.uploadedFile
-    })},
+        ${data.uploadedFile?.name || ''},
         ${'pending'},
         ${startTime},
         ${JSON.stringify({
       metrics: data.metricsDescription,
       performance: data.performanceMetrics
+    })},
+        ${JSON.stringify({
+      userName: data.userName,
+      date: data.date,
+      datasetName: data.datasetName,
+      description: data.datasetDescription,
+      characteristics: data.datasetCharacteristics || ''
     })}
       )
             RETURNING *

@@ -10,11 +10,17 @@ export const PUT: RequestHandler = async ({ request, params }) => {
       UPDATE validations
       SET
         description = ${data.datasetDescription},
-        validation_dataset = ${JSON.stringify({
+        validation_dataset = ${data.uploadedFile?.name || ''},
+        dataset_info = ${JSON.stringify({
       userName: data.userName,
-      dataset: data.uploadedFile,
-      metricsDescription: data.metricsDescription,
-      performanceMetrics: data.performanceMetrics
+      date: data.date,
+      datasetName: data.datasetName,
+      description: data.datasetDescription,
+      characteristics: data.datasetCharacteristics || ''
+    })},
+        validation_result = ${JSON.stringify({
+      metrics: data.metricsDescription,
+      performance: data.performanceMetrics
     })}
       WHERE val_id = ${params.id}
       RETURNING *

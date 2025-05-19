@@ -26,8 +26,10 @@
 	let initialFormData = $state({
 		userName: '',
 		date: '',
+		datasetName: '',
 		uploadedFile: null as File | null,
 		datasetDescription: '',
+		datasetCharacteristics: '',
 		metricsDescription: '',
 		performanceMetrics: ''
 	});
@@ -40,8 +42,10 @@
 	// Form data
 	let userName = $state('');
 	let date = $state('');
+	let datasetName = $state('');
 	let uploadedFile: File | null = $state(null);
 	let datasetDescription = $state('');
+	let datasetCharacteristics = $state('');
 	let metricsDescription = $state('');
 	let performanceMetrics = $state('');
 
@@ -50,9 +54,14 @@
 		const { currentValidation, mode } = $validationStore;
 
 		if (currentValidation) {
-			userName = currentValidation.userName || '';
-			date = currentValidation.start_datetime;
-			datasetDescription = currentValidation.datasetDescription || '';
+			// Try to extract dataset information from dataset_info if available
+			const datasetInfo = currentValidation.dataset_info || {};
+
+			userName = datasetInfo.userName || '';
+			date = datasetInfo.date || currentValidation.start_datetime;
+			datasetName = datasetInfo.datasetName || '';
+			datasetDescription = datasetInfo.description || currentValidation.datasetDescription || '';
+			datasetCharacteristics = datasetInfo.characteristics || '';
 			metricsDescription = currentValidation.metricsDescription || '';
 			performanceMetrics = currentValidation.performanceMetrics || '';
 
@@ -60,8 +69,10 @@
 			initialFormData = {
 				userName: userName,
 				date: date,
+				datasetName: datasetName,
 				uploadedFile: null,
 				datasetDescription: datasetDescription,
+				datasetCharacteristics: datasetCharacteristics,
 				metricsDescription: metricsDescription,
 				performanceMetrics: performanceMetrics
 			};
@@ -69,8 +80,10 @@
 			// Reset form for new validation
 			userName = '';
 			date = '';
+			datasetName = '';
 			uploadedFile = null;
 			datasetDescription = '';
+			datasetCharacteristics = '';
 			metricsDescription = '';
 			performanceMetrics = '';
 
@@ -78,8 +91,10 @@
 			initialFormData = {
 				userName: '',
 				date: '',
+				datasetName: '',
 				uploadedFile: null,
 				datasetDescription: '',
+				datasetCharacteristics: '',
 				metricsDescription: '',
 				performanceMetrics: ''
 			};
@@ -93,8 +108,10 @@
 			const currentFormData = {
 				userName,
 				date,
+				datasetName,
 				uploadedFile,
 				datasetDescription,
+				datasetCharacteristics,
 				metricsDescription,
 				performanceMetrics
 			};
@@ -359,15 +376,14 @@
 			{/if}
 
 			<!-- Resubmit Button -->
-			{#if $validationStore.currentValidation && $validationStore.mode !== 'create'}
+			{#if $validationStore.currentValidation && $validationStore.mode === 'edit'}
 				<button class="btn btn-primary" onclick={handleResubmit}>Resubmit Validation</button>
 			{/if}
 
-			<!-- Close Button -->
-			<button class="btn" onclick={closeModal}>Close</button>
-
 			<!-- Standard Navigation -->
 			<div class="flex-1"></div>
+			<!-- Close Button -->
+			<button class="btn" onclick={closeModal}>Close</button>
 			{#if currentStep > 0}
 				<button class="btn btn-outline" onclick={prevStep}>Previous</button>
 			{/if}
