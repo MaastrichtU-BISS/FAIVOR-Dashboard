@@ -201,7 +201,9 @@
 		console.log('Submitting validation with modelId:', modelId);
 
 		// Generate default validation name if not provided
-		const finalValidationName = validationName.trim() || `Validation ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+		const finalValidationName =
+			validationName.trim() ||
+			`Validation ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
 
 		const formData = {
 			validationName: finalValidationName,
