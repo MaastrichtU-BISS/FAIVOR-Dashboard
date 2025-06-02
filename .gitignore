@@ -12,7 +12,6 @@ $RECYCLE.BIN/
 
 # Editor-specific files
 # VS Code
-.vscode/
 *.code-workspace
 
 # Vim
