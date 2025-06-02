@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 
 export interface ValidationJob {
   val_id: string;
+  validation_name?: string;
   start_datetime: string;
   validation_status: 'pending' | 'running' | 'completed' | 'failed';
   validation_result: {

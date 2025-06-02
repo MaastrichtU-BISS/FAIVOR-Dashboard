@@ -5,6 +5,7 @@
 	import MaterialSymbolsCheck from '~icons/material-symbols/check';
 
 	interface Props {
+		validationName?: string;
 		userName?: string;
 		date?: string;
 		datasetName?: string;
@@ -14,6 +15,7 @@
 	}
 
 	let {
+		validationName = $bindable(''),
 		userName = $bindable(''),
 		date = $bindable(''),
 		datasetName = $bindable(''),
@@ -24,6 +26,7 @@
 
 	// Store initial values to track actual changes
 	let initialValues = $state({
+		validationName: validationName || '',
 		userName: userName || '',
 		date: date || '',
 		datasetName: datasetName || '',
@@ -34,6 +37,7 @@
 	$effect(() => {
 		if (!readonly && onFieldChange) {
 			const hasChanges =
+				validationName !== initialValues.validationName ||
 				userName !== initialValues.userName ||
 				date !== initialValues.date ||
 				datasetName !== initialValues.datasetName ||
@@ -48,6 +52,7 @@
 	// Reset initial values when props change
 	$effect(() => {
 		initialValues = {
+			validationName: validationName || '',
 			userName: userName || '',
 			date: date || '',
 			datasetName: datasetName || '',
@@ -136,6 +141,24 @@
 <div class="grid grid-cols-[400px_1fr] gap-12">
 	<!-- Left Column -->
 	<div class="space-y-6">
+		<div>
+			<label class="label" for="validationName">Validation Name</label>
+			<input
+				type="text"
+				id="validationName"
+				class="input input-bordered w-full"
+				placeholder="Enter validation name (optional)"
+				bind:value={validationName}
+				{readonly}
+				oninput={onFieldChange}
+			/>
+			<div class="label">
+				<span class="label-text-alt text-base-content/60">
+					Leave empty to auto-generate name with date/time
+				</span>
+			</div>
+		</div>
+
 		<div>
 			<label class="label" for="userName">User</label>
 			<input

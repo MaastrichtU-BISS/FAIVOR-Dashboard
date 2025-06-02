@@ -24,6 +24,7 @@
 	let currentStep = $state(0);
 	let hasChanges = $state(false);
 	let initialFormData = $state({
+		validationName: '',
 		userName: '',
 		date: '',
 		datasetName: '',
@@ -40,6 +41,7 @@
 	]);
 
 	// Form data
+	let validationName = $state('');
 	let userName = $state('');
 	let date = $state('');
 	let datasetName = $state('');
@@ -57,6 +59,7 @@
 			// Try to extract dataset information from dataset_info if available
 			const datasetInfo = currentValidation.dataset_info || {};
 
+			validationName = currentValidation.validation_name || '';
 			userName = datasetInfo.userName || '';
 			date = datasetInfo.date || currentValidation.start_datetime;
 			datasetName = datasetInfo.datasetName || '';
@@ -67,6 +70,7 @@
 
 			// Store initial values
 			initialFormData = {
+				validationName: validationName,
 				userName: userName,
 				date: date,
 				datasetName: datasetName,
@@ -78,6 +82,7 @@
 			};
 		} else {
 			// Reset form for new validation
+			validationName = '';
 			userName = '';
 			date = '';
 			datasetName = '';
@@ -89,6 +94,7 @@
 
 			// Reset initial values
 			initialFormData = {
+				validationName: '',
 				userName: '',
 				date: '',
 				datasetName: '',
@@ -106,6 +112,7 @@
 	$effect(() => {
 		if ($validationStore.mode !== 'view') {
 			const currentFormData = {
+				validationName,
 				userName,
 				date,
 				datasetName,
@@ -193,7 +200,11 @@
 
 		console.log('Submitting validation with modelId:', modelId);
 
+		// Generate default validation name if not provided
+		const finalValidationName = validationName.trim() || `Validation ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+
 		const formData = {
+			validationName: finalValidationName,
 			userName,
 			date,
 			uploadedFile,
@@ -251,6 +262,7 @@
 
 	async function handleSave() {
 		const formData = {
+			validationName,
 			userName,
 			date,
 			uploadedFile,
@@ -349,6 +361,7 @@
 		<div class="h-[calc(100%-12rem)] w-full overflow-y-auto">
 			{#if currentStep === 0}
 				<DatasetStep
+					bind:validationName
 					bind:userName
 					bind:date
 					bind:uploadedFile
