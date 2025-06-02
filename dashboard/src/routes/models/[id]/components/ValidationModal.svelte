@@ -126,10 +126,20 @@
 		}
 	});
 
-	// Reset step when opening in view mode
+	// Reset step when opening in view or create mode
 	$effect(() => {
-		if ($validationStore.mode === 'view') {
-			// Reset step to first when opening in view mode
+		if ($validationStore.mode === 'view' || $validationStore.mode === 'create') {
+			// Reset step to first when opening in view or create mode
+			currentStep = 0;
+			steps.forEach((step, i) => {
+				step.active = i === 0;
+			});
+		}
+	});
+
+	// Always start from first step when modal is opened
+	$effect(() => {
+		if ($validationStore.isOpen) {
 			currentStep = 0;
 			steps.forEach((step, i) => {
 				step.active = i === 0;
