@@ -609,6 +609,7 @@ This modular approach ensures code is maintainable, testable, and follows FAIR p
 
 1. **Check MCP first** before making assumptions about library APIs or patterns
 2. **Verify current documentation** for libraries like:
+
    - SvelteKit (routing, forms, authentication)
    - Svelte 5 (runes syntax, components)
    - TailwindCSS/DaisyUI (component patterns)
@@ -616,6 +617,7 @@ This modular approach ensures code is maintainable, testable, and follows FAIR p
    - PostgreSQL drivers and ORMs
 
 3. **Use for implementation guidance** when:
+
    - Setting up new features
    - Integrating external services
    - Following framework-specific patterns
