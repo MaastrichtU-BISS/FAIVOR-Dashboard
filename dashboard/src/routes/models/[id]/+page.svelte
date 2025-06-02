@@ -38,9 +38,10 @@
 
 	interface ValidationJob {
 		val_id: string;
+		validation_name?: string;
 		start_datetime: string;
 		validation_status: 'pending' | 'running' | 'completed' | 'failed';
-		validation_result: {
+		validation_result?: {
 			dataProvided?: boolean;
 			dataCharacteristics?: boolean;
 			metrics?: boolean;
@@ -57,24 +58,12 @@
 			? typedModel.validations.all
 					.filter((v) => !v.deleted_at) // Filter out deleted validations
 					.map((v) => {
-						// Ensure data consistency by checking each property
-						return {
-							val_id: v.val_id ? v.val_id.toString() : '',
-							start_datetime: v.start_date || '',
-							validation_status: v.status || 'pending',
-							validation_result: {
-								dataProvided: Boolean(v.dataset),
-								dataCharacteristics: Boolean(v.description),
-								metrics: Boolean(v.result?.metrics),
-								published: v.status === 'completed'
-							},
-							userName: undefined,
-							datasetDescription: v.dataset || undefined,
-							metricsDescription: v.result?.metrics
-								? JSON.stringify(v.result.metrics, null, 2)
-								: undefined,
-							performanceMetrics: undefined
-						};
+						// Use the ValidationJob structure directly from the API
+						return v;
+					})
+					.sort((a, b) => {
+						// Sort by start_datetime in descending order (most recent first)
+						return new Date(b.start_datetime).getTime() - new Date(a.start_datetime).getTime();
 					})
 			: []
 	);
@@ -104,27 +93,8 @@
 		console.log('Received updated model data:', data);
 
 		if (data.success && data.model) {
-			// Process validations data first to ensure consistent format
-			const processedValidations = data.model.validations.all
-				.filter((v) => !v.deleted_at) // Filter out deleted validations
-				.map((v) => ({
-					val_id: v.val_id.toString(),
-					start_date: v.start_date,
-					status: v.status,
-					dataset: v.dataset,
-					description: v.description,
-					result: v.result,
-					deleted_at: v.deleted_at
-				}));
-
-			// Update the model data with properly formatted validations
-			modelData = {
-				...data.model,
-				validations: {
-					...data.model.validations,
-					all: processedValidations
-				}
-			};
+			// Use the validations directly from the API as they're already transformed
+			modelData = data.model;
 
 			console.log('Updated model data:', modelData);
 			console.log('Updated validationJobs:', validationJobs);
@@ -275,14 +245,14 @@
 					{#each validationJobs as job}
 						<tr class="hover cursor-pointer">
 							<td class="font-bold" onclick={() => openValidation(job)}>
-								Validation {job.val_id}
+								{job.validation_name || `Validation ${job.val_id}`}
 							</td>
 							<td onclick={() => openValidation(job)}>
 								{new Date(job.start_datetime).toLocaleDateString()}
 							</td>
 							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
-									{#if job.validation_result.dataProvided}
+									{#if job.validation_result?.dataProvided}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
 									{:else}
 										<MaterialSymbolsClose class="text-error h-6 w-6" />
@@ -291,7 +261,7 @@
 							</td>
 							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
-									{#if job.validation_result.dataCharacteristics}
+									{#if job.validation_result?.dataCharacteristics}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
 									{:else}
 										<MaterialSymbolsClose class="text-error h-6 w-6" />
@@ -300,7 +270,7 @@
 							</td>
 							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
-									{#if job.validation_result.metrics}
+									{#if job.validation_result?.metrics}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
 									{:else}
 										<MaterialSymbolsClose class="text-error h-6 w-6" />
@@ -309,7 +279,7 @@
 							</td>
 							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
-									{#if job.validation_result.published}
+									{#if job.validation_result?.published}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
 									{:else}
 										<MaterialSymbolsClose class="text-error h-6 w-6" />

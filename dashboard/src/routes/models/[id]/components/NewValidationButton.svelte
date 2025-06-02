@@ -1,5 +1,4 @@
 <script lang="ts">
-	import ValidationModal from './ValidationModal.svelte';
 	import { validationStore } from '$lib/stores/validation.store.ts';
 	import { page } from '$app/stores';
 
@@ -11,5 +10,3 @@
 </script>
 
 <button class="btn btn-primary" onclick={openModal}>New Validation</button>
-
-<ValidationModal modelId={$page.params.id} />

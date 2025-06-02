@@ -5,6 +5,11 @@
 		type ValidationJob,
 		type ValidationMode
 	} from '$lib/stores/validation.store';
+	import type { ValidationFormData } from '$lib/types/validation';
+	import {
+		validationJobToFormData,
+		formDataToValidationData
+	} from '$lib/utils/validation-transform';
 	import DatasetStep from './steps/DatasetStep.svelte';
 	import DatasetCharacteristicsStep from './steps/DatasetCharacteristicsStep.svelte';
 	import MetricsForValidationStep from './steps/MetricsForValidationStep.svelte';
@@ -23,24 +28,27 @@
 
 	let currentStep = $state(0);
 	let hasChanges = $state(false);
-	let initialFormData = $state({
+	let isSubmitting = $state(false);
+	let initialFormData = $state<ValidationFormData>({
 		validationName: '',
 		userName: '',
 		date: '',
 		datasetName: '',
-		uploadedFile: null as File | null,
+		uploadedFile: null,
 		datasetDescription: '',
 		datasetCharacteristics: '',
 		metricsDescription: '',
-		performanceMetrics: ''
+		performanceMetrics: '',
+		modelId: modelId
 	});
+
 	const steps = $state([
 		{ title: 'Dataset', active: true },
 		{ title: 'Dataset Characteristics', active: false },
 		{ title: 'Metrics for validation', active: false }
 	]);
 
-	// Form data
+	// Form data using the new structured approach
 	let validationName = $state('');
 	let userName = $state('');
 	let date = $state('');
@@ -51,49 +59,28 @@
 	let metricsDescription = $state('');
 	let performanceMetrics = $state('');
 
-	// Get data from store
+	// Get data from store and transform using utility functions
 	$effect(() => {
 		const { currentValidation, mode } = $validationStore;
 
 		if (currentValidation) {
-			// Try to extract dataset information from dataset_info if available
-			const datasetInfo = currentValidation.dataset_info || {};
+			// Use utility function to transform validation data to form data
+			const formData = validationJobToFormData(currentValidation);
 
-			validationName = currentValidation.validation_name || '';
-			userName = datasetInfo.userName || '';
-			date = datasetInfo.date || currentValidation.start_datetime;
-			datasetName = datasetInfo.datasetName || '';
-			datasetDescription = datasetInfo.description || currentValidation.datasetDescription || '';
-			datasetCharacteristics = datasetInfo.characteristics || '';
-			metricsDescription = currentValidation.metricsDescription || '';
-			performanceMetrics = currentValidation.performanceMetrics || '';
+			validationName = formData.validationName;
+			userName = formData.userName;
+			date = formData.date;
+			datasetName = formData.datasetName;
+			datasetDescription = formData.datasetDescription;
+			datasetCharacteristics = formData.datasetCharacteristics;
+			metricsDescription = formData.metricsDescription;
+			performanceMetrics = formData.performanceMetrics;
 
-			// Store initial values
-			initialFormData = {
-				validationName: validationName,
-				userName: userName,
-				date: date,
-				datasetName: datasetName,
-				uploadedFile: null,
-				datasetDescription: datasetDescription,
-				datasetCharacteristics: datasetCharacteristics,
-				metricsDescription: metricsDescription,
-				performanceMetrics: performanceMetrics
-			};
+			// Store initial values for change tracking
+			initialFormData = { ...formData, modelId: modelId };
 		} else {
 			// Reset form for new validation
-			validationName = '';
-			userName = '';
-			date = '';
-			datasetName = '';
-			uploadedFile = null;
-			datasetDescription = '';
-			datasetCharacteristics = '';
-			metricsDescription = '';
-			performanceMetrics = '';
-
-			// Reset initial values
-			initialFormData = {
+			const emptyFormData: ValidationFormData = {
 				validationName: '',
 				userName: '',
 				date: '',
@@ -102,8 +89,21 @@
 				datasetDescription: '',
 				datasetCharacteristics: '',
 				metricsDescription: '',
-				performanceMetrics: ''
+				performanceMetrics: '',
+				modelId: modelId
 			};
+
+			validationName = emptyFormData.validationName;
+			userName = emptyFormData.userName;
+			date = emptyFormData.date;
+			datasetName = emptyFormData.datasetName;
+			uploadedFile = emptyFormData.uploadedFile;
+			datasetDescription = emptyFormData.datasetDescription;
+			datasetCharacteristics = emptyFormData.datasetCharacteristics;
+			metricsDescription = emptyFormData.metricsDescription;
+			performanceMetrics = emptyFormData.performanceMetrics;
+
+			initialFormData = emptyFormData;
 		}
 		hasChanges = false;
 	});
@@ -111,7 +111,7 @@
 	// Track actual changes by comparing with initial values
 	$effect(() => {
 		if ($validationStore.mode !== 'view') {
-			const currentFormData = {
+			const currentFormData: ValidationFormData = {
 				validationName,
 				userName,
 				date,
@@ -120,11 +120,12 @@
 				datasetDescription,
 				datasetCharacteristics,
 				metricsDescription,
-				performanceMetrics
+				performanceMetrics,
+				modelId: modelId
 			};
 
 			const hasChanged = Object.entries(currentFormData).some(([key, value]) => {
-				return value !== initialFormData[key as keyof typeof initialFormData];
+				return value !== initialFormData[key as keyof ValidationFormData];
 			});
 
 			if (hasChanged !== hasChanges) {
@@ -190,33 +191,41 @@
 	}
 
 	async function handleSubmit() {
+		// Prevent double submissions
+		if (isSubmitting) return;
+
 		// Only allow submit in create/edit modes
 		if ($validationStore.mode === 'view') return;
 
-		// Save any pending changes first
-		if (hasChanges) {
-			await handleSave();
-		}
-
-		console.log('Submitting validation with modelId:', modelId);
-
-		// Generate default validation name if not provided
-		const finalValidationName =
-			validationName.trim() ||
-			`Validation ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
-
-		const formData = {
-			validationName: finalValidationName,
-			userName,
-			date,
-			uploadedFile,
-			datasetDescription,
-			metricsDescription,
-			performanceMetrics,
-			modelId
-		};
+		isSubmitting = true;
 
 		try {
+			// Only save pending changes in edit mode, not create mode
+			if (hasChanges && $validationStore.mode === 'edit') {
+				await handleSave();
+			}
+
+			console.log('Submitting validation with modelId:', modelId);
+
+			// Generate default validation name if not provided
+			const finalValidationName =
+				validationName.trim() ||
+				`Validation ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+
+			// Create form data structure
+			const formData: ValidationFormData = {
+				validationName: finalValidationName,
+				userName,
+				date,
+				datasetName,
+				uploadedFile,
+				datasetDescription,
+				datasetCharacteristics,
+				metricsDescription,
+				performanceMetrics,
+				modelId
+			};
+
 			if ($validationStore.mode === 'create') {
 				const response = await fetch('/api/validations', {
 					method: 'POST',
@@ -259,16 +268,21 @@
 		} catch (error) {
 			console.error('Error submitting validation:', error);
 			// TODO: Show error toast
+		} finally {
+			isSubmitting = false;
 		}
 	}
 
 	async function handleSave() {
-		const formData = {
+		// Create form data structure
+		const formData: ValidationFormData = {
 			validationName,
 			userName,
 			date,
+			datasetName,
 			uploadedFile,
 			datasetDescription,
+			datasetCharacteristics,
 			metricsDescription,
 			performanceMetrics,
 			modelId
@@ -276,21 +290,34 @@
 
 		try {
 			if ($validationStore.currentValidation?.val_id) {
-				await fetch(`/api/validations/${$validationStore.currentValidation.val_id}`, {
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify(formData)
-				});
+				const response = await fetch(
+					`/api/validations/${$validationStore.currentValidation.val_id}`,
+					{
+						method: 'PUT',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify(formData)
+					}
+				);
+				const result = await response.json();
+
+				if (!result.success) {
+					throw new Error(result.error || 'Failed to update validation');
+				}
 			} else {
-				await fetch('/api/validations', {
+				const response = await fetch('/api/validations', {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json'
 					},
 					body: JSON.stringify(formData)
 				});
+				const result = await response.json();
+
+				if (!result.success) {
+					throw new Error(result.error || 'Failed to create validation');
+				}
 			}
 			hasChanges = false;
 			dispatch('validationChange');
@@ -415,7 +442,9 @@
 			{#if currentStep < steps.length - 1}
 				<button class="btn btn-primary" onclick={nextStep}>Next</button>
 			{:else if $validationStore.mode !== 'view'}
-				<button class="btn btn-primary" onclick={handleSubmit}>Submit</button>
+				<button class="btn btn-primary" onclick={handleSubmit} disabled={isSubmitting}>
+					{isSubmitting ? 'Submitting...' : 'Submit'}
+				</button>
 			{/if}
 		</div>
 	</div>

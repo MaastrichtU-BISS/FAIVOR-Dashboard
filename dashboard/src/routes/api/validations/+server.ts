@@ -1,66 +1,64 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { sql } from '$lib/db';
+import type { ValidationFormData, CreateValidationRequest } from '$lib/types/validation';
+import { formDataToValidationData } from '$lib/utils/validation-transform';
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const data = await request.json();
+    const formData: ValidationFormData = await request.json();
     const startTime = new Date().toISOString();
 
-    console.log('Creating validation with data:', data);
+    console.log('Creating validation with data:', formData);
+    console.log('ValidationName from form:', formData.validationName);
+
+    if (!formData.modelId) {
+      console.error('Model ID is required');
+      return json({ error: 'Model ID is required' }, { status: 400 });
+    }
 
     // Get the model first to ensure it exists
     const model = await sql`
       SELECT * FROM model_checkpoints
-      WHERE checkpoint_id = ${data.modelId}
+      WHERE checkpoint_id = ${formData.modelId}
     `;
 
     if (model.length === 0) {
-      console.error('Model not found:', data.modelId);
+      console.error('Model not found:', formData.modelId);
       return json({ error: 'Model not found' }, { status: 404 });
     }
 
     console.log('Found model:', model[0]);
 
-    // Create new validation record
+    // Transform form data to validation data structure
+    const validationData = formDataToValidationData(formData);
+    console.log('Transformed validation data:', validationData);
+
+    // Create new validation record with consolidated data structure
     const result = await sql`
       INSERT INTO validations (
         fair_model_id,
         model_checkpoint_id,
-        description,
-        validation_dataset,
         validation_status,
         start_datetime,
-        validation_result,
-        dataset_info
+        data
       ) VALUES (
         ${model[0].fair_model_id},
-        ${data.modelId},
-        ${data.datasetDescription || ''},
-        ${data.uploadedFile?.name || ''},
+        ${formData.modelId},
         ${'pending'},
         ${startTime},
-        ${JSON.stringify({
-      metrics: data.metricsDescription,
-      performance: data.performanceMetrics
-    })},
-        ${JSON.stringify({
-      userName: data.userName,
-      date: data.date,
-      datasetName: data.datasetName,
-      description: data.datasetDescription,
-      characteristics: data.datasetCharacteristics || ''
-    })}
+        ${sql.json(validationData as any)}
       )
-            RETURNING *
-        `;
+      RETURNING *
+    `;
 
     console.log('Validation created:', result[0]);
+    console.log('Validation data saved:', result[0].data);
 
     // Get updated validations for this model (excluding deleted ones)
     const validations = await sql`
       SELECT * FROM validations
-      WHERE model_checkpoint_id = ${data.modelId}
+      WHERE model_checkpoint_id = ${formData.modelId}
       AND deleted_at IS NULL
       ORDER BY start_datetime DESC
     `;

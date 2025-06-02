@@ -1,24 +1,10 @@
 import { writable } from 'svelte/store';
-
-export interface ValidationJob {
-  val_id: string;
-  validation_name?: string;
-  start_datetime: string;
-  validation_status: 'pending' | 'running' | 'completed' | 'failed';
-  validation_result: {
-    dataProvided?: boolean;
-    dataCharacteristics?: boolean;
-    metrics?: boolean;
-    published?: boolean;
-  };
-  userName?: string;
-  datasetDescription?: string;
-  metricsDescription?: string;
-  performanceMetrics?: string;
-  modelId?: string;
-}
+import type { ValidationJob } from '$lib/types/validation';
 
 export type ValidationMode = 'create' | 'view' | 'edit';
+
+// Re-export ValidationJob for backwards compatibility
+export type { ValidationJob };
 
 interface ValidationStoreState {
   currentValidation: ValidationJob | null;

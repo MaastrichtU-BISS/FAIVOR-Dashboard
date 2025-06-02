@@ -20,28 +20,25 @@ export const POST: RequestHandler = async ({ params }) => {
       INSERT INTO validations (
         fair_model_id,
         model_checkpoint_id,
-        description,
-        validation_dataset,
         validation_status,
         start_datetime,
-        validation_result,
-        dataset_info
+        data
       )
       SELECT
         fair_model_id,
         model_checkpoint_id,
-        description,
-        validation_dataset,
         'pending' as validation_status,
         ${new Date().toISOString()} as start_datetime,
-        validation_result,
-        dataset_info
+        data
       FROM validations
       WHERE val_id = ${params.id}
       RETURNING *
     `;
 
-    return json(result[0]);
+    return json({
+      success: true,
+      validation: result[0]
+    });
   } catch (error) {
     console.error('Error resubmitting validation:', error);
     return json({ error: 'Failed to resubmit validation' }, { status: 500 });

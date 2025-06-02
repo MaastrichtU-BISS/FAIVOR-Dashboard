@@ -53,20 +53,42 @@ SELECT checkpoint_id, model_name, model_url, metadata, description
 FROM model_data;
 
 -- Insert validation for DeepLabV3+
-INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, validation_result, start_datetime)
+INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, data, start_datetime)
 SELECT
   encode(digest('DeepLabV3+ Segmentation Model', 'sha256'), 'hex'),
   'DeepLabV3+ Segmentation Model',
   'completed',
   jsonb_build_object(
-    'metrics', jsonb_build_object(
-      'diceCoefficient', 0.92,
-      'meanIoU', 0.89,
-      'precision', 0.94,
-      'recall', 0.91
+    'validation_name', 'Medical Imaging Validation',
+    'dataset_info', jsonb_build_object(
+      'userName', 'Medical Imaging Team',
+      'date', '2024-06-01',
+      'datasetName', 'MICCAI 2023 Challenge Dataset',
+      'description', 'Comprehensive medical imaging dataset for tumor detection',
+      'characteristics', 'High-resolution CT and MRI scans with pixel-level annotations'
     ),
-    'validationDataset', 'MICCAI 2023 Challenge Dataset',
-    'crossValidation', '5-fold cross-validation'
+    'validation_result', jsonb_build_object(
+      'dataProvided', true,
+      'dataCharacteristics', true,
+      'metrics', true,
+      'published', true,
+      'fairness_metrics', jsonb_build_object(
+        'diceCoefficient', 0.92,
+        'meanIoU', 0.89,
+        'precision', 0.94,
+        'recall', 0.91
+      ),
+      'performance_metrics', jsonb_build_object(
+        'validationDataset', 'MICCAI 2023 Challenge Dataset',
+        'crossValidation', '5-fold cross-validation'
+      ),
+      'metrics_description', 'Comprehensive evaluation using standard medical imaging metrics',
+      'performance_description', 'Excellent performance on medical imaging segmentation tasks'
+    ),
+    'metadata', jsonb_build_object(
+      'validation_type', 'medical_imaging',
+      'domain', 'healthcare'
+    )
   ),
   NOW();
 
@@ -129,20 +151,45 @@ SELECT checkpoint_id, model_name, model_url, metadata, description
 FROM model_data;
 
 -- Insert validation for LightGBM
-INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, validation_result, start_datetime)
+INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, data, start_datetime)
 SELECT
   encode(digest('LightGBM Time Series Forecaster', 'sha256'), 'hex'),
   'LightGBM Time Series Forecaster',
   'completed',
   jsonb_build_object(
-    'metrics', jsonb_build_object(
-      'mape', 4.2,
-      'rmse', 0.087,
-      'mae', 0.065,
-      'r2Score', 0.93
+    'validation_name', 'Energy Forecasting Validation',
+    'dataset_info', jsonb_build_object(
+      'userName', 'Energy Analytics Team',
+      'date', '2024-05-15',
+      'datasetName', 'Public utility data 2022-2023',
+      'description', 'Comprehensive energy consumption data with seasonal patterns',
+      'characteristics', 'Hourly energy consumption data with weather features'
     ),
-    'validationDataset', 'Public utility data 2022-2023',
-    'crossValidation', 'Time series walk-forward validation'
+    'validation_result', jsonb_build_object(
+      'dataProvided', true,
+      'dataCharacteristics', true,
+      'metrics', true,
+      'published', true,
+      'performance_metrics', jsonb_build_object(
+        'mape', 4.2,
+        'rmse', 0.087,
+        'mae', 0.065,
+        'r2Score', 0.93
+      ),
+      'metrics_description', 'Time series forecasting evaluation using standard regression metrics',
+      'performance_description', 'Excellent performance on energy demand forecasting with low error rates'
+    ),
+    'configuration', jsonb_build_object(
+      'validation_parameters', jsonb_build_object(
+        'crossValidation', 'Time series walk-forward validation',
+        'testSize', 0.2,
+        'seasonality', 'daily_weekly'
+      )
+    ),
+    'metadata', jsonb_build_object(
+      'validation_type', 'time_series_forecasting',
+      'domain', 'energy'
+    )
   ),
   NOW();
 
@@ -160,57 +207,124 @@ SELECT
   'Training data statistics for LightGBM Time Series Forecaster';
 
 -- Insert additional validations for LightGBM Time Series Forecaster (Industrial IoT)
-INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, validation_result, start_datetime)
+INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, data, start_datetime)
 SELECT
   encode(digest('LightGBM Time Series Forecaster', 'sha256'), 'hex'),
   'LightGBM Time Series Forecaster',
   'running',
   jsonb_build_object(
-    'metrics', jsonb_build_object(
-      'mape', 3.8,
-      'rmse', 0.072,
-      'mae', 0.058,
-      'r2Score', 0.95
+    'validation_name', 'Industrial IoT Sensor Validation',
+    'dataset_info', jsonb_build_object(
+      'userName', 'IoT Analytics Team',
+      'date', '2024-06-01',
+      'datasetName', 'Industrial IoT sensor data 2023-2024',
+      'description', 'Multi-sensor industrial monitoring data',
+      'characteristics', 'High-frequency sensor readings with anomaly detection'
     ),
-    'validationDataset', 'Industrial IoT sensor data 2023-2024',
-    'crossValidation', 'Sequential time series validation'
+    'validation_result', jsonb_build_object(
+      'dataProvided', true,
+      'dataCharacteristics', true,
+      'metrics', true,
+      'performance_metrics', jsonb_build_object(
+        'mape', 3.8,
+        'rmse', 0.072,
+        'mae', 0.058,
+        'r2Score', 0.95
+      )
+    ),
+    'configuration', jsonb_build_object(
+      'validation_parameters', jsonb_build_object(
+        'crossValidation', 'Sequential time series validation'
+      )
+    ),
+    'metadata', jsonb_build_object(
+      'validation_type', 'industrial_monitoring',
+      'domain', 'manufacturing'
+    )
   ),
   NOW() - interval '2 hours';
 
 -- Insert failed validation for LightGBM (Financial Market Data)
-INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, validation_result, start_datetime)
+INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, data, start_datetime)
 SELECT
   encode(digest('LightGBM Time Series Forecaster', 'sha256'), 'hex'),
   'LightGBM Time Series Forecaster',
   'failed',
   jsonb_build_object(
-    'metrics', jsonb_build_object(
-      'mape', 12.5,
-      'rmse', 0.245,
-      'mae', 0.198,
-      'r2Score', 0.67
+    'validation_name', 'Financial Market Forecasting',
+    'dataset_info', jsonb_build_object(
+      'userName', 'Quantitative Analysis Team',
+      'date', '2024-05-30',
+      'datasetName', 'Financial market data 2023',
+      'description', 'High-frequency trading data with market indicators',
+      'characteristics', 'Minute-level stock prices with volatility features'
     ),
-    'validationDataset', 'Financial market data 2023',
-    'crossValidation', 'Time series walk-forward validation',
-    'failureReason', 'Performance metrics below acceptable thresholds for financial forecasting'
+    'validation_result', jsonb_build_object(
+      'dataProvided', true,
+      'dataCharacteristics', true,
+      'metrics', true,
+      'performance_metrics', jsonb_build_object(
+        'mape', 12.5,
+        'rmse', 0.245,
+        'mae', 0.198,
+        'r2Score', 0.67
+      ),
+      'metrics_description', 'Performance below acceptable thresholds for financial forecasting',
+      'performance_description', 'Model showed poor performance on volatile market conditions'
+    ),
+    'configuration', jsonb_build_object(
+      'validation_parameters', jsonb_build_object(
+        'crossValidation', 'Time series walk-forward validation',
+        'failureReason', 'Performance metrics below acceptable thresholds for financial forecasting'
+      )
+    ),
+    'metadata', jsonb_build_object(
+      'validation_type', 'financial_forecasting',
+      'domain', 'finance',
+      'failure_analysis', 'High volatility periods caused significant prediction errors'
+    )
   ),
   NOW() - interval '1 day';
 
 -- Insert completed validation for LightGBM (Weather Data)
-INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, validation_result, start_datetime)
+INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, data, start_datetime)
 SELECT
   encode(digest('LightGBM Time Series Forecaster', 'sha256'), 'hex'),
   'LightGBM Time Series Forecaster',
   'completed',
   jsonb_build_object(
-    'metrics', jsonb_build_object(
-      'mape', 4.5,
-      'rmse', 0.092,
-      'mae', 0.071,
-      'r2Score', 0.91
+    'validation_name', 'Weather Forecasting Validation',
+    'dataset_info', jsonb_build_object(
+      'userName', 'Meteorology Research Team',
+      'date', '2024-06-01',
+      'datasetName', 'Weather forecasting data 2022-2024',
+      'description', 'Comprehensive weather station data with atmospheric conditions',
+      'characteristics', 'Multi-parameter weather data with geographical features'
     ),
-    'validationDataset', 'Weather forecasting data 2022-2024',
-    'crossValidation', 'Rolling window validation'
+    'validation_result', jsonb_build_object(
+      'dataProvided', true,
+      'dataCharacteristics', true,
+      'metrics', true,
+      'published', true,
+      'performance_metrics', jsonb_build_object(
+        'mape', 4.5,
+        'rmse', 0.092,
+        'mae', 0.071,
+        'r2Score', 0.91
+      ),
+      'metrics_description', 'Weather forecasting evaluation with seasonal adjustment',
+      'performance_description', 'Strong performance across different weather patterns and seasons'
+    ),
+    'configuration', jsonb_build_object(
+      'validation_parameters', jsonb_build_object(
+        'crossValidation', 'Rolling window validation',
+        'seasonality', 'monthly_yearly'
+      )
+    ),
+    'metadata', jsonb_build_object(
+      'validation_type', 'weather_forecasting',
+      'domain', 'meteorology'
+    )
   ),
   NOW() - interval '12 hours';
 
@@ -260,20 +374,42 @@ SELECT checkpoint_id, model_name, model_url, metadata, description
 FROM model_data;
 
 -- Insert validation for BERT
-INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, validation_result, start_datetime)
+INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, data, start_datetime)
 SELECT
   encode(digest('BERT-Based Text Classifier', 'sha256'), 'hex'),
   'BERT-Based Text Classifier',
   'running',
   jsonb_build_object(
-    'metrics', jsonb_build_object(
-      'f1Score', 0.88,
-      'accuracy', 0.91,
-      'precision', 0.89,
-      'recall', 0.87
+    'validation_name', 'Scientific Publication Classification',
+    'dataset_info', jsonb_build_object(
+      'userName', 'NLP Research Team',
+      'date', '2024-06-02',
+      'datasetName', 'arXiv papers 2020-2023',
+      'description', 'Large-scale scientific publication dataset for topic classification',
+      'characteristics', 'Multi-domain research papers with abstract and full-text content'
     ),
-    'validationDataset', 'arXiv papers 2020-2023',
-    'crossValidation', 'Stratified 5-fold'
+    'validation_result', jsonb_build_object(
+      'dataProvided', true,
+      'dataCharacteristics', true,
+      'metrics', false,
+      'performance_metrics', jsonb_build_object(
+        'f1Score', 0.88,
+        'accuracy', 0.91,
+        'precision', 0.89,
+        'recall', 0.87
+      )
+    ),
+    'configuration', jsonb_build_object(
+      'validation_parameters', jsonb_build_object(
+        'max_sequence_length', 512,
+        'batch_size', 16,
+        'crossValidation', 'Stratified 5-fold'
+      )
+    ),
+    'metadata', jsonb_build_object(
+      'validation_type', 'text_classification',
+      'domain', 'nlp'
+    )
   ),
   NOW();
 
@@ -336,20 +472,46 @@ SELECT checkpoint_id, model_name, model_url, metadata, description
 FROM model_data;
 
 -- Insert validation for ResNet50
-INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, validation_result, start_datetime)
+INSERT INTO validations (model_checkpoint_id, fair_model_id, validation_status, data, start_datetime)
 SELECT
   encode(digest('ResNet50 Transfer Learning Model', 'sha256'), 'hex'),
   'ResNet50 Transfer Learning Model',
   'failed',
   jsonb_build_object(
-    'metrics', jsonb_build_object(
-      'accuracy', 0.95,
-      'precision', 0.94,
-      'recall', 0.93,
-      'f1Score', 0.935
+    'validation_name', 'Industrial Quality Control Validation',
+    'dataset_info', jsonb_build_object(
+      'userName', 'Quality Control Team',
+      'date', '2024-05-20',
+      'datasetName', 'Industrial defect dataset 2023',
+      'description', 'High-resolution images of manufactured products for defect detection',
+      'characteristics', 'RGB images with binary classification labels for defect/no-defect'
     ),
-    'validationDataset', 'Industrial defect dataset 2023',
-    'crossValidation', '3-fold cross-validation'
+    'validation_result', jsonb_build_object(
+      'dataProvided', true,
+      'dataCharacteristics', true,
+      'metrics', true,
+      'performance_metrics', jsonb_build_object(
+        'accuracy', 0.95,
+        'precision', 0.94,
+        'recall', 0.93,
+        'f1Score', 0.935
+      ),
+      'metrics_description', 'Computer vision evaluation with confusion matrix analysis',
+      'performance_description', 'Model failed validation due to bias in defect detection across different product types'
+    ),
+    'configuration', jsonb_build_object(
+      'validation_parameters', jsonb_build_object(
+        'crossValidation', '3-fold cross-validation',
+        'image_size', '224x224',
+        'batch_size', 32,
+        'failureReason', 'Bias detected in classification across different product categories'
+      )
+    ),
+    'metadata', jsonb_build_object(
+      'validation_type', 'computer_vision',
+      'domain', 'manufacturing',
+      'failure_analysis', 'Model shows significant bias toward certain product types'
+    )
   ),
   NOW();
 
