@@ -27,8 +27,9 @@
 	let { modelId }: Props = $props();
 
 	let currentStep = $state(0);
-	let hasChanges = $state(false);
 	let isSubmitting = $state(false);
+	let autoSaveTimeout: ReturnType<typeof setTimeout> | null = $state(null);
+	let isSaving = $state(false);
 	let initialFormData = $state<ValidationFormData>({
 		validationName: '',
 		userName: '',
@@ -105,33 +106,6 @@
 
 			initialFormData = emptyFormData;
 		}
-		hasChanges = false;
-	});
-
-	// Track actual changes by comparing with initial values
-	$effect(() => {
-		if ($validationStore.mode !== 'view') {
-			const currentFormData: ValidationFormData = {
-				validationName,
-				userName,
-				date,
-				datasetName,
-				uploadedFile,
-				datasetDescription,
-				datasetCharacteristics,
-				metricsDescription,
-				performanceMetrics,
-				modelId: modelId
-			};
-
-			const hasChanged = Object.entries(currentFormData).some(([key, value]) => {
-				return value !== initialFormData[key as keyof ValidationFormData];
-			});
-
-			if (hasChanged !== hasChanges) {
-				hasChanges = hasChanged;
-			}
-		}
 	});
 
 	// Reset step when opening in view or create mode
@@ -179,13 +153,98 @@
 		}
 	}
 
-	async function closeModal() {
-		if (hasChanges) {
-			const confirmed = confirm('You have unsaved changes. Do you want to save before closing?');
-			if (confirmed) {
-				await handleSave();
-			}
+	// Auto-save functionality for edit mode
+	async function autoSave() {
+		// Only auto-save in edit mode with existing validation
+		if (
+			$validationStore.mode !== 'edit' ||
+			!$validationStore.currentValidation?.val_id ||
+			isSaving
+		) {
+			return;
 		}
+
+		isSaving = true;
+
+		try {
+			// Create form data structure
+			const formData: ValidationFormData = {
+				validationName,
+				userName,
+				date,
+				datasetName,
+				uploadedFile,
+				datasetDescription,
+				datasetCharacteristics,
+				metricsDescription,
+				performanceMetrics,
+				modelId
+			};
+
+			const response = await fetch(
+				`/api/validations/${$validationStore.currentValidation.val_id}`,
+				{
+					method: 'PUT',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(formData)
+				}
+			);
+			const result = await response.json();
+
+			if (!result.success) {
+				console.error('Auto-save failed:', result.error);
+				// Optionally, show a toast or error indicator here
+			} else {
+				dispatch('validationChange');
+			}
+		} catch (error) {
+			console.error('Auto-save error:', error);
+			// Optionally, show a toast or error indicator here
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	// Debounced auto-save function
+	function debouncedAutoSave() {
+		if (autoSaveTimeout) {
+			clearTimeout(autoSaveTimeout);
+		}
+		autoSaveTimeout = setTimeout(() => {
+			autoSave();
+		}, 500);
+	}
+
+	// Watch for form field changes and trigger auto-save
+	$effect(() => {
+		if ($validationStore.mode === 'edit' && $validationStore.currentValidation?.val_id) {
+			// Create a reactive dependency on all form fields
+			const formState = {
+				validationName,
+				userName,
+				date,
+				datasetName,
+				datasetDescription,
+				datasetCharacteristics,
+				metricsDescription,
+				performanceMetrics
+			};
+			debouncedAutoSave();
+		}
+	});
+
+	// Cleanup timeout on component unmount
+	$effect(() => {
+		return () => {
+			if (autoSaveTimeout) {
+				clearTimeout(autoSaveTimeout);
+			}
+		};
+	});
+
+	async function closeModal() {
 		validationStore.closeModal();
 		dispatch('close');
 	}
@@ -200,11 +259,6 @@
 		isSubmitting = true;
 
 		try {
-			// Only save pending changes in edit mode, not create mode
-			if (hasChanges && $validationStore.mode === 'edit') {
-				await handleSave();
-			}
-
 			console.log('Submitting validation with modelId:', modelId);
 
 			// Generate default validation name if not provided
@@ -261,7 +315,6 @@
 					throw new Error(result.error || 'Failed to update validation');
 				}
 
-				hasChanges = false;
 				dispatch('validationChange');
 				closeModal();
 			}
@@ -273,70 +326,11 @@
 		}
 	}
 
-	async function handleSave() {
-		// Create form data structure
-		const formData: ValidationFormData = {
-			validationName,
-			userName,
-			date,
-			datasetName,
-			uploadedFile,
-			datasetDescription,
-			datasetCharacteristics,
-			metricsDescription,
-			performanceMetrics,
-			modelId
-		};
-
-		try {
-			if ($validationStore.currentValidation?.val_id) {
-				const response = await fetch(
-					`/api/validations/${$validationStore.currentValidation.val_id}`,
-					{
-						method: 'PUT',
-						headers: {
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify(formData)
-					}
-				);
-				const result = await response.json();
-
-				if (!result.success) {
-					throw new Error(result.error || 'Failed to update validation');
-				}
-			} else {
-				const response = await fetch('/api/validations', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify(formData)
-				});
-				const result = await response.json();
-
-				if (!result.success) {
-					throw new Error(result.error || 'Failed to create validation');
-				}
-			}
-			hasChanges = false;
-			dispatch('validationChange');
-		} catch (error) {
-			console.error('Error saving validation:', error);
-			// TODO: Show error toast
-		}
-	}
-
 	async function handleResubmit() {
 		if (!$validationStore.currentValidation?.val_id) return;
 
 		const confirmed = confirm('Are you sure you want to resubmit this validation?');
 		if (!confirmed) return;
-
-		// Save any pending changes first
-		if (hasChanges) {
-			await handleSave();
-		}
 
 		try {
 			await fetch(`/api/validations/${$validationStore.currentValidation.val_id}/resubmit`, {
@@ -347,12 +341,6 @@
 		} catch (error) {
 			console.error('Error resubmitting validation:', error);
 			// TODO: Show error toast
-		}
-	}
-
-	function trackChanges() {
-		if ($validationStore.mode !== 'view') {
-			hasChanges = true;
 		}
 	}
 
@@ -369,6 +357,14 @@
 	class:modal-open={$validationStore.isOpen}
 >
 	<div class="modal-box bg-base-100 h-[90vh] max-h-none w-full !max-w-full p-8">
+		<!-- Header with auto-save indicator -->
+		{#if $validationStore.mode === 'edit' && isSaving}
+			<div class="text-base-content/70 mb-4 flex items-center gap-2 text-sm">
+				<span class="loading loading-spinner loading-xs"></span>
+				<span>Auto-saving...</span>
+			</div>
+		{/if}
+
 		<!-- Stepper -->
 		<ul class="steps mb-8 w-full">
 			{#each steps as step, i}
@@ -395,31 +391,23 @@
 					bind:date
 					bind:uploadedFile
 					readonly={$validationStore.mode === 'view'}
-					onFieldChange={trackChanges}
 				/>
 			{:else if currentStep === 1}
 				<DatasetCharacteristicsStep
 					bind:datasetDescription
 					readonly={$validationStore.mode === 'view'}
-					onFieldChange={trackChanges}
 				/>
 			{:else if currentStep === 2}
 				<MetricsForValidationStep
 					bind:metricsDescription
 					bind:performanceMetrics
 					readonly={$validationStore.mode === 'view'}
-					onFieldChange={trackChanges}
 				/>
 			{/if}
 		</div>
 
 		<!-- Navigation -->
 		<div class="modal-action mt-8">
-			<!-- Save Changes Button -->
-			{#if $validationStore.mode === 'edit'}
-				<button class="btn btn-outline" onclick={handleSave}>Save Changes</button>
-			{/if}
-
 			<!-- Edit Button -->
 			{#if $validationStore.mode === 'view'}
 				<button class="btn btn-outline" onclick={() => validationStore.setMode('edit')}>

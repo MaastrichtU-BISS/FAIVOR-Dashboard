@@ -10,13 +10,15 @@
 	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
 	import ValidationModal from './components/ValidationModal.svelte';
 	import ResultsModal from './components/ResultsModal.svelte';
-	import { validationStore } from '$lib/stores/validation.store.ts';
+	import { validationStore } from '$lib/stores/validation.store';
 
 	interface Props {
 		data: PageData;
 	}
 
 	let showResultsModal = $state(false);
+	let showValidationModal = $state(false);
+	let selectedValidation: ValidationJob | null = $state(null);
 	let currentValidationJob: ValidationJob | null = $state(null);
 
 	import type { Model } from '$lib/stores/models/types';
@@ -56,13 +58,8 @@
 	let validationJobs = $derived(
 		typedModel.validations?.all
 			? typedModel.validations.all
-					.filter((v) => !v.deleted_at) // Filter out deleted validations
-					.map((v) => {
-						// Use the ValidationJob structure directly from the API
-						return v;
-					})
+					.filter((v) => !v.deleted_at)
 					.sort((a, b) => {
-						// Sort by start_datetime in descending order (most recent first)
 						return new Date(b.start_datetime).getTime() - new Date(a.start_datetime).getTime();
 					})
 			: []
@@ -70,10 +67,13 @@
 
 	function openNewValidation() {
 		validationStore.openModal(undefined, 'create');
+		showValidationModal = true;
 	}
 
 	function openValidation(validation: ValidationJob) {
+		selectedValidation = validation;
 		validationStore.openModal(validation, 'view');
+		showValidationModal = true;
 	}
 
 	function openResults(validation: ValidationJob) {
@@ -108,8 +108,11 @@
 		await refreshModelData();
 	}
 
+	// Modal event handlers
 	function handleModalClose() {
-		validationStore.closeModal();
+		// Only refresh model data if a validation was actually changed (handled by validationChange event)
+		showValidationModal = false;
+		selectedValidation = null;
 	}
 
 	async function handleDeleteValidation(validationId: string) {
@@ -117,9 +120,7 @@
 
 		if (confirm('Are you sure you want to delete this validation?')) {
 			try {
-				// Optimistically update UI first
 				if (typedModel.validations?.all) {
-					// Make a deep copy of the validations array to prevent reference issues
 					const updatedValidations = typedModel.validations.all.map((v) => {
 						const validation = { ...v };
 						if (validation.val_id.toString() === validationId) {
@@ -127,8 +128,6 @@
 						}
 						return validation;
 					});
-
-					// Create a new modelData object to ensure reactivity
 					modelData = {
 						...modelData,
 						validations: {
@@ -137,24 +136,17 @@
 						}
 					};
 				}
-
-				// Then perform the actual API call
 				const response = await fetch(`/api/validations/${validationId}`, {
 					method: 'DELETE'
 				});
-
 				if (!response.ok) {
 					throw new Error('Failed to delete validation');
 				}
-
 				toast.success('Validation deleted successfully!');
-				// Refresh data from server to ensure everything is in sync
 				await refreshModelData();
 			} catch (error) {
 				console.error('Error deleting validation:', error);
 				toast.error('Failed to delete validation.');
-				// Refresh data to restore state in case of error
-				await refreshModelData();
 			}
 		}
 	}
@@ -328,10 +320,7 @@
 
 	<ValidationModal
 		modelId={typedModel.checkpoint_id}
-		on:close={async () => {
-			await refreshModelData();
-			handleModalClose();
-		}}
+		on:close={handleModalClose}
 		on:validationChange={handleValidationChange}
 	/>
 

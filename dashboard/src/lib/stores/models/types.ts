@@ -82,6 +82,6 @@ export interface Model {
       status: 'pending' | 'running' | 'completed' | 'failed';
       date: string;
     };
-    all?: ValidationDetails[];
+    all?: import('$lib/types/validation').ValidationJob[];
   };
 }
