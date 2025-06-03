@@ -196,21 +196,560 @@ WHERE metadata->>'status' = 'completed';
 
 ## API Integration
 
-### External Validator Service
+### Backend Validator Service (FAIVOR API)
 
-- Integrate with ML model validation API
-- Handle async validation processes
-- Store results in JSONB format for flexibility
+The project integrates with the FAIVOR ML Validator backend service running at **http://localhost:8000**. This backend provides the core validation engine for evaluating ML models against FAIR principles.
+
+#### Backend API Endpoints
+
+Based on the actual FAIVOR-ML-Validator implementation, the backend provides these endpoints:
+
+- `GET /` - Root endpoint returning welcome message
+- `POST /validate-csv/` - Validate CSV file against model metadata
+- `POST /validate-model` - Full model validation with metrics calculation
+
+#### API Data Structures
+
+The backend expects FAIR model metadata in a specific JSON-LD format:
+
+```typescript
+// FAIR Model Metadata structure (based on actual implementation)
+interface FAIRModelMetadata {
+  "@context": Record<string, any>;
+  "General Model Information": {
+    Title: { "@value": string };
+    "Editor Note": { "@value": string };
+    "Created by": { "@value": string };
+    "FAIRmodels image name": { "@value": string };
+    "Contact email": { "@value": string };
+    "References to papers": Array<{ "@value": string }>;
+  };
+  "Input data": Array<{
+    "Input label": { "@value": string };
+    Description: { "@value": string };
+    "Type of input": { "@value": "numerical" | "categorical" };
+    "Minimum - for numerical"?: { "@value": string; "@type": "xsd:decimal" };
+    "Maximum - for numerical"?: { "@value": string; "@type": "xsd:decimal" };
+    Categories?: Array<any>;
+    "Input feature": {
+      "@id": string;
+      "rdfs:label": string;
+    };
+  }>;
+  Outcome: {
+    "@value": string;
+  };
+  "Outcome label": {
+    "@value": string;
+  };
+}
+
+// CSV Validation Response
+interface CSVValidationResponse {
+  valid: boolean;
+  message?: string;
+  csv_columns: string[];
+  model_input_columns: string[];
+}
+
+// Model Validation Response
+interface ModelValidationResponse {
+  model_name: string;
+  metrics: Record<string, number>;
+}
+```
+
+#### Integration Architecture
+
+```typescript
+// src/lib/api/faivor-backend.ts - Backend API client
+export class FaivorBackendAPI {
+  private static readonly BASE_URL = "http://localhost:8000";
+
+  static async validateCSV(
+    modelMetadata: FAIRModelMetadata,
+    csvFile: File
+  ): Promise<CSVValidationResponse> {
+    const formData = new FormData();
+    formData.append("model_metadata", JSON.stringify(modelMetadata));
+    formData.append("csv_file", csvFile);
+
+    const response = await fetch(`${this.BASE_URL}/validate-csv/`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`CSV validation failed: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
+  static async validateModel(
+    modelMetadata: FAIRModelMetadata,
+    csvFile: File,
+    dataMetadata: Record<string, any>
+  ): Promise<ModelValidationResponse> {
+    const formData = new FormData();
+    formData.append("model_metadata", JSON.stringify(modelMetadata));
+    formData.append("csv_file", csvFile);
+    formData.append("data_metadata", JSON.stringify(dataMetadata));
+
+    const response = await fetch(`${this.BASE_URL}/validate-model`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Model validation failed: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
+  static async healthCheck(): Promise<{ message: string }> {
+    const response = await fetch(`${this.BASE_URL}/`);
+    return await response.json();
+  }
+}
+```
+
+#### Validation Workflow Integration
+
+The validation process follows this synchronous pattern:
+
+1. **Frontend uploads model metadata and CSV** via validation form
+2. **Internal API validates CSV format** using `POST /validate-csv/`
+3. **On successful CSV validation**, proceed to full model validation
+4. **Internal API calls backend** `POST /validate-model` for complete validation
+5. **Backend returns metrics immediately** (no async polling needed)
+6. **Database stores validation results** with `completed` status and metrics
+
+#### Service Layer Implementation
+
+```typescript
+// src/lib/services/validation-service.ts
+export class ValidationService {
+  static async validateCSVFormat(
+    modelMetadata: FAIRModelMetadata,
+    csvFile: File
+  ): Promise<CSVValidationResponse> {
+    return await FaivorBackendAPI.validateCSV(modelMetadata, csvFile);
+  }
+
+  static async performFullValidation(
+    modelMetadata: FAIRModelMetadata,
+    csvFile: File,
+    dataMetadata: Record<string, any>
+  ): Promise<ModelValidationResponse> {
+    // First validate CSV format
+    const csvValidation = await this.validateCSVFormat(modelMetadata, csvFile);
+
+    if (!csvValidation.valid) {
+      throw new Error(`CSV validation failed: ${csvValidation.message}`);
+    }
+
+    // Proceed with full model validation
+    return await FaivorBackendAPI.validateModel(
+      modelMetadata,
+      csvFile,
+      dataMetadata
+    );
+  }
+
+  static transformToFAIRFormat(internalMetadata: any): FAIRModelMetadata {
+    // Transform internal validation data to FAIR model metadata format
+    return {
+      "@context": {
+        rdfs: "http://www.w3.org/2000/01/rdf-schema#",
+        xsd: "http://www.w3.org/2001/XMLSchema#",
+        // ... other context definitions
+      },
+      "General Model Information": {
+        Title: { "@value": internalMetadata.model_name },
+        "Editor Note": { "@value": internalMetadata.description || "" },
+        "Created by": { "@value": internalMetadata.author || "" },
+        "FAIRmodels image name": {
+          "@value": internalMetadata.docker_image || "",
+        },
+        "Contact email": { "@value": internalMetadata.contact_email || "" },
+        "References to papers":
+          internalMetadata.references?.map((ref) => ({ "@value": ref })) || [],
+      },
+      "Input data":
+        internalMetadata.inputs?.map((input) => ({
+          "Input label": { "@value": input.label },
+          Description: { "@value": input.description },
+          "Type of input": { "@value": input.type },
+          ...(input.type === "numerical" && {
+            "Minimum - for numerical": {
+              "@value": input.min?.toString(),
+              "@type": "xsd:decimal",
+            },
+            "Maximum - for numerical": {
+              "@value": input.max?.toString(),
+              "@type": "xsd:decimal",
+            },
+          }),
+          "Input feature": {
+            "@id": input.feature_id || "",
+            "rdfs:label": input.feature_label || input.label,
+          },
+        })) || [],
+      Outcome: { "@value": internalMetadata.outcome_description || "" },
+      "Outcome label": { "@value": internalMetadata.outcome_label || "" },
+    };
+  }
+}
+```
 
 ### Internal API Routes
 
 ```typescript
-// src/routes/api/validate/+server.ts
+// src/routes/api/validations/+server.ts
 export async function POST({ request, locals }) {
   const session = await locals.auth();
-  // API logic
-  return json({ success: true });
+  const { modelMetadata, csvFile, dataMetadata } = await request.formData();
+
+  try {
+    // Transform to FAIR format
+    const fairMetadata = ValidationService.transformToFAIRFormat(
+      JSON.parse(modelMetadata)
+    );
+
+    // Perform validation with backend
+    const results = await ValidationService.performFullValidation(
+      fairMetadata,
+      csvFile,
+      JSON.parse(dataMetadata)
+    );
+
+    // Save validation to database
+    const validation = await ValidationRepository.create({
+      user_id: session.user.id,
+      model_name: fairMetadata["General Model Information"]["Title"]["@value"],
+      status: "completed",
+      validation_result: {
+        model_name: results.model_name,
+        metrics: results.metrics,
+        csv_validation: true,
+      },
+      metadata: fairMetadata,
+    });
+
+    return json({ success: true, validation });
+  } catch (error) {
+    console.error("Validation failed:", error);
+    return json({ error: error.message }, { status: 500 });
+  }
 }
+
+// src/routes/api/validations/csv-check/+server.ts - CSV validation endpoint
+export async function POST({ request, locals }) {
+  const session = await locals.auth();
+  const { modelMetadata, csvFile } = await request.formData();
+
+  try {
+    const fairMetadata = ValidationService.transformToFAIRFormat(
+      JSON.parse(modelMetadata)
+    );
+    const csvValidation = await ValidationService.validateCSVFormat(
+      fairMetadata,
+      csvFile
+    );
+
+    return json({
+      success: true,
+      validation: csvValidation,
+      canProceed: csvValidation.valid,
+    });
+  } catch (error) {
+    console.error("CSV validation failed:", error);
+    return json({ error: error.message }, { status: 400 });
+  }
+}
+```
+
+#### Data Transformation Patterns
+
+Transform between internal validation data and FAIR metadata formats:
+
+```typescript
+// src/lib/utils/validation-transform.ts
+export function transformToFAIRFormat(
+  internalData: InternalValidationData
+): FAIRModelMetadata {
+  return {
+    "@context": {
+      rdfs: "http://www.w3.org/2000/01/rdf-schema#",
+      xsd: "http://www.w3.org/2001/XMLSchema#",
+      pav: "http://purl.org/pav/",
+      schema: "http://schema.org/",
+      // ... complete context definition
+    },
+    "General Model Information": {
+      Title: { "@value": internalData.model_name },
+      "Editor Note": { "@value": internalData.description || "" },
+      "Created by": { "@value": internalData.author || "" },
+      "FAIRmodels image name": { "@value": internalData.docker_image || "" },
+      "Contact email": { "@value": internalData.contact_email || "" },
+      "References to papers":
+        internalData.references?.map((ref) => ({ "@value": ref })) || [],
+    },
+    "Input data":
+      internalData.input_features?.map((input) => ({
+        "Input label": { "@value": input.label },
+        Description: { "@value": input.description },
+        "Type of input": { "@value": input.data_type },
+        ...(input.data_type === "numerical" && {
+          "Minimum - for numerical": {
+            "@value": input.min_value?.toString(),
+            "@type": "xsd:decimal",
+          },
+          "Maximum - for numerical": {
+            "@value": input.max_value?.toString(),
+            "@type": "xsd:decimal",
+          },
+        }),
+        "Input feature": {
+          "@id":
+            input.feature_uri || `http://example.org/features/${input.label}`,
+          "rdfs:label": input.feature_label || input.label,
+        },
+      })) || [],
+    Outcome: { "@value": internalData.outcome_description || "" },
+    "Outcome label": { "@value": internalData.outcome_label || "" },
+  };
+}
+
+export function transformFromFAIRResults(
+  backendResult: ModelValidationResponse
+): ValidationResult {
+  return {
+    model_name: backendResult.model_name,
+    validation_metrics: backendResult.metrics,
+    performance_scores: extractPerformanceMetrics(backendResult.metrics),
+    fairness_scores: extractFairnessMetrics(backendResult.metrics),
+    explainability_scores: extractExplainabilityMetrics(backendResult.metrics),
+    completed_at: new Date().toISOString(),
+  };
+}
+
+function extractPerformanceMetrics(
+  metrics: Record<string, number>
+): Record<string, number> {
+  // Extract performance-related metrics
+  const performanceKeys = [
+    "accuracy",
+    "precision",
+    "recall",
+    "f1_score",
+    "auc_roc",
+    "mse",
+    "rmse",
+    "mae",
+  ];
+  return Object.fromEntries(
+    Object.entries(metrics).filter(([key]) =>
+      performanceKeys.some((perfKey) => key.toLowerCase().includes(perfKey))
+    )
+  );
+}
+
+function extractFairnessMetrics(
+  metrics: Record<string, number>
+): Record<string, number> {
+  // Extract fairness-related metrics
+  const fairnessKeys = [
+    "demographic_parity",
+    "equalized_odds",
+    "calibration",
+    "bias",
+  ];
+  return Object.fromEntries(
+    Object.entries(metrics).filter(([key]) =>
+      fairnessKeys.some((fairKey) => key.toLowerCase().includes(fairKey))
+    )
+  );
+}
+
+function extractExplainabilityMetrics(
+  metrics: Record<string, number>
+): Record<string, number> {
+  // Extract explainability-related metrics
+  const explainabilityKeys = [
+    "feature_importance",
+    "shap",
+    "lime",
+    "permutation",
+  ];
+  return Object.fromEntries(
+    Object.entries(metrics).filter(([key]) =>
+      explainabilityKeys.some((explainKey) =>
+        key.toLowerCase().includes(explainKey)
+      )
+    )
+  );
+}
+```
+
+#### Form Handling Integration
+
+Create forms that work with the FAIR metadata structure:
+
+```typescript
+// src/lib/components/validation/ValidationForm.svelte
+<script lang="ts">
+  import { enhance } from '$app/forms';
+  import type { FAIRModelMetadata } from '$lib/types/validation';
+
+  interface Props {
+    onValidationComplete?: (result: any) => void;
+  }
+
+  let { onValidationComplete }: Props = $props();
+
+  let modelMetadata = $state<Partial<FAIRModelMetadata>>({
+    "General Model Information": {
+      "Title": { "@value": "" },
+      "Editor Note": { "@value": "" },
+      "Created by": { "@value": "" },
+      "FAIRmodels image name": { "@value": "" },
+      "Contact email": { "@value": "" },
+      "References to papers": []
+    },
+    "Input data": [],
+    "Outcome": { "@value": "" },
+    "Outcome label": { "@value": "" }
+  });
+
+  let csvFile = $state<File | null>(null);
+  let csvValidation = $state<any>(null);
+  let isValidatingCSV = $state(false);
+  let canProceedToValidation = $state(false);
+
+  async function validateCSV() {
+    if (!csvFile || !modelMetadata) return;
+
+    isValidatingCSV = true;
+    try {
+      const formData = new FormData();
+      formData.append('modelMetadata', JSON.stringify(modelMetadata));
+      formData.append('csvFile', csvFile);
+
+      const response = await fetch('/api/validations/csv-check', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      csvValidation = result.validation;
+      canProceedToValidation = result.canProceed;
+    } catch (error) {
+      console.error('CSV validation failed:', error);
+    } finally {
+      isValidatingCSV = false;
+    }
+  }
+
+  const submitValidation = enhance(({ formData }) => {
+    formData.append('modelMetadata', JSON.stringify(modelMetadata));
+    if (csvFile) formData.append('csvFile', csvFile);
+
+    return async ({ result }) => {
+      if (result.type === 'success' && onValidationComplete) {
+        onValidationComplete(result.data);
+      }
+    };
+  });
+</script>
+
+<form method="POST" action="/api/validations" use:submitValidation enctype="multipart/form-data">
+  <!-- Model Information Section -->
+  <div class="card bg-base-100 shadow-xl mb-6">
+    <div class="card-body">
+      <h2 class="card-title">Model Information</h2>
+
+      <div class="form-control">
+        <label class="label" for="model-title">
+          <span class="label-text">Model Title</span>
+        </label>
+        <input
+          id="model-title"
+          type="text"
+          class="input input-bordered"
+          bind:value={modelMetadata["General Model Information"]["Title"]["@value"]}
+          required
+        />
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="model-description">
+          <span class="label-text">Description</span>
+        </label>
+        <textarea
+          id="model-description"
+          class="textarea textarea-bordered"
+          bind:value={modelMetadata["General Model Information"]["Editor Note"]["@value"]}
+        ></textarea>
+      </div>
+
+      <!-- Additional model fields... -->
+    </div>
+  </div>
+
+  <!-- CSV Upload Section -->
+  <div class="card bg-base-100 shadow-xl mb-6">
+    <div class="card-body">
+      <h2 class="card-title">Data Upload</h2>
+
+      <div class="form-control">
+        <label class="label" for="csv-file">
+          <span class="label-text">CSV Data File</span>
+        </label>
+        <input
+          id="csv-file"
+          type="file"
+          accept=".csv"
+          class="file-input file-input-bordered"
+          onchange={(e) => {
+            csvFile = e.target.files?.[0] || null;
+            csvValidation = null;
+            canProceedToValidation = false;
+          }}
+          required
+        />
+      </div>
+
+      {#if csvFile}
+        <button
+          type="button"
+          class="btn btn-outline"
+          onclick={validateCSV}
+          disabled={isValidatingCSV}
+        >
+          {isValidatingCSV ? 'Validating...' : 'Validate CSV Format'}
+        </button>
+      {/if}
+
+      {#if csvValidation}
+        <div class="alert {csvValidation.valid ? 'alert-success' : 'alert-error'}">
+          <span>{csvValidation.message || (csvValidation.valid ? 'CSV format is valid' : 'CSV format is invalid')}</span>
+        </div>
+      {/if}
+    </div>
+  </div>
+
+  <!-- Submit Button -->
+  <button
+    type="submit"
+    class="btn btn-primary"
+    disabled={!canProceedToValidation}
+  >
+    Start Model Validation
+  </button>
+</form>
 ```
 
 ## Development Workflow
@@ -220,7 +759,46 @@ export async function POST({ request, locals }) {
 1. Copy `_example .env` to `.env`
 2. Configure database and auth providers
 3. Run `bun install` for dependencies
-4. Use `docker-compose up` for local services
+4. Use `docker-compose up` for local services (includes backend API at localhost:8000)
+
+### Backend Service Integration
+
+The FAIVOR ML Validator backend service runs as part of the Docker Compose stack:
+
+```yaml
+# docker-compose.yml
+services:
+  faivor-backend:
+    image: ghcr.io/maastrichtu-biss/faivor-ml-validator
+    ports:
+      - "8000:8000"
+```
+
+- Backend API available at `http://localhost:8000`
+- Health check endpoint: `GET /`
+- CSV validation: `POST /validate-csv/`
+- Model validation: `POST /validate-model`
+- Provides ML validation engine integration with FAIR metadata format
+
+#### API Integration Testing
+
+Test the backend integration:
+
+```bash
+# Health check
+curl http://localhost:8000/
+
+# CSV validation test (requires proper FAIR metadata JSON and CSV file)
+curl -X POST http://localhost:8000/validate-csv/ \
+  -F "model_metadata=@path/to/metadata.json" \
+  -F "csv_file=@path/to/data.csv"
+
+# Model validation test
+curl -X POST http://localhost:8000/validate-model \
+  -F "model_metadata=@path/to/metadata.json" \
+  -F "csv_file=@path/to/data.csv" \
+  -F "data_metadata={}"
+```
 
 ### Database Management
 
@@ -487,23 +1065,106 @@ export const uiStore = () => {
 Separate API concerns clearly:
 
 ```typescript
-// src/lib/api/validation-api.ts - External API client
-export class ValidationAPI {
-  static async validateModel(model: ModelData): Promise<ValidationResult> {
-    // Handle external API communication
+// src/lib/api/faivor-backend.ts - External API client
+export class FaivorBackendAPI {
+  private static readonly BASE_URL = "http://localhost:8000";
+
+  static async startEvaluation(
+    modelData: ModelEvaluationRequest
+  ): Promise<EvaluationResponse> {
+    const response = await fetch(`${this.BASE_URL}/evaluate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(modelData),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend evaluation failed: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
+  static async getEvaluationStatus(jobId?: string): Promise<EvaluationStatus> {
+    const response = await fetch(`${this.BASE_URL}/evaluation_status`);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to get evaluation status: ${response.statusText}`
+      );
+    }
+
+    return await response.json();
+  }
+
+  static async getEvaluationResult(jobId?: string): Promise<EvaluationResult> {
+    const response = await fetch(`${this.BASE_URL}/evaluation_result`);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to get evaluation result: ${response.statusText}`
+      );
+    }
+
+    return await response.json();
   }
 }
 
 // src/lib/api/internal-api.ts - Internal API client
 export class InternalAPI {
   static async saveValidation(validation: ModelValidation): Promise<void> {
-    // Handle internal API calls
+    const response = await fetch("/api/validations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(validation),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to save validation: ${response.statusText}`);
+    }
+  }
+
+  static async updateValidationStatus(
+    validationId: string,
+    status: ValidationStatus,
+    results?: ValidationResult
+  ): Promise<void> {
+    const response = await fetch(`/api/validations/${validationId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, results }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update validation: ${response.statusText}`);
+    }
   }
 }
 
-// src/routes/api/validate/+server.ts - Route handler
+// src/routes/api/validations/+server.ts - Route handler
 export async function POST({ request, locals }) {
-  // Minimal orchestration - delegate to services
+  try {
+    const session = await locals.auth();
+    const formData = await request.json();
+
+    // Start backend validation
+    const jobId = await ValidationService.startValidation(formData);
+
+    // Save validation with pending status
+    const validation = await ValidationRepository.create({
+      ...formData,
+      status: "pending",
+      external_validation: { job_id: jobId },
+    });
+
+    // Start async polling for results
+    ValidationPollingService.pollValidationStatus(jobId, validation.val_id);
+
+    return json({ success: true, validation });
+  } catch (error) {
+    console.error("Validation creation failed:", error);
+    return json({ error: error.message }, { status: 500 });
+  }
 }
 ```
 
@@ -519,12 +1180,29 @@ export const databaseConfig = {
 
 // src/lib/config/validation.ts
 export const validationConfig = {
-  // Validation-specific configuration
+  backendApiUrl: "http://localhost:8000",
+  pollingInterval: 5000, // 5 seconds
+  maxPollingAttempts: 120, // 10 minutes
+  timeoutDuration: 600000, // 10 minutes in milliseconds
+};
+
+// src/lib/config/backend-api.ts
+export const backendApiConfig = {
+  baseUrl: process.env.FAIVOR_BACKEND_URL || "http://localhost:8000",
+  endpoints: {
+    evaluate: "/evaluate",
+    status: "/evaluation_status",
+    result: "/evaluation_result",
+    health: "/",
+  },
+  timeout: 30000, // 30 seconds
+  retryAttempts: 3,
 };
 
 // src/lib/config/index.ts
 export * from "./database";
 export * from "./validation";
+export * from "./backend-api";
 export * from "./auth";
 ```
 
