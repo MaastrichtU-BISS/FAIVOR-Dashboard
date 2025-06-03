@@ -31,8 +31,12 @@ export const GET: RequestHandler = async ({ params }) => {
     `;
 
     const model = modelRows[0];
+    // Parse metadata if it's a string (for backward compatibility)
+    const metadata = typeof model.metadata === 'string' ? JSON.parse(model.metadata) : model.metadata;
+
     const result = {
       ...model,
+      metadata: metadata,
       validations: {
         count: validationRows.length,
         latest: validationRows[0] ? {

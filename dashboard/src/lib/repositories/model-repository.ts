@@ -21,7 +21,7 @@ export class ModelRepository {
         fair_model_url,
         metadata,
         description
-      ) VALUES (${data.checkpointId}, ${data.fairModelId}, ${data.fairModelUrl}, ${JSON.stringify(data.metadata)}, ${data.description})
+      ) VALUES (${data.checkpointId}, ${data.fairModelId}, ${data.fairModelUrl}, ${sql.json(data.metadata as any)}, ${data.description})
       ON CONFLICT (checkpoint_id)
       DO UPDATE SET
         fair_model_id = EXCLUDED.fair_model_id,

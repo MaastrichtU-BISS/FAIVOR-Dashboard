@@ -170,7 +170,9 @@
 			<MaterialSymbolsScreenshotMonitorOutline class="h-8 w-8" />
 		</div>
 		<div>
-			<h1 class="text-2xl font-bold">{typedModel.fair_model_id}</h1>
+			<h1 class="text-2xl font-bold">
+				{typedModel.metadata.title || typedModel.title || typedModel.fair_model_id}
+			</h1>
 			<p class="text-base-content/70">{typedModel.description}</p>
 			<div class="mt-2 flex flex-wrap gap-2">
 				{#if typedModel.metadata.applicabilityCriteria}
