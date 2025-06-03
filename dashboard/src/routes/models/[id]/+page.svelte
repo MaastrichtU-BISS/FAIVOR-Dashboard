@@ -195,7 +195,7 @@
 						{typedModel.fair_model_url}
 					</a>
 				</p>
-				{#if typedModel.metadata.reference.paper}
+				{#if typedModel.metadata.reference?.paper}
 					<p>
 						<strong>Paper:</strong>
 						<a
