@@ -7,7 +7,7 @@
 	import MaterialSymbolsDelete from '~icons/material-symbols/delete';
 
 	const props = $props();
-	const models = $derived(props.data.models);
+	let models = $state([...props.data.models]);
 
 	let modelUrl = $state('');
 	let isSearchModalOpen = $state(false);
@@ -85,10 +85,8 @@
 			// Success
 			deleteMessage = result.message || 'Model deleted successfully';
 
-			// Refresh the page to show the updated models list after a short delay
-			setTimeout(() => {
-				window.location.reload();
-			}, 1500);
+			// Remove the deleted model from the UI
+			models = models.filter((m) => m.checkpoint_id !== checkpointId);
 		} catch (error: any) {
 			console.error('Error deleting model:', error);
 			deleteError = error.message || 'Failed to delete model';
@@ -112,7 +110,7 @@
 
 <div class="container mx-auto space-y-8 p-4">
 	<!-- Header -->
-	<div class="text-2xl font-bold">{PUBLIC_ORGANIZATION_NAME}</div>
+	<div class="text-2xl font-bold">Import models</div>
 
 	<!-- URL Input and Buttons -->
 	<div class="flex items-center gap-4">

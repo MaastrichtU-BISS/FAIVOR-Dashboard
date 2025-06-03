@@ -43,3 +43,12 @@ Visit [http://localhost:5173](http://localhost:5173) to open the application.
 ### Production Considerations
 
 The application requires HTTPS in production for authentication to work properly.
+
+## Features
+
+- Validate FAIRmodels via a user-friendly dashboard
+- Import models by URL
+- Delete models from the list with immediate UI update (no page reload required)
+- View model details and validation results
+- Search for models by title or description
+- Export model metadata to FAIR models repository
