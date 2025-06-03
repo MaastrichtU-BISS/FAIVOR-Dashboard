@@ -5,11 +5,12 @@ import type {
   ValidationData,
   ValidationJob,
   ValidationFormData,
-  ValidationRow
+  ValidationRow,
+  DatasetFolderFiles
 } from '$lib/types/validation';
 
 /**
- * Transform form data to ValidationData structure
+ * Transform form data to ValidationData structure - updated for folder uploads
  */
 export function formDataToValidationData(formData: ValidationFormData): ValidationData {
   return {
@@ -17,19 +18,28 @@ export function formDataToValidationData(formData: ValidationFormData): Validati
     dataset_info: {
       userName: formData.userName || undefined,
       date: formData.date || undefined,
-      datasetName: formData.datasetName || undefined,
+      datasetName: formData.datasetName || formData.folderName || undefined,
       description: formData.datasetDescription || undefined,
       characteristics: formData.datasetCharacteristics || undefined,
       uploadedFile: formData.uploadedFile ? {
         name: formData.uploadedFile.name,
         size: formData.uploadedFile.size,
         type: formData.uploadedFile.type
+      } : undefined,
+      // Handle folder upload data
+      folderUpload: formData.uploadedFolder ? {
+        folderName: formData.folderName || 'Unknown Folder',
+        fileCount: Object.keys(formData.uploadedFolder).length,
+        totalSize: Object.values(formData.uploadedFolder).reduce((total, file) => total + (file?.size || 0), 0),
+        hasMetadata: Boolean(formData.uploadedFolder.metadata),
+        hasData: Boolean(formData.uploadedFolder.data),
+        hasColumnMetadata: Boolean(formData.uploadedFolder.columnMetadata)
       } : undefined
     },
     validation_result: {
       metrics_description: formData.metricsDescription || undefined,
       performance_description: formData.performanceMetrics || undefined,
-      dataProvided: Boolean(formData.uploadedFile || formData.datasetName),
+      dataProvided: Boolean(formData.uploadedFile || formData.uploadedFolder?.data || formData.datasetName),
       dataCharacteristics: Boolean(formData.datasetDescription || formData.datasetCharacteristics),
       metrics: Boolean(formData.metricsDescription)
     }
@@ -57,7 +67,7 @@ export function validationRowToJob(row: ValidationRow): ValidationJob {
 }
 
 /**
- * Transform ValidationJob to form data for editing
+ * Transform ValidationJob to form data for editing - updated for folder uploads
  */
 export function validationJobToFormData(job: ValidationJob): ValidationFormData {
   return {
@@ -66,6 +76,9 @@ export function validationJobToFormData(job: ValidationJob): ValidationFormData 
     date: job.dataset_info?.date || job.start_datetime,
     datasetName: job.dataset_info?.datasetName || '',
     uploadedFile: null, // Files can't be restored from database
+    // Handle folder upload data
+    folderName: job.dataset_info?.folderUpload?.folderName,
+    uploadedFolder: undefined, // Folder files can't be restored from database
     datasetDescription: job.dataset_info?.description || '',
     datasetCharacteristics: job.dataset_info?.characteristics || '',
     metricsDescription: job.validation_result?.metrics_description || '',

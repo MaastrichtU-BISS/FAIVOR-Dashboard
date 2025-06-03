@@ -36,6 +36,8 @@
 		date: '',
 		datasetName: '',
 		uploadedFile: null,
+		uploadedFolder: undefined,
+		folderName: '',
 		datasetDescription: '',
 		datasetCharacteristics: '',
 		metricsDescription: '',
@@ -54,7 +56,8 @@
 	let userName = $state('');
 	let date = $state('');
 	let datasetName = $state('');
-	let uploadedFile: File | null = $state(null);
+	let uploadedFolder = $state(undefined);
+	let folderName = $state('');
 	let datasetDescription = $state('');
 	let datasetCharacteristics = $state('');
 	let metricsDescription = $state('');
@@ -72,6 +75,8 @@
 			userName = formData.userName;
 			date = formData.date;
 			datasetName = formData.datasetName;
+			uploadedFolder = formData.uploadedFolder;
+			folderName = formData.folderName || '';
 			datasetDescription = formData.datasetDescription;
 			datasetCharacteristics = formData.datasetCharacteristics;
 			metricsDescription = formData.metricsDescription;
@@ -87,6 +92,8 @@
 				date: '',
 				datasetName: '',
 				uploadedFile: null,
+				uploadedFolder: undefined,
+				folderName: '',
 				datasetDescription: '',
 				datasetCharacteristics: '',
 				metricsDescription: '',
@@ -98,7 +105,8 @@
 			userName = emptyFormData.userName;
 			date = emptyFormData.date;
 			datasetName = emptyFormData.datasetName;
-			uploadedFile = emptyFormData.uploadedFile;
+			uploadedFolder = emptyFormData.uploadedFolder;
+			folderName = emptyFormData.folderName || '';
 			datasetDescription = emptyFormData.datasetDescription;
 			datasetCharacteristics = emptyFormData.datasetCharacteristics;
 			metricsDescription = emptyFormData.metricsDescription;
@@ -173,7 +181,9 @@
 				userName,
 				date,
 				datasetName,
-				uploadedFile,
+				uploadedFile: null,
+				uploadedFolder,
+				folderName,
 				datasetDescription,
 				datasetCharacteristics,
 				metricsDescription,
@@ -216,6 +226,9 @@
 			autoSave();
 		}, 500);
 	}
+
+	// Alias for debouncedAutoSave to match expected function name
+	const scheduleAutoSave = debouncedAutoSave;
 
 	// Watch for form field changes and trigger auto-save
 	$effect(() => {
@@ -272,7 +285,9 @@
 				userName,
 				date,
 				datasetName,
-				uploadedFile,
+				uploadedFile: null,
+				uploadedFolder,
+				folderName,
 				datasetDescription,
 				datasetCharacteristics,
 				metricsDescription,
@@ -389,8 +404,11 @@
 					bind:validationName
 					bind:userName
 					bind:date
-					bind:uploadedFile
+					bind:datasetName
+					bind:uploadedFolder
+					bind:folderName
 					readonly={$validationStore.mode === 'view'}
+					onFieldChange={scheduleAutoSave}
 				/>
 			{:else if currentStep === 1}
 				<DatasetCharacteristicsStep

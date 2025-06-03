@@ -1,15 +1,17 @@
 <script lang="ts">
-	import MaterialSymbolsUpload2Rounded from '~icons/material-symbols/upload-2-rounded';
 	import SolarCalculatorMinimalisticLinear from '~icons/solar/calculator-minimalistic-linear';
-	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
 	import MaterialSymbolsCheck from '~icons/material-symbols/check';
+	import FolderUpload from '$lib/components/ui/FolderUpload.svelte';
+	import type { DatasetFolderFiles } from '$lib/types/validation';
+	import { datasetStorage, generateDatasetId, parseJSONFile } from '$lib/utils/indexeddb-storage';
 
 	interface Props {
 		validationName?: string;
 		userName?: string;
 		date?: string;
 		datasetName?: string;
-		uploadedFile?: File | null;
+		uploadedFolder?: DatasetFolderFiles;
+		folderName?: string;
 		readonly?: boolean;
 		onFieldChange?: () => void;
 	}
@@ -19,7 +21,8 @@
 		userName = $bindable(''),
 		date = $bindable(''),
 		datasetName = $bindable(''),
-		uploadedFile = $bindable(null),
+		uploadedFolder = $bindable(undefined),
+		folderName = $bindable(''),
 		readonly = false,
 		onFieldChange = () => {}
 	}: Props = $props();
@@ -30,7 +33,8 @@
 		userName: userName || '',
 		date: date || '',
 		datasetName: datasetName || '',
-		uploadedFile: uploadedFile
+		uploadedFolder: uploadedFolder,
+		folderName: folderName || ''
 	});
 
 	// Track actual value changes
@@ -41,7 +45,8 @@
 				userName !== initialValues.userName ||
 				date !== initialValues.date ||
 				datasetName !== initialValues.datasetName ||
-				uploadedFile !== initialValues.uploadedFile;
+				uploadedFolder !== initialValues.uploadedFolder ||
+				folderName !== initialValues.folderName;
 
 			if (hasChanges) {
 				onFieldChange();
@@ -56,75 +61,57 @@
 			userName: userName || '',
 			date: date || '',
 			datasetName: datasetName || '',
-			uploadedFile: uploadedFile
+			uploadedFolder: uploadedFolder,
+			folderName: folderName || ''
 		};
 	});
 
 	let datasetDescription = $state('');
 	let datasetCharacteristics = $state('');
-	let isDragging = $state(false);
-	let dropZone: HTMLDivElement;
-	let fileInput: HTMLInputElement;
+	let isProcessingFolder = $state(false);
 
-	function handleFileUpload(event: Event) {
-		const input = event.target as HTMLInputElement;
-		if (input.files && input.files[0]) {
-			uploadedFile = input.files[0];
+	async function handleFolderSelected(files: DatasetFolderFiles, selectedFolderName: string) {
+		isProcessingFolder = true;
+		try {
+			uploadedFolder = files;
+			folderName = selectedFolderName;
 
-			// Set dataset name from file name if not already set
+			// Set dataset name from folder name if not already set
 			if (!datasetName) {
-				datasetName = uploadedFile.name;
+				datasetName = selectedFolderName;
 			}
-		}
-	}
 
-	function handleDragEnter(event: DragEvent) {
-		event.preventDefault();
-		isDragging = true;
-	}
+			// Store in IndexedDB for future reference
+			const datasetId = generateDatasetId();
+			const parsed: any = {};
 
-	function handleDragOver(event: DragEvent) {
-		event.preventDefault();
-		isDragging = true;
-	}
-
-	function handleDragLeave(event: DragEvent) {
-		event.preventDefault();
-		const target = event.target as HTMLElement;
-		if (target === dropZone) {
-			isDragging = false;
-		}
-	}
-
-	function handleDrop(event: DragEvent) {
-		event.preventDefault();
-		isDragging = false;
-
-		if (!readonly) {
-			const files = event.dataTransfer?.files;
-			if (files && files[0]) {
-				uploadedFile = files[0];
-
-				// Set dataset name from file name if not already set
-				if (!datasetName) {
-					datasetName = uploadedFile.name;
-				}
+			// Parse JSON files
+			if (files.metadata) {
+				parsed.metadata = await parseJSONFile(files.metadata);
 			}
+			if (files.columnMetadata) {
+				parsed.columnMetadata = await parseJSONFile(files.columnMetadata);
+			}
+
+			await datasetStorage.saveDataset({
+				id: datasetId,
+				name: selectedFolderName,
+				uploadDate: new Date().toISOString(),
+				files,
+				parsed
+			});
+
+			console.log('Dataset saved to IndexedDB with ID:', datasetId);
+		} catch (error) {
+			console.error('Error processing folder:', error);
+		} finally {
+			isProcessingFolder = false;
 		}
 	}
 
-	function handleClick() {
-		if (!readonly) {
-			fileInput?.click();
-		}
-	}
-
-	function removeFile() {
-		if (readonly) return;
-		uploadedFile = null;
-		if (fileInput) {
-			fileInput.value = '';
-		}
+	function handleFolderRemoved() {
+		uploadedFolder = undefined;
+		folderName = '';
 	}
 
 	function calculateSummary() {
@@ -197,58 +184,21 @@
 			/>
 		</div>
 
-		<div
-			bind:this={dropZone}
-			class="border-base-300 hover:border-primary/50 relative cursor-pointer rounded-lg border-2 border-dashed p-8 transition-all duration-200 ease-in-out {isDragging
-				? 'border-primary bg-primary/5'
-				: ''}"
-			ondragenter={handleDragEnter}
-			ondragover={handleDragOver}
-			ondragleave={handleDragLeave}
-			ondrop={handleDrop}
-			onclick={handleClick}
-			onkeydown={(e) => e.key === 'Enter' && handleClick()}
-			role="button"
-			tabindex="0"
-		>
-			<div
-				class="flex flex-col items-center justify-center gap-4 transition-transform duration-200 {isDragging
-					? 'scale-105'
-					: ''}"
-			>
-				<div class="transition-transform duration-200 {isDragging ? 'scale-110' : ''}">
-					<MaterialSymbolsUpload2Rounded />
-				</div>
-				<div>
-					<h3 class="text-lg font-semibold">Upload dataset</h3>
-					<p class="text-base-content/70 text-sm">or drag and drop</p>
-				</div>
-				<input
-					bind:this={fileInput}
-					type="file"
-					class="hidden"
-					onchange={handleFileUpload}
-					oninput={onFieldChange}
-				/>
+		<!-- Dataset Folder Upload -->
+		<FolderUpload
+			bind:folderFiles={uploadedFolder}
+			bind:folderName
+			{readonly}
+			onFolderSelected={handleFolderSelected}
+			onFolderRemoved={handleFolderRemoved}
+		/>
+
+		{#if isProcessingFolder}
+			<div class="text-info flex items-center justify-center gap-2">
+				<span class="loading loading-spinner loading-sm"></span>
+				<span>Processing folder and saving to local storage...</span>
 			</div>
-			{#if uploadedFile}
-				<div class="mt-4 flex items-center justify-center gap-2">
-					<p class="text-success">{uploadedFile.name}</p>
-					<button
-						class="btn btn-ghost btn-sm text-error"
-						onclick={(e) => {
-							e.stopPropagation();
-							removeFile();
-							onFieldChange();
-						}}
-						title="Remove file"
-						disabled={readonly}
-					>
-						<MaterialSymbolsDeleteOutline />
-					</button>
-				</div>
-			{/if}
-		</div>
+		{/if}
 
 		<div class="flex justify-center">
 			<button class="btn btn-outline gap-2" onclick={checkDataset}>

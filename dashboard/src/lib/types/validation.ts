@@ -1,11 +1,18 @@
 // src/lib/types/validation.ts
 // Consolidated validation types for the new JSONB structure
 
+// New interface for folder-based dataset upload
+export interface DatasetFolderFiles {
+  metadata?: File;
+  data?: File;
+  columnMetadata?: File;
+}
+
 export interface ValidationData {
   // Basic validation info
   validation_name?: string;
 
-  // Dataset information
+  // Dataset information - updated to support folder uploads
   dataset_info?: {
     userName?: string;
     date?: string;
@@ -16,6 +23,16 @@ export interface ValidationData {
       name: string;
       size?: number;
       type?: string;
+    };
+    // New folder-based upload support
+    folderUpload?: {
+      folderName: string;
+      fileCount: number;
+      totalSize: number;
+      hasMetadata: boolean;
+      hasData: boolean;
+      hasColumnMetadata: boolean;
+      indexedDbId?: string; // Reference to IndexedDB storage
     };
   };
 
@@ -87,13 +104,16 @@ export interface ValidationJob {
   deleted_at?: string | null;
 }
 
-// Form data interface for the modal
+// Form data interface for the modal - updated for folder uploads
 export interface ValidationFormData {
   validationName: string;
   userName: string;
   date: string;
   datasetName: string;
   uploadedFile: File | null;
+  // New folder upload fields
+  uploadedFolder?: DatasetFolderFiles;
+  folderName?: string;
   datasetDescription: string;
   datasetCharacteristics: string;
   metricsDescription: string;
