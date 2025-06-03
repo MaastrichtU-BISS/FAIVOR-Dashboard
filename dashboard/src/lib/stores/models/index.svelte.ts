@@ -91,14 +91,51 @@ export async function searchModels(query: string) {
 // Import model
 export async function importModel(url: string) {
   try {
-    // TODO: Implement model import logic
-    // This would involve:
-    // 1. Fetching model info from the URL
-    // 2. Validating the model data
-    // 3. Inserting into database
-    throw new Error('Not implemented');
+    const response = await fetch('/api/models', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to import model');
+    }
+
+    const result = await response.json();
+
+    // Refresh models list to include the new model
+    await loadModels();
+
+    return result.model;
   } catch (e) {
     console.error('Error importing model:', e);
-    throw error(500, 'Failed to import model');
+    throw error(500, `Failed to import model: ${e.message}`);
+  }
+}
+
+// Load FAIRmodels repository
+export async function loadFairModelsRepository() {
+  try {
+    const response = await fetch('/api/models/fairmodels-list');
+    if (!response.ok) {
+      throw new Error('Failed to fetch FAIRmodels repository');
+    }
+
+    const models = await response.json();
+    return models.map((model: any) => ({
+      id: model.id,
+      title: model.title,
+      created_at: model.created_at,
+      url: model.url,
+      source: model.source,
+      description: `Available from ${model.source}`,
+      metadata: {
+        applicabilityCriteria: []
+      }
+    }));
+  } catch (e) {
+    console.error('Error loading FAIRmodels repository:', e);
+    throw error(500, 'Failed to load FAIRmodels repository');
   }
 }

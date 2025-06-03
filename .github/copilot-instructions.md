@@ -174,6 +174,30 @@ export const load: LayoutServerLoad = async ({ locals, route }) => {
 
 ## Database Patterns
 
+### Database Connection Usage
+
+**Always use `sql` from `$lib/db` for database operations**, not `pool`:
+
+```typescript
+// ✅ Correct - Use sql for application queries
+import { sql } from "$lib/db";
+
+const users = await sql`SELECT * FROM users WHERE id = ${userId}`;
+const result = await sql`
+  INSERT INTO model_validations (model_name, status, metadata)
+  VALUES (${modelName}, ${status}, ${metadata})
+  RETURNING *
+`;
+
+// ❌ Incorrect - Don't use pool for application queries
+import { pool } from "$lib/db"; // Only for auth adapter
+```
+
+**Key differences:**
+
+- `sql` (postgres.js): Use for all application database operations - provides better TypeScript support, automatic prepared statements, and cleaner syntax
+- `pool` (pg Pool): Used exclusively by the authentication system - never use directly in application code
+
 ### Migrations
 
 - Use numbered migration files: `001_init.sql`, `002_feature.sql`
@@ -189,9 +213,11 @@ CREATE TABLE model_validations (
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
--- Query JSONB fields
-SELECT * FROM model_validations
-WHERE metadata->>'status' = 'completed';
+-- Query JSONB fields with sql
+const validations = await sql`
+  SELECT * FROM model_validations
+  WHERE metadata->>'status' = 'completed'
+`;
 ```
 
 ## API Integration

@@ -32,6 +32,7 @@ export interface ValidationRow {
 }
 
 export interface ModelMetadata {
+  title?: string; // Title from FAIR model
   applicabilityCriteria: string[];
   primaryIntendedUse: string;
   users: {
@@ -54,6 +55,23 @@ export interface ModelMetadata {
     validationDataset: string;
     crossValidation: string;
   };
+  // FAIR-specific fields from external model metadata
+  fairSpecific?: {
+    outcome: string;
+    inputs: string[];
+    algorithm: string;
+    outOfScopeUseCases: string[];
+    humanLifeImpact: string[];
+    mitigations: string[];
+    risksAndHarms: string[];
+    dockerImage: string;
+    softwareLicense: string;
+    createdBy: string;
+    creationDate: string;
+    contactEmail: string;
+    lastUpdated: string;
+    basedOn: string;
+  };
 }
 
 export interface ValidationDetails {
@@ -72,6 +90,7 @@ export interface Model {
   checkpoint_id: string;
   fair_model_id: string;
   fair_model_url: string;
+  title?: string; // Title from FAIR model metadata
   metadata: ModelMetadata;
   description: string;
   created_at: string;

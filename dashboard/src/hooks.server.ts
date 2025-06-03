@@ -19,6 +19,7 @@ const handleProtectedRoutes: Handle = async ({ event, resolve }) => {
     path === '/' ||
     path.startsWith('/login') ||
     path.startsWith('/api/register') ||
+    path.startsWith('/api/models') ||  // Allow model API access
     path.startsWith('/_app') ||  // SvelteKit internal routes
     path.startsWith('/favicon') ||
     path.startsWith('/images') ||
