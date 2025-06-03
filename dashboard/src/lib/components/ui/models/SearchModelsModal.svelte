@@ -4,7 +4,11 @@
 	import MaterialSymbolsDocumentScannerOutline from '~icons/material-symbols/document-scanner-outline';
 	import MaterialSymbolsCloudOutline from '~icons/material-symbols/cloud-outline';
 	import MaterialSymbolsCheckCircle from '~icons/material-symbols/check-circle';
-	import { loadFairModelsRepository, importModel, isModelImported } from '$lib/stores/models/index.svelte';
+	import {
+		loadFairModelsRepository,
+		importModel,
+		isModelImported
+	} from '$lib/stores/models/index.svelte';
 
 	const props = $props();
 
@@ -38,7 +42,7 @@
 		try {
 			allModels = await loadFairModelsRepository();
 			filteredModels = allModels;
-			
+
 			// Check import status for all models
 			await checkImportStatus();
 		} catch (error) {
@@ -52,7 +56,7 @@
 
 	async function checkImportStatus() {
 		const importStatus = new Set<string>();
-		
+
 		// Check import status for each model
 		const promises = allModels.map(async (model) => {
 			try {
@@ -64,7 +68,7 @@
 				console.error(`Error checking import status for model ${model.id}:`, error);
 			}
 		});
-		
+
 		await Promise.all(promises);
 		importedModels = importStatus;
 	}

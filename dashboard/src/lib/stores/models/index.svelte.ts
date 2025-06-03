@@ -148,7 +148,7 @@ export async function isModelImported(url: string): Promise<boolean> {
     if (!response.ok) {
       throw new Error('Failed to check if model is imported');
     }
-    
+
     const data = await response.json();
     return data.imported;
   } catch (e) {
