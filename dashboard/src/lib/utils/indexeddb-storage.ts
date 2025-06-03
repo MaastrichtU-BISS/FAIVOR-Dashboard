@@ -48,10 +48,14 @@ class IndexedDBStorage {
   }
 
   async saveDataset(dataset: DatasetFolder): Promise<void> {
-    if (!this.db) await this.init();
+    await this.init(); // Always ensure init is called
+
+    if (!this.db) {
+      throw new Error('Failed to initialize IndexedDB');
+    }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.createTransaction([STORE_NAME], 'readwrite');
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
 
       const request = store.put(dataset);
@@ -62,10 +66,14 @@ class IndexedDBStorage {
   }
 
   async getDataset(id: string): Promise<DatasetFolder | undefined> {
-    if (!this.db) await this.init();
+    await this.init(); // Always ensure init is called
+
+    if (!this.db) {
+      throw new Error('Failed to initialize IndexedDB');
+    }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.createTransaction([STORE_NAME], 'readonly');
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
       const store = transaction.objectStore(STORE_NAME);
 
       const request = store.get(id);
@@ -76,10 +84,14 @@ class IndexedDBStorage {
   }
 
   async getAllDatasets(): Promise<DatasetFolder[]> {
-    if (!this.db) await this.init();
+    await this.init(); // Always ensure init is called
+
+    if (!this.db) {
+      throw new Error('Failed to initialize IndexedDB');
+    }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.createTransaction([STORE_NAME], 'readonly');
+      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
       const store = transaction.objectStore(STORE_NAME);
 
       const request = store.getAll();
@@ -90,10 +102,14 @@ class IndexedDBStorage {
   }
 
   async deleteDataset(id: string): Promise<void> {
-    if (!this.db) await this.init();
+    await this.init(); // Always ensure init is called
+
+    if (!this.db) {
+      throw new Error('Failed to initialize IndexedDB');
+    }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.createTransaction([STORE_NAME], 'readwrite');
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
 
       const request = store.delete(id);
@@ -104,10 +120,14 @@ class IndexedDBStorage {
   }
 
   async clearAllDatasets(): Promise<void> {
-    if (!this.db) await this.init();
+    await this.init(); // Always ensure init is called
+
+    if (!this.db) {
+      throw new Error('Failed to initialize IndexedDB');
+    }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.createTransaction([STORE_NAME], 'readwrite');
+      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
 
       const request = store.clear();
