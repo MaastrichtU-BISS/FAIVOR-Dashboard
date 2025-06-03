@@ -110,7 +110,8 @@ export async function importModel(url: string) {
     return result.model;
   } catch (e) {
     console.error('Error importing model:', e);
-    throw error(500, `Failed to import model: ${e.message}`);
+    const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+    throw error(500, `Failed to import model: ${errorMessage}`);
   }
 }
 
@@ -137,5 +138,21 @@ export async function loadFairModelsRepository() {
   } catch (e) {
     console.error('Error loading FAIRmodels repository:', e);
     throw error(500, 'Failed to load FAIRmodels repository');
+  }
+}
+
+// Check if a model is already imported by URL
+export async function isModelImported(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/models/check-imported?url=${encodeURIComponent(url)}`);
+    if (!response.ok) {
+      throw new Error('Failed to check if model is imported');
+    }
+    
+    const data = await response.json();
+    return data.imported;
+  } catch (e) {
+    console.error('Error checking if model is imported:', e);
+    return false;
   }
 }

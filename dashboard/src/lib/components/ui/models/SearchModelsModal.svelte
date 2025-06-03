@@ -3,7 +3,8 @@
 	import MaterialSymbolsClose from '~icons/material-symbols/close';
 	import MaterialSymbolsDocumentScannerOutline from '~icons/material-symbols/document-scanner-outline';
 	import MaterialSymbolsCloudOutline from '~icons/material-symbols/cloud-outline';
-	import { loadFairModelsRepository, importModel } from '$lib/stores/models/index.svelte';
+	import MaterialSymbolsCheckCircle from '~icons/material-symbols/check-circle';
+	import { loadFairModelsRepository, importModel, isModelImported } from '$lib/stores/models/index.svelte';
 
 	const props = $props();
 
@@ -13,6 +14,7 @@
 	let isLoading = $state(false);
 	let isImporting = $state<string | null>(null);
 	let importError = $state('');
+	let importedModels = $state<Set<string>>(new Set());
 
 	// Load models when modal opens
 	$effect(() => {
@@ -36,6 +38,9 @@
 		try {
 			allModels = await loadFairModelsRepository();
 			filteredModels = allModels;
+			
+			// Check import status for all models
+			await checkImportStatus();
 		} catch (error) {
 			console.error('Error loading repository models:', error);
 			allModels = [];
@@ -45,12 +50,34 @@
 		}
 	}
 
+	async function checkImportStatus() {
+		const importStatus = new Set<string>();
+		
+		// Check import status for each model
+		const promises = allModels.map(async (model) => {
+			try {
+				const imported = await isModelImported(model.url);
+				if (imported) {
+					importStatus.add(model.url);
+				}
+			} catch (error) {
+				console.error(`Error checking import status for model ${model.id}:`, error);
+			}
+		});
+		
+		await Promise.all(promises);
+		importedModels = importStatus;
+	}
+
 	async function handleImportModel(model: any) {
 		isImporting = model.id;
 		importError = '';
 
 		try {
 			await importModel(model.url);
+			// Mark model as imported
+			importedModels.add(model.url);
+			importedModels = new Set(importedModels);
 			// Close modal and refresh page to show imported model
 			props.onClose?.();
 			window.location.reload();
@@ -128,14 +155,21 @@
 										</span>
 									</div>
 								</div>
-								<button
-									class="btn btn-primary gap-2"
-									class:loading={isImporting === model.id}
-									disabled={isImporting !== null}
-									on:click={() => handleImportModel(model)}
-								>
-									{isImporting === model.id ? 'Importing...' : 'Import model'}
-								</button>
+								{#if importedModels.has(model.url)}
+									<button class="btn btn-success gap-2" disabled>
+										<MaterialSymbolsCheckCircle class="h-4 w-4" />
+										Imported
+									</button>
+								{:else}
+									<button
+										class="btn btn-primary gap-2"
+										class:loading={isImporting === model.id}
+										disabled={isImporting !== null}
+										on:click={() => handleImportModel(model)}
+									>
+										{isImporting === model.id ? 'Importing...' : 'Import model'}
+									</button>
+								{/if}
 							</div>
 						{/each}
 					{:else if allModels.length === 0 && !isLoading}
