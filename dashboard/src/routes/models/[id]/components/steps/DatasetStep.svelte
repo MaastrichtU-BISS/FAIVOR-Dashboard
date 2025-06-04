@@ -227,8 +227,8 @@
 		</div>
 
 		<div>
-			<label class="label" for="datasetName">Dataset Name</label>
-			<input
+			<label class="label" for="datasetName">Dataset</label>
+			<!-- <input
 				type="text"
 				id="datasetName"
 				class="input input-bordered w-full"
@@ -236,7 +236,7 @@
 				bind:value={datasetName}
 				{readonly}
 				oninput={onFieldChange}
-			/>
+			/> -->
 		</div>
 
 		<!-- Dataset Folder Upload -->
@@ -270,7 +270,7 @@
 		{/if}
 
 		<div class="flex flex-col items-center gap-4">
-			<button
+			<!-- <button
 				class="btn btn-outline gap-2"
 				onclick={checkDataset}
 				disabled={isCheckingDataset ||
@@ -287,7 +287,7 @@
 					<MaterialSymbolsCheck />
 					Run Full Validation
 				{/if}
-			</button>
+			</button> -->
 
 			<!-- CSV Validation Results -->
 			{#if validationResults.csvValidation}

@@ -33,6 +33,24 @@ export interface ValidationData {
       hasData: boolean;
       hasColumnMetadata: boolean;
       indexedDbId?: string; // Reference to IndexedDB storage
+      // Detailed file information for display in UI
+      fileDetails?: {
+        metadata?: {
+          name: string;
+          size: number;
+          lastModified?: number;
+        };
+        data?: {
+          name: string;
+          size: number;
+          lastModified?: number;
+        };
+        columnMetadata?: {
+          name: string;
+          size: number;
+          lastModified?: number;
+        };
+      };
     };
   };
 

@@ -197,48 +197,50 @@
 </script>
 
 <div class="space-y-4">
-	<!-- Folder Upload Area -->
-	<div
-		class="border-base-300 hover:border-primary/50 relative cursor-pointer rounded-lg border-2 border-dashed p-8 transition-all duration-200 ease-in-out {isDragging
-			? 'border-primary bg-primary/5'
-			: ''} {readonly ? 'cursor-not-allowed opacity-50' : ''}"
-		ondragenter={handleDragEnter}
-		ondragover={handleDragOver}
-		ondragleave={handleDragLeave}
-		ondrop={handleDrop}
-		onclick={openFolderDialog}
-		onkeydown={(e) => e.key === 'Enter' && openFolderDialog()}
-		role="button"
-		tabindex="0"
-	>
+	<!-- Folder Upload Area - Only show if no folder is selected -->
+	{#if !folderFiles || !folderName}
 		<div
-			class="flex flex-col items-center justify-center gap-4 transition-transform duration-200 {isDragging
-				? 'scale-105'
-				: ''}"
+			class="border-base-300 hover:border-primary/50 relative cursor-pointer rounded-lg border-2 border-dashed p-8 transition-all duration-200 ease-in-out {isDragging
+				? 'border-primary bg-primary/5'
+				: ''} {readonly ? 'cursor-not-allowed opacity-50' : ''}"
+			ondragenter={handleDragEnter}
+			ondragover={handleDragOver}
+			ondragleave={handleDragLeave}
+			ondrop={handleDrop}
+			onclick={openFolderDialog}
+			onkeydown={(e) => e.key === 'Enter' && openFolderDialog()}
+			role="button"
+			tabindex="0"
 		>
-			<div class="transition-transform duration-200 {isDragging ? 'scale-110' : ''}">
-				<MaterialSymbolsFolder class="text-base-content/40 h-12 w-12" />
+			<div
+				class="flex flex-col items-center justify-center gap-4 transition-transform duration-200 {isDragging
+					? 'scale-105'
+					: ''}"
+			>
+				<div class="transition-transform duration-200 {isDragging ? 'scale-110' : ''}">
+					<MaterialSymbolsFolder class="text-base-content/40 h-12 w-12" />
+				</div>
+				<div class="text-center">
+					<h3 class="text-lg font-semibold">Select Dataset Folder</h3>
+					<p class="text-base-content/70 text-sm">
+						Choose a folder containing metadata.json, data.csv, and column_metadata.json
+					</p>
+					<p class="text-base-content/50 mt-1 text-xs">or drag and drop folder here</p>
+				</div>
 			</div>
-			<div class="text-center">
-				<h3 class="text-lg font-semibold">Select Dataset Folder</h3>
-				<p class="text-base-content/70 text-sm">
-					Choose a folder containing metadata.json, data.csv, and column_metadata.json
-				</p>
-				<p class="text-base-content/50 mt-1 text-xs">or drag and drop folder here</p>
-			</div>
-		</div>
 
-		<!-- Hidden file input for folder selection -->
-		<input
-			bind:this={folderInput}
-			type="file"
-			class="hidden"
-			webkitdirectory
-			multiple
-			onchange={handleFolderSelect}
-			disabled={readonly}
-		/>
-	</div>
+			<!-- Hidden file input for folder selection -->
+			<input
+				bind:this={folderInput}
+				type="file"
+				class="hidden"
+				webkitdirectory
+				multiple
+				onchange={handleFolderSelect}
+				disabled={readonly}
+			/>
+		</div>
+	{/if}
 
 	<!-- Validation Errors -->
 	{#if !validationResult.isValid && validationResult.errors.length > 0}

@@ -13,6 +13,67 @@ import type {
  * Transform form data to ValidationData structure - updated for folder uploads
  */
 export function formDataToValidationData(formData: ValidationFormData): ValidationData {
+  console.log('🔍 formDataToValidationData called with:', {
+    hasUploadedFolder: Boolean(formData.uploadedFolder),
+    folderName: formData.folderName,
+    uploadedFolderKeys: formData.uploadedFolder ? Object.keys(formData.uploadedFolder) : [],
+    metadataFile: formData.uploadedFolder?.metadata ? {
+      name: formData.uploadedFolder.metadata.name,
+      size: formData.uploadedFolder.metadata.size,
+      type: formData.uploadedFolder.metadata.type,
+      lastModified: formData.uploadedFolder.metadata.lastModified
+    } : null,
+    dataFile: formData.uploadedFolder?.data ? {
+      name: formData.uploadedFolder.data.name,
+      size: formData.uploadedFolder.data.size,
+      type: formData.uploadedFolder.data.type,
+      lastModified: formData.uploadedFolder.data.lastModified
+    } : null,
+    columnMetadataFile: formData.uploadedFolder?.columnMetadata ? {
+      name: formData.uploadedFolder.columnMetadata.name,
+      size: formData.uploadedFolder.columnMetadata.size,
+      type: formData.uploadedFolder.columnMetadata.type,
+      lastModified: formData.uploadedFolder.columnMetadata.lastModified
+    } : null
+  });
+
+  // Debug: Let's also check what happens when we log the files directly
+  if (formData.uploadedFolder) {
+    console.log('📁 Raw uploaded folder object:', formData.uploadedFolder);
+    if (formData.uploadedFolder.metadata) {
+      console.log('📄 Metadata file properties:', Object.getOwnPropertyDescriptors(formData.uploadedFolder.metadata));
+    }
+    if (formData.uploadedFolder.data) {
+      console.log('📊 Data file properties:', Object.getOwnPropertyDescriptors(formData.uploadedFolder.data));
+    }
+    if (formData.uploadedFolder.columnMetadata) {
+      console.log('🏷️ Column metadata file properties:', Object.getOwnPropertyDescriptors(formData.uploadedFolder.columnMetadata));
+    }
+  }
+  // Debug: Log folder upload data
+  if (formData.uploadedFolder) {
+    console.log('Transform debug - uploadedFolder:', {
+      metadata: formData.uploadedFolder.metadata ? {
+        name: formData.uploadedFolder.metadata.name,
+        size: formData.uploadedFolder.metadata.size,
+        lastModified: formData.uploadedFolder.metadata.lastModified,
+        type: formData.uploadedFolder.metadata.type
+      } : null,
+      data: formData.uploadedFolder.data ? {
+        name: formData.uploadedFolder.data.name,
+        size: formData.uploadedFolder.data.size,
+        lastModified: formData.uploadedFolder.data.lastModified,
+        type: formData.uploadedFolder.data.type
+      } : null,
+      columnMetadata: formData.uploadedFolder.columnMetadata ? {
+        name: formData.uploadedFolder.columnMetadata.name,
+        size: formData.uploadedFolder.columnMetadata.size,
+        lastModified: formData.uploadedFolder.columnMetadata.lastModified,
+        type: formData.uploadedFolder.columnMetadata.type
+      } : null
+    });
+  }
+
   return {
     validation_name: formData.validationName || undefined,
     dataset_info: {
@@ -33,7 +94,25 @@ export function formDataToValidationData(formData: ValidationFormData): Validati
         totalSize: Object.values(formData.uploadedFolder).reduce((total, file) => total + (file?.size || 0), 0),
         hasMetadata: Boolean(formData.uploadedFolder.metadata),
         hasData: Boolean(formData.uploadedFolder.data),
-        hasColumnMetadata: Boolean(formData.uploadedFolder.columnMetadata)
+        hasColumnMetadata: Boolean(formData.uploadedFolder.columnMetadata),
+        // Save detailed file information for UI display
+        fileDetails: {
+          metadata: formData.uploadedFolder.metadata ? {
+            name: formData.uploadedFolder.metadata.name || 'metadata.json',
+            size: formData.uploadedFolder.metadata.size || 0,
+            lastModified: formData.uploadedFolder.metadata.lastModified || Date.now()
+          } : undefined,
+          data: formData.uploadedFolder.data ? {
+            name: formData.uploadedFolder.data.name || 'data.csv',
+            size: formData.uploadedFolder.data.size || 0,
+            lastModified: formData.uploadedFolder.data.lastModified || Date.now()
+          } : undefined,
+          columnMetadata: formData.uploadedFolder.columnMetadata ? {
+            name: formData.uploadedFolder.columnMetadata.name || 'column_metadata.json',
+            size: formData.uploadedFolder.columnMetadata.size || 0,
+            lastModified: formData.uploadedFolder.columnMetadata.lastModified || Date.now()
+          } : undefined
+        }
       } : undefined
     },
     validation_result: {
@@ -70,15 +149,57 @@ export function validationRowToJob(row: ValidationRow): ValidationJob {
  * Transform ValidationJob to form data for editing - updated for folder uploads
  */
 export function validationJobToFormData(job: ValidationJob): ValidationFormData {
+  // Reconstruct folder files from saved fileDetails if available
+  let reconstructedFolderFiles: DatasetFolderFiles | undefined = undefined;
+
+  if (job.dataset_info?.folderUpload?.fileDetails) {
+    const fileDetails = job.dataset_info.folderUpload.fileDetails;
+    reconstructedFolderFiles = {};
+
+    // Reconstruct metadata file info if it was saved
+    if (fileDetails.metadata) {
+      reconstructedFolderFiles.metadata = new File([], fileDetails.metadata.name, {
+        lastModified: fileDetails.metadata.lastModified
+      });
+      // Store the original size since File constructor doesn't preserve it
+      Object.defineProperty(reconstructedFolderFiles.metadata, 'size', {
+        value: fileDetails.metadata.size,
+        writable: false
+      });
+    }
+
+    // Reconstruct data file info if it was saved
+    if (fileDetails.data) {
+      reconstructedFolderFiles.data = new File([], fileDetails.data.name, {
+        lastModified: fileDetails.data.lastModified
+      });
+      Object.defineProperty(reconstructedFolderFiles.data, 'size', {
+        value: fileDetails.data.size,
+        writable: false
+      });
+    }
+
+    // Reconstruct column metadata file info if it was saved
+    if (fileDetails.columnMetadata) {
+      reconstructedFolderFiles.columnMetadata = new File([], fileDetails.columnMetadata.name, {
+        lastModified: fileDetails.columnMetadata.lastModified
+      });
+      Object.defineProperty(reconstructedFolderFiles.columnMetadata, 'size', {
+        value: fileDetails.columnMetadata.size,
+        writable: false
+      });
+    }
+  }
+
   return {
     validationName: job.validation_name || '',
     userName: job.dataset_info?.userName || '',
     date: job.dataset_info?.date || job.start_datetime,
     datasetName: job.dataset_info?.datasetName || '',
     uploadedFile: null, // Files can't be restored from database
-    // Handle folder upload data
+    // Handle folder upload data - reconstruct from saved fileDetails
     folderName: job.dataset_info?.folderUpload?.folderName,
-    uploadedFolder: undefined, // Folder files can't be restored from database
+    uploadedFolder: reconstructedFolderFiles,
     datasetDescription: job.dataset_info?.description || '',
     datasetCharacteristics: job.dataset_info?.characteristics || '',
     metricsDescription: job.validation_result?.metrics_description || '',

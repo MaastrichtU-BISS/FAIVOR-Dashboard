@@ -1,0 +1,21 @@
+{
+  "title": "Test Model",
+  "description": "A test model for validation",
+  "input_features": [
+    {
+      "name": "feature1",
+      "type": "numerical",
+      "description": "First test feature"
+    },
+    {
+      "name": "feature2",
+      "type": "categorical",
+      "description": "Second test feature"
+    }
+  ],
+  "output": {
+    "name": "prediction",
+    "type": "numerical",
+    "description": "Model prediction output"
+  }
+}

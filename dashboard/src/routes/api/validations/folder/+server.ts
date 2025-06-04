@@ -27,6 +27,27 @@ export const POST: RequestHandler = async ({ request }) => {
     const dataFile = formData.get('dataFile') as File | null;
     const columnMetadataFile = formData.get('columnMetadataFile') as File | null;
 
+    console.log('🔍 Raw files extracted from FormData:', {
+      metadataFile: metadataFile ? {
+        name: metadataFile.name,
+        size: metadataFile.size,
+        type: metadataFile.type,
+        lastModified: metadataFile.lastModified
+      } : null,
+      dataFile: dataFile ? {
+        name: dataFile.name,
+        size: dataFile.size,
+        type: dataFile.type,
+        lastModified: dataFile.lastModified
+      } : null,
+      columnMetadataFile: columnMetadataFile ? {
+        name: columnMetadataFile.name,
+        size: columnMetadataFile.size,
+        type: columnMetadataFile.type,
+        lastModified: columnMetadataFile.lastModified
+      } : null
+    });
+
     console.log('Creating folder-based validation with data:', {
       validationName,
       folderName,
@@ -99,8 +120,54 @@ export const POST: RequestHandler = async ({ request }) => {
       modelId
     };
 
+    // Debug: Log file properties
+    console.log('File properties debug:', {
+      metadataFile: {
+        name: metadataFile?.name,
+        size: metadataFile?.size,
+        lastModified: metadataFile?.lastModified,
+        type: metadataFile?.type
+      },
+      dataFile: {
+        name: dataFile?.name,
+        size: dataFile?.size,
+        lastModified: dataFile?.lastModified,
+        type: dataFile?.type
+      },
+      columnMetadataFile: columnMetadataFile ? {
+        name: columnMetadataFile.name,
+        size: columnMetadataFile.size,
+        lastModified: columnMetadataFile.lastModified,
+        type: columnMetadataFile.type
+      } : null
+    });
+
     // Transform form data to validation data structure
     const validationData = formDataToValidationData(validationFormData);
+
+    // Explicitly inject file details to ensure they're saved properly
+    if (validationData.dataset_info?.folderUpload) {
+      validationData.dataset_info.folderUpload.fileDetails = {
+        metadata: metadataFile ? {
+          name: metadataFile.name,
+          size: metadataFile.size,
+          lastModified: metadataFile.lastModified
+        } : undefined,
+        data: dataFile ? {
+          name: dataFile.name,
+          size: dataFile.size,
+          lastModified: dataFile.lastModified
+        } : undefined,
+        columnMetadata: columnMetadataFile ? {
+          name: columnMetadataFile.name,
+          size: columnMetadataFile.size,
+          lastModified: columnMetadataFile.lastModified
+        } : undefined
+      };
+    }
+
+    console.log('🔒 Final file details before DB save:', validationData.dataset_info?.folderUpload?.fileDetails);
+    console.log('🔒 Complete validation data before DB save:', JSON.stringify(validationData, null, 2));
 
     // Add parsed metadata to the validation data
     validationData.metadata = {
