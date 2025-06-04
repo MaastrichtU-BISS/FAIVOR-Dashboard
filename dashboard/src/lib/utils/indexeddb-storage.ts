@@ -162,15 +162,18 @@ export function validateDatasetFolder(files: FileList): {
   const fileArray = Array.from(files);
 
   // Look for metadata.json - check both direct name and relative path
+  // Be strict about the filename to avoid confusion with column_metadata.json
   const metadataFile = fileArray.find(f => {
     const fileName = f.name.toLowerCase();
     const relativePath = (f as any).webkitRelativePath?.toLowerCase() || '';
+
+    // Exact match for metadata.json (not column_metadata.json)
     return fileName === 'metadata.json' ||
       relativePath.endsWith('/metadata.json') ||
-      relativePath.endsWith('metadata.json');
+      (relativePath.includes('/') && relativePath.split('/').pop() === 'metadata.json');
   });
   if (!metadataFile) {
-    errors.push('metadata.json file is required');
+    errors.push('metadata.json file is required (found column_metadata.json but need main model metadata)');
   } else {
     validFiles.metadata = metadataFile;
   }

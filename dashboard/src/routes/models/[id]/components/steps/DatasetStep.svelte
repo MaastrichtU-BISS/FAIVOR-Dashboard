@@ -353,25 +353,37 @@
 					<div class="mb-2 text-sm font-medium">Validation Progress</div>
 					<div class="flex gap-2">
 						<div
-							class="badge {validationResults.stage === 'csv' ||
-							validationResults.stage === 'complete'
+							class="badge {validationResults.csvValidation?.success
 								? 'badge-success'
-								: 'badge-outline'}"
-						>
-							CSV ✓
-						</div>
-						<div
-							class="badge {validationResults.stage === 'complete'
-								? 'badge-success'
-								: validationResults.stage === 'model'
-									? 'badge-warning'
+								: validationResults.stage === 'csv' && !validationResults.csvValidation?.success
+									? 'badge-error'
 									: 'badge-outline'}"
 						>
-							{validationResults.stage === 'complete'
+							{validationResults.csvValidation?.success
+								? 'CSV ✓'
+								: validationResults.stage === 'csv' && !validationResults.csvValidation?.success
+									? 'CSV ✗'
+									: 'CSV'}
+						</div>
+						<div
+							class="badge {validationResults.stage === 'complete' &&
+							validationResults.modelValidation?.success
+								? 'badge-success'
+								: validationResults.stage === 'model' &&
+									  validationResults.modelValidation?.success === false
+									? 'badge-error'
+									: validationResults.stage === 'model'
+										? 'badge-warning'
+										: 'badge-outline'}"
+						>
+							{validationResults.stage === 'complete' && validationResults.modelValidation?.success
 								? 'Model ✓'
-								: validationResults.stage === 'model'
-									? 'Model...'
-									: 'Model'}
+								: validationResults.stage === 'model' &&
+									  validationResults.modelValidation?.success === false
+									? 'Model ✗'
+									: validationResults.stage === 'model'
+										? 'Model...'
+										: 'Model'}
 						</div>
 					</div>
 				</div>

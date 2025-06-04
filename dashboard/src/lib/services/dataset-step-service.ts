@@ -115,12 +115,39 @@ export class DatasetStepService {
         'General Model Information' in metadata
       );
 
-      // Go directly to full model validation
+      // Step 1: CSV Validation
+      const csvValidationResult = await FaivorBackendAPI.validateCSV(metadata, uploadedFolder.data);
+
+      if (!csvValidationResult.valid) {
+        return {
+          success: false,
+          validationResults: {
+            csvValidation: {
+              success: false,
+              message: csvValidationResult.message || 'CSV validation failed',
+              details: csvValidationResult
+            },
+            stage: 'csv'
+          },
+          showModal: true,
+          error: csvValidationResult.message
+        };
+      }
+
+      // Step 2: Model Validation (only if CSV validation passes)
       const modelValidationResult = await this.performFullModelValidation(uploadedFolder, metadata);
 
+      // Combine both validation results
       return {
         success: true,
-        validationResults: modelValidationResult.validationResults
+        validationResults: {
+          csvValidation: {
+            success: true,
+            message: 'CSV validation passed',
+            details: csvValidationResult
+          },
+          ...modelValidationResult.validationResults
+        }
       };
     } catch (error: any) {
       console.error('Auto-validation failed:', error);
@@ -233,8 +260,39 @@ export class DatasetStepService {
         'General Model Information' in metadata
       );
 
-      // Go directly to full model validation
-      return await this.performFullModelValidation(uploadedFolder, metadata);
+      // Step 1: CSV Validation
+      const csvValidationResult = await FaivorBackendAPI.validateCSV(metadata, uploadedFolder.data);
+
+      if (!csvValidationResult.valid) {
+        return {
+          success: false,
+          validationResults: {
+            csvValidation: {
+              success: false,
+              message: csvValidationResult.message || 'CSV validation failed',
+              details: csvValidationResult
+            },
+            stage: 'csv'
+          },
+          error: csvValidationResult.message
+        };
+      }
+
+      // Step 2: Model Validation (only if CSV validation passes)
+      const modelValidationResult = await this.performFullModelValidation(uploadedFolder, metadata);
+
+      // Combine both validation results
+      return {
+        success: modelValidationResult.success,
+        validationResults: {
+          csvValidation: {
+            success: true,
+            message: 'CSV validation passed',
+            details: csvValidationResult
+          },
+          ...modelValidationResult.validationResults
+        }
+      };
     } catch (error: any) {
       console.error('Dataset check failed:', error);
       return {
