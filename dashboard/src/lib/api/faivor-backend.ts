@@ -16,7 +16,8 @@ export interface HealthCheckResponse {
 }
 
 export class FaivorBackendAPI {
-  private static readonly BASE_URL = process.env.FAIVOR_BACKEND_URL || "http://localhost:8000";
+  // Direct connection to FAIVOR backend with CORS enabled
+  private static readonly BASE_URL = "http://localhost:8000";
 
   /**
    * Health check endpoint

@@ -785,7 +785,7 @@ Create forms that work with the FAIR metadata structure:
 1. Copy `_example .env` to `.env`
 2. Configure database and auth providers
 3. Run `bun install` for dependencies
-4. Use `docker-compose up` for local services (includes backend API at localhost:8000)
+4. Use `docker-compose up -d` for local services (includes backend API at localhost:8000)
 
 ### Backend Service Integration
 

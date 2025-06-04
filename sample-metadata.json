@@ -1,0 +1,27 @@
+{
+  "General Model Information": {
+    "Title": { "@value": "Sample ML Model" },
+    "Editor Note": { "@value": "Sample model for testing the validation system" },
+    "Created by": { "@value": "Test User" },
+    "Contact email": { "@value": "test@example.com" },
+    "FAIRmodels image name": { "@value": "sample-model:latest" }
+  },
+  "Input data": [
+    {
+      "Input label": { "@value": "age" },
+      "Description": { "@value": "Age of the patient" },
+      "Type of input": { "@value": "numeric" }
+    },
+    {
+      "Input label": { "@value": "gender" },
+      "Description": { "@value": "Gender of the patient" },
+      "Type of input": { "@value": "categorical" }
+    },
+    {
+      "Input label": { "@value": "blood_pressure" },
+      "Description": { "@value": "Systolic blood pressure" },
+      "Type of input": { "@value": "numeric" }
+    }
+  ],
+  "Outcome label": { "@value": "diagnosis" }
+}

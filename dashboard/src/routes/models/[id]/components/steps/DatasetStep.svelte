@@ -4,6 +4,7 @@
 	import FolderUpload from '$lib/components/ui/FolderUpload.svelte';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
 	import { datasetStorage, generateDatasetId, parseJSONFile } from '$lib/utils/indexeddb-storage';
+	import { FaivorBackendAPI, type CSVValidationResponse } from '$lib/api/faivor-backend';
 
 	interface Props {
 		validationName?: string;
@@ -69,9 +70,18 @@
 	let datasetDescription = $state('');
 	let datasetCharacteristics = $state('');
 	let isProcessingFolder = $state(false);
+	let isCheckingDataset = $state(false);
+	let checkResult = $state<{
+		success: boolean;
+		message: string;
+		details?: CSVValidationResponse;
+	} | null>(null);
 
 	async function handleFolderSelected(files: DatasetFolderFiles, selectedFolderName: string) {
 		isProcessingFolder = true;
+		// Clear previous check result when new folder is selected
+		checkResult = null;
+
 		try {
 			uploadedFolder = files;
 			folderName = selectedFolderName;
@@ -112,6 +122,8 @@
 	function handleFolderRemoved() {
 		uploadedFolder = undefined;
 		folderName = '';
+		// Clear check result when folder is removed
+		checkResult = null;
 	}
 
 	function calculateSummary() {
@@ -119,9 +131,45 @@
 		console.log('Calculating summary...');
 	}
 
-	function checkDataset() {
-		// TODO: Implement dataset check
-		console.log('Checking dataset...');
+	async function checkDataset() {
+		if (!uploadedFolder?.data || !uploadedFolder?.metadata) {
+			checkResult = {
+				success: false,
+				message: 'Please upload both data file (CSV) and metadata file before checking the dataset.'
+			};
+			return;
+		}
+
+		isCheckingDataset = true;
+		checkResult = null;
+
+		try {
+			// Parse the metadata file
+			const metadataText = await uploadedFolder.metadata.text();
+			const parsedMetadata = JSON.parse(metadataText);
+
+			// Call the backend API to validate the CSV
+			const validationResult = await FaivorBackendAPI.validateCSV(
+				parsedMetadata,
+				uploadedFolder.data
+			);
+
+			checkResult = {
+				success: validationResult.valid,
+				message: validationResult.valid
+					? `CSV validation successful! Found ${validationResult.csv_columns.length} columns in CSV and ${validationResult.model_input_columns.length} expected model input columns.`
+					: validationResult.message || 'CSV validation failed.',
+				details: validationResult
+			};
+		} catch (error: any) {
+			console.error('Dataset check failed:', error);
+			checkResult = {
+				success: false,
+				message: `Dataset check failed: ${error.message || 'Unknown error occurred'}`
+			};
+		} finally {
+			isCheckingDataset = false;
+		}
 	}
 </script>
 
@@ -200,11 +248,38 @@
 			</div>
 		{/if}
 
-		<div class="flex justify-center">
-			<button class="btn btn-outline gap-2" onclick={checkDataset}>
-				<MaterialSymbolsCheck />
-				Check the dataset
+		<div class="flex flex-col items-center gap-4">
+			<button
+				class="btn btn-outline gap-2"
+				onclick={checkDataset}
+				disabled={isCheckingDataset ||
+					!uploadedFolder?.data ||
+					!uploadedFolder?.metadata ||
+					readonly}
+				class:loading={isCheckingDataset}
+			>
+				{#if isCheckingDataset}
+					<span class="loading loading-spinner loading-sm"></span>
+					Checking dataset...
+				{:else}
+					<MaterialSymbolsCheck />
+					Check the dataset
+				{/if}
 			</button>
+
+			{#if checkResult}
+				<div class="alert {checkResult.success ? 'alert-success' : 'alert-error'} w-full">
+					<div class="flex flex-col gap-2">
+						<span class="font-medium">{checkResult.message}</span>
+						{#if checkResult.success && checkResult.details}
+							<div class="text-sm opacity-80">
+								<div>CSV Columns: {checkResult.details.csv_columns.join(', ')}</div>
+								<div>Model Input Columns: {checkResult.details.model_input_columns.join(', ')}</div>
+							</div>
+						{/if}
+					</div>
+				</div>
+			{/if}
 		</div>
 	</div>
 
