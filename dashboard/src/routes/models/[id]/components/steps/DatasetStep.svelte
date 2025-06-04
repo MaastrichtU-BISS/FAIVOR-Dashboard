@@ -243,31 +243,6 @@
 		</div>
 
 		<div>
-			<label class="label" for="userName">User</label>
-			<input
-				type="text"
-				id="userName"
-				class="input input-bordered w-full"
-				placeholder="Add user name (Sam Smith)"
-				bind:value={userName}
-				{readonly}
-				oninput={onFieldChange}
-			/>
-		</div>
-
-		<div>
-			<label class="label" for="date">Date</label>
-			<input
-				type="date"
-				id="date"
-				class="input input-bordered w-full"
-				bind:value={date}
-				{readonly}
-				onchange={onFieldChange}
-			/>
-		</div>
-
-		<div>
 			<label class="label" for="datasetName">Dataset Name</label>
 			<input
 				type="text"
@@ -341,6 +316,32 @@
 	<!-- Right Column -->
 	<div>
 		<div class="grid grid-cols-2 gap-8">
+			<div>
+				<label class="label" for="userName">User</label>
+				<input
+					type="text"
+					id="userName"
+					class="input input-bordered w-full"
+					placeholder="Add user name (Sam Smith)"
+					bind:value={userName}
+					{readonly}
+					oninput={onFieldChange}
+				/>
+			</div>
+
+			<div>
+				<label class="label" for="date">Date</label>
+				<input
+					type="date"
+					id="date"
+					class="input input-bordered w-full"
+					bind:value={date}
+					{readonly}
+					onchange={onFieldChange}
+				/>
+			</div>
+		</div>
+		<div class="mt-6 grid grid-cols-2 gap-8">
 			<div>
 				<h3 class="text-lg font-medium">Dataset description</h3>
 				<textarea
