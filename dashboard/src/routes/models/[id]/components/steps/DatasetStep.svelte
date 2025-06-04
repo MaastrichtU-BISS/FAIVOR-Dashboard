@@ -2,6 +2,7 @@
 	import SolarCalculatorMinimalisticLinear from '~icons/solar/calculator-minimalistic-linear';
 	import MaterialSymbolsCheck from '~icons/material-symbols/check';
 	import FolderUpload from '$lib/components/ui/FolderUpload.svelte';
+	import ValidationErrorModal from '$lib/components/ui/ValidationErrorModal.svelte';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
 	import { datasetStorage, generateDatasetId, parseJSONFile } from '$lib/utils/indexeddb-storage';
 	import { FaivorBackendAPI, type CSVValidationResponse } from '$lib/api/faivor-backend';
@@ -71,6 +72,8 @@
 	let datasetCharacteristics = $state('');
 	let isProcessingFolder = $state(false);
 	let isCheckingDataset = $state(false);
+	let isAutoValidating = $state(false);
+	let showValidationModal = $state(false);
 	let checkResult = $state<{
 		success: boolean;
 		message: string;
@@ -112,10 +115,55 @@
 			});
 
 			console.log('Dataset saved to IndexedDB with ID:', datasetId);
+
+			// Automatically validate the dataset after files are uploaded
+			await performAutoValidation();
 		} catch (error) {
 			console.error('Error processing folder:', error);
 		} finally {
 			isProcessingFolder = false;
+		}
+	}
+
+	async function performAutoValidation() {
+		if (!uploadedFolder?.data || !uploadedFolder?.metadata || readonly) {
+			return;
+		}
+
+		isAutoValidating = true;
+
+		try {
+			// Parse the metadata file
+			const metadataText = await uploadedFolder.metadata.text();
+			const parsedMetadata = JSON.parse(metadataText);
+
+			// Call the backend API to validate the CSV
+			const validationResult = await FaivorBackendAPI.validateCSV(
+				parsedMetadata,
+				uploadedFolder.data
+			);
+
+			checkResult = {
+				success: validationResult.valid,
+				message: validationResult.valid
+					? `CSV validation successful! Found ${validationResult.csv_columns.length} columns in CSV and ${validationResult.model_input_columns.length} expected model input columns.`
+					: validationResult.message || 'CSV validation failed.',
+				details: validationResult
+			};
+
+			// Show modal if there are errors or warnings
+			if (!validationResult.valid || checkResult.details) {
+				showValidationModal = true;
+			}
+		} catch (error: any) {
+			console.error('Auto-validation failed:', error);
+			checkResult = {
+				success: false,
+				message: `Dataset validation failed: ${error.message || 'Unknown error occurred'}`
+			};
+			showValidationModal = true;
+		} finally {
+			isAutoValidating = false;
 		}
 	}
 
@@ -248,6 +296,13 @@
 			</div>
 		{/if}
 
+		{#if isAutoValidating}
+			<div class="text-info flex items-center justify-center gap-2">
+				<span class="loading loading-spinner loading-sm"></span>
+				<span>Automatically validating dataset...</span>
+			</div>
+		{/if}
+
 		<div class="flex flex-col items-center gap-4">
 			<button
 				class="btn btn-outline gap-2"
@@ -324,3 +379,10 @@
 		</div>
 	</div>
 </div>
+
+<!-- Validation Error Modal -->
+<ValidationErrorModal
+	bind:isOpen={showValidationModal}
+	validationResult={checkResult}
+	onClose={() => (showValidationModal = false)}
+/>

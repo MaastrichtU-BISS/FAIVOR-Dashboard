@@ -2,7 +2,9 @@ name: faivor
 
 services:
   faivor-backend:
-    image: ghcr.io/maastrichtu-biss/faivor-ml-validator
+    build:
+      context: ./FAIVOR-ML-Validator
+      dockerfile: Dockerfile
     restart: always
     ports:
       - "8000:8000"
