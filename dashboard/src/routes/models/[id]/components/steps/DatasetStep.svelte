@@ -5,10 +5,10 @@
 	import ValidationErrorModal from '$lib/components/ui/ValidationErrorModal.svelte';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
 	import {
-		FaivorBackendAPI,
-		type CSVValidationResponse,
-		type ModelValidationResponse
-	} from '$lib/api/faivor-backend';
+		DatasetStepService,
+		type ValidationResults,
+		type DatasetStepState
+	} from '$lib/services/dataset-step-service';
 
 	interface Props {
 		validationName?: string;
@@ -32,43 +32,48 @@
 		onFieldChange = () => {}
 	}: Props = $props();
 
-	// Store initial values to track actual changes
-	let initialValues = $state({
-		validationName: validationName || '',
-		userName: userName || '',
-		date: date || '',
-		datasetName: datasetName || '',
-		uploadedFolder: uploadedFolder,
-		folderName: folderName || ''
-	});
+	// Store initial values to track actual changes using service
+	let initialValues = $state<DatasetStepState>(
+		DatasetStepService.createInitialValues({
+			validationName,
+			userName,
+			date,
+			datasetName,
+			uploadedFolder,
+			folderName
+		})
+	);
 
-	// Track actual value changes
+	// Track actual value changes using service
 	$effect(() => {
 		if (!readonly && onFieldChange) {
-			const hasChanges =
-				validationName !== initialValues.validationName ||
-				userName !== initialValues.userName ||
-				date !== initialValues.date ||
-				datasetName !== initialValues.datasetName ||
-				uploadedFolder !== initialValues.uploadedFolder ||
-				folderName !== initialValues.folderName;
+			const currentState: DatasetStepState = {
+				validationName,
+				userName,
+				date,
+				datasetName,
+				uploadedFolder,
+				folderName
+			};
 
-			if (hasChanges) {
+			const changeTracker = DatasetStepService.trackFieldChanges(currentState, initialValues);
+
+			if (changeTracker.hasChanges) {
 				onFieldChange();
 			}
 		}
 	});
 
-	// Reset initial values when props change
+	// Reset initial values when props change using service
 	$effect(() => {
-		initialValues = {
-			validationName: validationName || '',
-			userName: userName || '',
-			date: date || '',
-			datasetName: datasetName || '',
-			uploadedFolder: uploadedFolder,
-			folderName: folderName || ''
-		};
+		initialValues = DatasetStepService.createInitialValues({
+			validationName,
+			userName,
+			date,
+			datasetName,
+			uploadedFolder,
+			folderName
+		});
 	});
 
 	let datasetDescription = $state('');
@@ -80,19 +85,7 @@
 	let showValidationModal = $state(false);
 
 	// Enhanced validation results to support both CSV and model validation
-	let validationResults = $state<{
-		csvValidation?: {
-			success: boolean;
-			message: string;
-			details?: CSVValidationResponse;
-		};
-		modelValidation?: {
-			success: boolean;
-			message: string;
-			details?: ModelValidationResponse;
-		};
-		stage: 'none' | 'csv' | 'model' | 'complete';
-	}>({
+	let validationResults = $state<ValidationResults>({
 		stage: 'none'
 	});
 
@@ -102,23 +95,28 @@
 		validationResults = { stage: 'none' };
 
 		try {
-			uploadedFolder = files;
-			folderName = selectedFolderName;
+			const result = await DatasetStepService.handleFolderSelected(
+				files,
+				selectedFolderName,
+				datasetName,
+				readonly
+			);
 
-			// Set dataset name from folder name if not already set
-			if (!datasetName) {
-				datasetName = selectedFolderName;
+			if (result.success) {
+				uploadedFolder = result.uploadedFolder;
+				folderName = result.folderName || '';
+
+				// Set dataset name from folder name if not already set
+				if (!datasetName && result.datasetName) {
+					datasetName = result.datasetName;
+				}
+
+				if (result.validationResults) {
+					validationResults = result.validationResults;
+				}
+			} else {
+				console.error('Error processing folder:', result.error);
 			}
-
-			console.log('Folder selected:', selectedFolderName);
-			console.log('Files:', {
-				metadata: files.metadata?.name,
-				data: files.data?.name,
-				columnMetadata: files.columnMetadata?.name
-			});
-
-			// Automatically validate the dataset after files are uploaded
-			await performAutoValidation();
 		} catch (error) {
 			console.error('Error processing folder:', error);
 		} finally {
@@ -134,18 +132,13 @@
 		isAutoValidating = true;
 
 		try {
-			// Read metadata fresh
-			const metadataText = await uploadedFolder.metadata.text();
-			const metadata = JSON.parse(metadataText);
+			const result = await DatasetStepService.performAutoValidation(uploadedFolder, readonly);
 
-			console.log('Auto validation - Fresh metadata keys:', Object.keys(metadata));
-			console.log(
-				'Auto validation - Has General Model Information:',
-				'General Model Information' in metadata
-			);
+			validationResults = result.validationResults;
 
-			// Go directly to full model validation
-			await performFullModelValidation(metadata);
+			if (result.showModal) {
+				showValidationModal = true;
+			}
 		} catch (error: any) {
 			console.error('Auto-validation failed:', error);
 			validationResults.modelValidation = {
@@ -167,32 +160,8 @@
 		isRunningFullValidation = true;
 
 		try {
-			// Read column metadata fresh if available
-			let columnMetadata = {};
-			if (uploadedFolder.columnMetadata) {
-				const columnMetadataText = await uploadedFolder.columnMetadata.text();
-				columnMetadata = JSON.parse(columnMetadataText);
-			}
-
-			console.log('Full model validation - Using metadata with keys:', Object.keys(metadata));
-			console.log(
-				'Full model validation - Using column metadata:',
-				uploadedFolder.columnMetadata ? 'Available' : 'Not available'
-			);
-
-			// Call the full model validation API
-			const modelValidationResult = await FaivorBackendAPI.validateModel(
-				metadata,
-				uploadedFolder.data,
-				columnMetadata
-			);
-
-			validationResults.modelValidation = {
-				success: true,
-				message: `Model validation completed! Model: ${modelValidationResult.model_name}`,
-				details: modelValidationResult
-			};
-			validationResults.stage = 'complete';
+			const result = await DatasetStepService.performFullModelValidation(uploadedFolder, metadata);
+			validationResults = result.validationResults;
 		} catch (error: any) {
 			console.error('Full model validation failed:', error);
 			validationResults.modelValidation = {
@@ -206,43 +175,23 @@
 	}
 
 	function handleFolderRemoved() {
-		uploadedFolder = undefined;
-		folderName = '';
-		// Clear validation results when folder is removed
-		validationResults = { stage: 'none' };
+		const result = DatasetStepService.handleFolderRemoved();
+		uploadedFolder = result.uploadedFolder;
+		folderName = result.folderName;
+		validationResults = result.validationResults;
 	}
 
 	function calculateSummary() {
-		// TODO: Implement summary calculation
-		console.log('Calculating summary...');
+		DatasetStepService.calculateSummary();
 	}
 
 	async function checkDataset() {
-		if (!uploadedFolder?.data || !uploadedFolder?.metadata) {
-			validationResults.modelValidation = {
-				success: false,
-				message: 'Please upload both data file (CSV) and metadata file before checking the dataset.'
-			};
-			validationResults.stage = 'model';
-			return;
-		}
-
 		isCheckingDataset = true;
 		validationResults = { stage: 'none' };
 
 		try {
-			// Read metadata fresh
-			const metadataText = await uploadedFolder.metadata.text();
-			const metadata = JSON.parse(metadataText);
-
-			console.log('Manual validation - Fresh metadata keys:', Object.keys(metadata));
-			console.log(
-				'Manual validation - Has General Model Information:',
-				'General Model Information' in metadata
-			);
-
-			// Go directly to full model validation
-			await performFullModelValidation(metadata);
+			const result = await DatasetStepService.checkDataset(uploadedFolder);
+			validationResults = result.validationResults;
 		} catch (error: any) {
 			console.error('Dataset check failed:', error);
 			validationResults.modelValidation = {
