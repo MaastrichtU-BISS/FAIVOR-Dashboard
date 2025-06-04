@@ -4,18 +4,18 @@
 	import MaterialSymbolsClose from '~icons/material-symbols/close';
 	import MaterialSymbolsWarning from '~icons/material-symbols/warning';
 	import type { CSVValidationResponse, ModelValidationResponse } from '$lib/api/faivor-backend';
+	import { validationFormStore } from '$lib/stores/validation-form.store';
 
-	interface Props {
-		isOpen: boolean;
-		validationResult?: {
-			success: boolean;
-			message: string;
-			details?: CSVValidationResponse | ModelValidationResponse;
-		} | null;
-		onClose: () => void;
+	// Get validation data from the store
+	let formState = $derived($validationFormStore);
+	let isOpen = $derived(formState.showValidationModal || false);
+	let validationResult = $derived(
+		formState.validationResults?.modelValidation || formState.validationResults?.csvValidation
+	);
+
+	function onClose() {
+		validationFormStore.setShowValidationModal(false);
 	}
-
-	let { isOpen = $bindable(false), validationResult, onClose }: Props = $props();
 
 	function handleBackdropClick(event: MouseEvent) {
 		if (event.target === event.currentTarget) {

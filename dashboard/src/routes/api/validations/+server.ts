@@ -34,6 +34,16 @@ export const POST: RequestHandler = async ({ request }) => {
     const validationData = formDataToValidationData(formData);
     console.log('Transformed validation data:', validationData);
 
+    // Log file sizes to verify they're preserved
+    if (validationData.dataset_info?.folderUpload?.fileDetails) {
+      console.log('📊 File sizes being stored in database:', {
+        metadata: validationData.dataset_info.folderUpload.fileDetails.metadata?.size,
+        data: validationData.dataset_info.folderUpload.fileDetails.data?.size,
+        columnMetadata: validationData.dataset_info.folderUpload.fileDetails.columnMetadata?.size,
+        totalSize: validationData.dataset_info.folderUpload.totalSize
+      });
+    }
+
     // Create new validation record with consolidated data structure
     const result = await sql`
       INSERT INTO validations (
@@ -54,6 +64,16 @@ export const POST: RequestHandler = async ({ request }) => {
 
     console.log('Validation created:', result[0]);
     console.log('Validation data saved:', result[0].data);
+
+    // Verify file sizes in saved data
+    if (result[0].data?.dataset_info?.folderUpload?.fileDetails) {
+      console.log('✅ Verified file sizes in saved validation:', {
+        metadata: result[0].data.dataset_info.folderUpload.fileDetails.metadata?.size,
+        data: result[0].data.dataset_info.folderUpload.fileDetails.data?.size,
+        columnMetadata: result[0].data.dataset_info.folderUpload.fileDetails.columnMetadata?.size,
+        totalSize: result[0].data.dataset_info.folderUpload.totalSize
+      });
+    }
 
     // Get updated validations for this model (excluding deleted ones)
     const validations = await sql`

@@ -5,6 +5,7 @@
 		type ValidationJob,
 		type ValidationMode
 	} from '$lib/stores/validation.store';
+	import { validationFormStore } from '$lib/stores/validation-form.store';
 	import type { ValidationFormData } from '$lib/types/validation';
 	import {
 		validationJobToFormData,
@@ -51,41 +52,22 @@
 		{ title: 'Metrics for validation', active: false }
 	]);
 
-	// Form data using the new structured approach
-	let validationName = $state('');
-	let userName = $state('');
-	let date = $state('');
-	let datasetName = $state('');
-	let uploadedFolder = $state(undefined);
-	let folderName = $state('');
-	let datasetDescription = $state('');
-	let datasetCharacteristics = $state('');
-	let metricsDescription = $state('');
-	let performanceMetrics = $state('');
-
-	// Get data from store and transform using utility functions
+	// Use the validation form store for all form data
 	$effect(() => {
 		const { currentValidation, mode } = $validationStore;
 
 		if (currentValidation) {
 			// Use utility function to transform validation data to form data
 			const formData = validationJobToFormData(currentValidation);
-
-			validationName = formData.validationName;
-			userName = formData.userName;
-			date = formData.date;
-			datasetName = formData.datasetName;
-			uploadedFolder = formData.uploadedFolder;
-			folderName = formData.folderName || '';
-			datasetDescription = formData.datasetDescription;
-			datasetCharacteristics = formData.datasetCharacteristics;
-			metricsDescription = formData.metricsDescription;
-			performanceMetrics = formData.performanceMetrics;
-
+			// Load data into the form store
+			validationFormStore.loadFormData({ ...formData, modelId: modelId });
 			// Store initial values for change tracking
 			initialFormData = { ...formData, modelId: modelId };
 		} else {
 			// Reset form for new validation
+			validationFormStore.reset();
+			validationFormStore.updateField('modelId', modelId);
+
 			const emptyFormData: ValidationFormData = {
 				validationName: '',
 				userName: '',
@@ -100,18 +82,6 @@
 				performanceMetrics: '',
 				modelId: modelId
 			};
-
-			validationName = emptyFormData.validationName;
-			userName = emptyFormData.userName;
-			date = emptyFormData.date;
-			datasetName = emptyFormData.datasetName;
-			uploadedFolder = emptyFormData.uploadedFolder;
-			folderName = emptyFormData.folderName || '';
-			datasetDescription = emptyFormData.datasetDescription;
-			datasetCharacteristics = emptyFormData.datasetCharacteristics;
-			metricsDescription = emptyFormData.metricsDescription;
-			performanceMetrics = emptyFormData.performanceMetrics;
-
 			initialFormData = emptyFormData;
 		}
 	});
@@ -175,21 +145,8 @@
 		isSaving = true;
 
 		try {
-			// Create form data structure
-			const formData: ValidationFormData = {
-				validationName,
-				userName,
-				date,
-				datasetName,
-				uploadedFile: null,
-				uploadedFolder,
-				folderName,
-				datasetDescription,
-				datasetCharacteristics,
-				metricsDescription,
-				performanceMetrics,
-				modelId
-			};
+			// Get form data from the store
+			const formData = validationFormStore.getFormData();
 
 			const response = await fetch(
 				`/api/validations/${$validationStore.currentValidation.val_id}`,
@@ -233,17 +190,8 @@
 	// Watch for form field changes and trigger auto-save
 	$effect(() => {
 		if ($validationStore.mode === 'edit' && $validationStore.currentValidation?.val_id) {
-			// Create a reactive dependency on all form fields
-			const formState = {
-				validationName,
-				userName,
-				date,
-				datasetName,
-				datasetDescription,
-				datasetCharacteristics,
-				metricsDescription,
-				performanceMetrics
-			};
+			// Create a reactive dependency on the form store
+			const formState = $validationFormStore;
 			debouncedAutoSave();
 		}
 	});
@@ -274,26 +222,15 @@
 		try {
 			console.log('Submitting validation with modelId:', modelId);
 
-			// Generate default validation name if not provided
-			const finalValidationName =
-				validationName.trim() ||
-				`Validation ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+			// Get form data from the store (includes files with correct sizes)
+			const formData = validationFormStore.getFormData();
 
-			// Create form data structure
-			const formData: ValidationFormData = {
-				validationName: finalValidationName,
-				userName,
-				date,
-				datasetName,
-				uploadedFile: null,
-				uploadedFolder,
-				folderName,
-				datasetDescription,
-				datasetCharacteristics,
-				metricsDescription,
-				performanceMetrics,
-				modelId
-			};
+			// Generate default validation name if not provided
+			if (!formData.validationName.trim()) {
+				formData.validationName = `Validation ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+			}
+
+			console.log('📤 Submitting form data from store:', formData);
 
 			if ($validationStore.mode === 'create') {
 				const response = await fetch('/api/validations', {
@@ -400,27 +337,11 @@
 		<!-- Content -->
 		<div class="h-[calc(100%-12rem)] w-full overflow-y-auto">
 			{#if currentStep === 0}
-				<DatasetStep
-					bind:validationName
-					bind:userName
-					bind:date
-					bind:datasetName
-					bind:uploadedFolder
-					bind:folderName
-					readonly={$validationStore.mode === 'view'}
-					onFieldChange={scheduleAutoSave}
-				/>
+				<DatasetStep readonly={$validationStore.mode === 'view'} onFieldChange={scheduleAutoSave} />
 			{:else if currentStep === 1}
-				<DatasetCharacteristicsStep
-					bind:datasetDescription
-					readonly={$validationStore.mode === 'view'}
-				/>
+				<DatasetCharacteristicsStep readonly={$validationStore.mode === 'view'} />
 			{:else if currentStep === 2}
-				<MetricsForValidationStep
-					bind:metricsDescription
-					bind:performanceMetrics
-					readonly={$validationStore.mode === 'view'}
-				/>
+				<MetricsForValidationStep readonly={$validationStore.mode === 'view'} />
 			{/if}
 		</div>
 

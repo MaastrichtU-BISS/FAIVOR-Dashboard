@@ -4,77 +4,85 @@
 	import FolderUpload from '$lib/components/ui/FolderUpload.svelte';
 	import ValidationErrorModal from '$lib/components/ui/ValidationErrorModal.svelte';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
-	import {
-		DatasetStepService,
-		type ValidationResults,
-		type DatasetStepState
-	} from '$lib/services/dataset-step-service';
+	import { validationFormStore } from '$lib/stores/validation-form.store';
+	import { DatasetStepService, type DatasetStepState } from '$lib/services/dataset-step-service';
+	import type { ValidationResults } from '$lib/stores/validation-form.store';
 
 	interface Props {
-		validationName?: string;
-		userName?: string;
-		date?: string;
-		datasetName?: string;
-		uploadedFolder?: DatasetFolderFiles;
-		folderName?: string;
 		readonly?: boolean;
 		onFieldChange?: () => void;
 	}
 
-	let {
-		validationName = $bindable(''),
-		userName = $bindable(''),
-		date = $bindable(''),
-		datasetName = $bindable(''),
-		uploadedFolder = $bindable(undefined),
-		folderName = $bindable(''),
-		readonly = false,
-		onFieldChange = () => {}
-	}: Props = $props();
+	let { readonly = false, onFieldChange = () => {} }: Props = $props();
+
+	// Use the validation form store for all data
+	let formData = $derived($validationFormStore);
+
+	// Local state for input fields that sync with the store
+	let validationName = $state(formData.validationName || '');
+	let userName = $state(formData.userName || '');
+	let date = $state(formData.date || '');
 
 	// Store initial values to track actual changes using service
 	let initialValues = $state<DatasetStepState>(
 		DatasetStepService.createInitialValues({
-			validationName,
-			userName,
-			date,
-			datasetName,
-			uploadedFolder,
-			folderName
+			validationName: formData.validationName || '',
+			userName: formData.userName || '',
+			date: formData.date || '',
+			datasetName: formData.datasetName || '',
+			uploadedFolder: formData.uploadedFolder,
+			folderName: formData.folderName || ''
 		})
 	);
 
-	// Track actual value changes using service
+	// Sync local state with store when formData changes from external sources (loading data)
+	// but prevent triggering when we're updating the store ourselves
+	let isUpdatingStore = false;
 	$effect(() => {
-		if (!readonly && onFieldChange) {
-			const currentState: DatasetStepState = {
-				validationName,
-				userName,
-				date,
-				datasetName,
-				uploadedFolder,
-				folderName
-			};
-
-			const changeTracker = DatasetStepService.trackFieldChanges(currentState, initialValues);
-
-			if (changeTracker.hasChanges) {
-				onFieldChange();
-			}
+		if (!isUpdatingStore) {
+			validationName = formData.validationName || '';
+			userName = formData.userName || '';
+			date = formData.date || '';
 		}
 	});
 
-	// Reset initial values when props change using service
-	$effect(() => {
-		initialValues = DatasetStepService.createInitialValues({
-			validationName,
-			userName,
-			date,
-			datasetName,
-			uploadedFolder,
-			folderName
-		});
-	});
+	// Update store when local state changes and track field changes
+	function handleFieldUpdate() {
+		if (!readonly) {
+			isUpdatingStore = true;
+
+			// Update store with current local state
+			if (validationName !== formData.validationName) {
+				validationFormStore.updateField('validationName', validationName);
+			}
+			if (userName !== formData.userName) {
+				validationFormStore.updateField('userName', userName);
+			}
+			if (date !== formData.date) {
+				validationFormStore.updateField('date', date);
+			}
+
+			// Track changes for the onFieldChange callback
+			const currentState: DatasetStepState = {
+				validationName: validationName,
+				userName: userName,
+				date: date,
+				datasetName: formData.datasetName || '',
+				uploadedFolder: formData.uploadedFolder,
+				folderName: formData.folderName || ''
+			};
+
+			const changeTracker = DatasetStepService.trackFieldChanges(currentState, initialValues);
+			if (changeTracker.hasChanges) {
+				onFieldChange();
+			}
+
+			// Reset the flag after a brief delay to allow store updates to complete
+			setTimeout(() => {
+				isUpdatingStore = false;
+			}, 0);
+		}
+	}
 
 	let datasetDescription = $state('');
 	let datasetCharacteristics = $state('');
@@ -82,37 +90,47 @@
 	let isCheckingDataset = $state(false);
 	let isAutoValidating = $state(false);
 	let isRunningFullValidation = $state(false);
-	let showValidationModal = $state(false);
 
-	// Enhanced validation results to support both CSV and model validation
-	let validationResults = $state<ValidationResults>({
-		stage: 'none'
-	});
+	// Get validation results from the store instead of local state
+	let validationResults = $derived(formData.validationResults || { stage: 'none' });
 
 	async function handleFolderSelected(files: DatasetFolderFiles, selectedFolderName: string) {
 		isProcessingFolder = true;
 		// Clear previous validation results when new folder is selected
-		validationResults = { stage: 'none' };
+		validationFormStore.clearValidationResults();
 
 		try {
 			const result = await DatasetStepService.handleFolderSelected(
 				files,
 				selectedFolderName,
-				datasetName,
+				formData.datasetName,
 				readonly
 			);
 
 			if (result.success) {
-				uploadedFolder = result.uploadedFolder;
-				folderName = result.folderName || '';
+				// Update the store instead of local variables
+				validationFormStore.setFolderFiles(result.uploadedFolder || {}, result.folderName || '');
 
 				// Set dataset name from folder name if not already set
-				if (!datasetName && result.datasetName) {
-					datasetName = result.datasetName;
+				if (!formData.datasetName && result.datasetName) {
+					validationFormStore.updateField('datasetName', result.datasetName);
 				}
 
 				if (result.validationResults) {
-					validationResults = result.validationResults;
+					validationFormStore.setValidationResults(result.validationResults);
+
+					// Show modal if there are validation errors or important results
+					if (
+						result.validationResults.csvValidation &&
+						!result.validationResults.csvValidation.success
+					) {
+						validationFormStore.setShowValidationModal(true);
+					} else if (
+						result.validationResults.modelValidation &&
+						!result.validationResults.modelValidation.success
+					) {
+						validationFormStore.setShowValidationModal(true);
+					}
 				}
 			} else {
 				console.error('Error processing folder:', result.error);
@@ -125,50 +143,66 @@
 	}
 
 	async function performAutoValidation() {
-		if (!uploadedFolder?.data || !uploadedFolder?.metadata || readonly) {
+		if (!formData.uploadedFolder?.data || !formData.uploadedFolder?.metadata || readonly) {
 			return;
 		}
 
 		isAutoValidating = true;
 
 		try {
-			const result = await DatasetStepService.performAutoValidation(uploadedFolder, readonly);
+			const result = await DatasetStepService.performAutoValidation(
+				formData.uploadedFolder,
+				readonly
+			);
 
-			validationResults = result.validationResults;
+			// Update store with validation results
+			validationFormStore.setValidationResults(result.validationResults);
 
 			if (result.showModal) {
-				showValidationModal = true;
+				validationFormStore.setShowValidationModal(true);
 			}
 		} catch (error: any) {
 			console.error('Auto-validation failed:', error);
-			validationResults.modelValidation = {
-				success: false,
-				message: `Model validation failed: ${error.message || 'Unknown error occurred'}`
-			};
-			validationResults.stage = 'model';
-			showValidationModal = true;
+
+			// Update store with error results
+			validationFormStore.setValidationResults({
+				modelValidation: {
+					success: false,
+					message: `Model validation failed: ${error.message || 'Unknown error occurred'}`
+				},
+				stage: 'model'
+			});
+			validationFormStore.setShowValidationModal(true);
 		} finally {
 			isAutoValidating = false;
 		}
 	}
 
 	async function performFullModelValidation(metadata: any) {
-		if (!uploadedFolder?.data) {
+		if (!formData.uploadedFolder?.data) {
 			return;
 		}
 
 		isRunningFullValidation = true;
 
 		try {
-			const result = await DatasetStepService.performFullModelValidation(uploadedFolder, metadata);
-			validationResults = result.validationResults;
+			const result = await DatasetStepService.performFullModelValidation(
+				formData.uploadedFolder,
+				metadata
+			);
+			// Update store with validation results
+			validationFormStore.setValidationResults(result.validationResults);
 		} catch (error: any) {
 			console.error('Full model validation failed:', error);
-			validationResults.modelValidation = {
-				success: false,
-				message: `Model validation failed: ${error.message || 'Unknown error occurred'}`
-			};
-			validationResults.stage = 'model';
+
+			// Update store with error results
+			validationFormStore.setValidationResults({
+				modelValidation: {
+					success: false,
+					message: `Model validation failed: ${error.message || 'Unknown error occurred'}`
+				},
+				stage: 'model'
+			});
 		} finally {
 			isRunningFullValidation = false;
 		}
@@ -176,9 +210,9 @@
 
 	function handleFolderRemoved() {
 		const result = DatasetStepService.handleFolderRemoved();
-		uploadedFolder = result.uploadedFolder;
-		folderName = result.folderName;
-		validationResults = result.validationResults;
+		validationFormStore.clearFolderFiles();
+		// Update store with validation results
+		validationFormStore.setValidationResults(result.validationResults);
 	}
 
 	function calculateSummary() {
@@ -187,18 +221,24 @@
 
 	async function checkDataset() {
 		isCheckingDataset = true;
-		validationResults = { stage: 'none' };
+		// Clear previous validation results
+		validationFormStore.clearValidationResults();
 
 		try {
-			const result = await DatasetStepService.checkDataset(uploadedFolder);
-			validationResults = result.validationResults;
+			const result = await DatasetStepService.checkDataset(formData.uploadedFolder);
+			// Update store with validation results
+			validationFormStore.setValidationResults(result.validationResults);
 		} catch (error: any) {
 			console.error('Dataset check failed:', error);
-			validationResults.modelValidation = {
-				success: false,
-				message: `Model validation failed: ${error.message || 'Unknown error occurred'}`
-			};
-			validationResults.stage = 'model';
+
+			// Update store with error results
+			validationFormStore.setValidationResults({
+				modelValidation: {
+					success: false,
+					message: `Model validation failed: ${error.message || 'Unknown error occurred'}`
+				},
+				stage: 'model'
+			});
 		} finally {
 			isCheckingDataset = false;
 		}
@@ -217,7 +257,7 @@
 				placeholder="Enter validation name (optional)"
 				bind:value={validationName}
 				{readonly}
-				oninput={onFieldChange}
+				oninput={handleFieldUpdate}
 			/>
 			<div class="label">
 				<span class="label-text-alt text-base-content/60">
@@ -241,8 +281,8 @@
 
 		<!-- Dataset Folder Upload -->
 		<FolderUpload
-			bind:folderFiles={uploadedFolder}
-			bind:folderName
+			folderFiles={formData.uploadedFolder}
+			folderName={formData.folderName || ''}
 			{readonly}
 			onFolderSelected={handleFolderSelected}
 			onFolderRemoved={handleFolderRemoved}
@@ -403,7 +443,7 @@
 					placeholder="Add user name (Sam Smith)"
 					bind:value={userName}
 					{readonly}
-					oninput={onFieldChange}
+					oninput={handleFieldUpdate}
 				/>
 			</div>
 
@@ -415,7 +455,7 @@
 					class="input input-bordered w-full"
 					bind:value={date}
 					{readonly}
-					onchange={onFieldChange}
+					onchange={handleFieldUpdate}
 				/>
 			</div>
 		</div>
@@ -460,8 +500,4 @@
 </div>
 
 <!-- Validation Error Modal -->
-<ValidationErrorModal
-	bind:isOpen={showValidationModal}
-	validationResult={validationResults.modelValidation}
-	onClose={() => (showValidationModal = false)}
-/>
+<ValidationErrorModal />

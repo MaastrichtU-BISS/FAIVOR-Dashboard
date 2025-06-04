@@ -70,6 +70,21 @@ export interface ValidationData {
     // Custom metrics and descriptions
     metrics_description?: string;
     performance_description?: string;
+
+    // Store validation results from the validation form store
+    validation_results?: {
+      csvValidation?: {
+        success: boolean;
+        message: string;
+        details?: any;
+      };
+      modelValidation?: {
+        success: boolean;
+        message: string;
+        details?: any;
+      };
+      stage: 'none' | 'csv' | 'model' | 'complete';
+    };
   };
 
   // Configuration and parameters

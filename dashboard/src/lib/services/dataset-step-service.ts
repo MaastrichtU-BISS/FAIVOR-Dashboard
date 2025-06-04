@@ -1,6 +1,7 @@
 // src/lib/services/dataset-step-service.ts
 import { FaivorBackendAPI, type CSVValidationResponse, type ModelValidationResponse } from '$lib/api/faivor-backend';
 import type { DatasetFolderFiles } from '$lib/types/validation';
+import type { ValidationResults } from '$lib/stores/validation-form.store';
 
 // Types for the service
 export interface DatasetStepState {
@@ -10,20 +11,6 @@ export interface DatasetStepState {
   datasetName: string;
   uploadedFolder?: DatasetFolderFiles;
   folderName: string;
-}
-
-export interface ValidationResults {
-  csvValidation?: {
-    success: boolean;
-    message: string;
-    details?: CSVValidationResponse;
-  };
-  modelValidation?: {
-    success: boolean;
-    message: string;
-    details?: ModelValidationResponse;
-  };
-  stage: 'none' | 'csv' | 'model' | 'complete';
 }
 
 export interface FieldChangeTracker {

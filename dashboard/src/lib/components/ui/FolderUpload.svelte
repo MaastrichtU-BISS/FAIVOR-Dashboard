@@ -7,6 +7,7 @@
 	import MaterialSymbolsInfo from '~icons/material-symbols/info';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
 	import { validateDatasetFolder, extractFolderName } from '$lib/utils/indexeddb-storage';
+	import { validationFormStore } from '$lib/stores/validation-form.store';
 
 	interface Props {
 		folderFiles?: DatasetFolderFiles;
@@ -17,8 +18,8 @@
 	}
 
 	let {
-		folderFiles = $bindable(undefined),
-		folderName = $bindable(''),
+		folderFiles = undefined,
+		folderName = '',
 		readonly = false,
 		onFolderSelected = () => {},
 		onFolderRemoved = () => {}
@@ -156,6 +157,10 @@
 			const extractedFolderName = extractFolderName(files);
 			folderFiles = validation.validFiles;
 			folderName = extractedFolderName;
+
+			// Update the validation form store with the files
+			validationFormStore.setFolderFiles(validation.validFiles, extractedFolderName);
+
 			onFolderSelected(validation.validFiles, extractedFolderName);
 		}
 	}
@@ -168,6 +173,10 @@
 		if (folderInput) {
 			folderInput.value = '';
 		}
+
+		// Clear files from the validation form store
+		validationFormStore.clearFolderFiles();
+
 		onFolderRemoved();
 	}
 

@@ -8,71 +8,46 @@ import type {
   ValidationRow,
   DatasetFolderFiles
 } from '$lib/types/validation';
+import { getFileSizesFromStore, validationFormStore, type ValidationResults } from '$lib/stores/validation-form.store';
 
 /**
- * Transform form data to ValidationData structure - updated for folder uploads
+ * Transform form data to ValidationData structure - simplified using store
  */
 export function formDataToValidationData(formData: ValidationFormData): ValidationData {
-  console.log('🔍 formDataToValidationData called with:', {
+  // Get file sizes directly from the store to avoid serialization issues
+  const fileSizes = getFileSizesFromStore();
+
+  // Get validation results from the store
+  let validationResults: ValidationResults | undefined;
+  const unsubscribe = validationFormStore.subscribe(state => {
+    validationResults = state.validationResults;
+  });
+  unsubscribe();
+
+  console.log('🔍 formDataToValidationData called with store-based sizes:', {
     hasUploadedFolder: Boolean(formData.uploadedFolder),
     folderName: formData.folderName,
-    uploadedFolderKeys: formData.uploadedFolder ? Object.keys(formData.uploadedFolder) : [],
+    fileSizes,
+    validationResults,
     metadataFile: formData.uploadedFolder?.metadata ? {
       name: formData.uploadedFolder.metadata.name,
-      size: formData.uploadedFolder.metadata.size,
+      size: fileSizes.metadataSize,
       type: formData.uploadedFolder.metadata.type,
       lastModified: formData.uploadedFolder.metadata.lastModified
     } : null,
     dataFile: formData.uploadedFolder?.data ? {
       name: formData.uploadedFolder.data.name,
-      size: formData.uploadedFolder.data.size,
+      size: fileSizes.dataSize,
       type: formData.uploadedFolder.data.type,
       lastModified: formData.uploadedFolder.data.lastModified
     } : null,
     columnMetadataFile: formData.uploadedFolder?.columnMetadata ? {
       name: formData.uploadedFolder.columnMetadata.name,
-      size: formData.uploadedFolder.columnMetadata.size,
+      size: fileSizes.columnMetadataSize,
       type: formData.uploadedFolder.columnMetadata.type,
       lastModified: formData.uploadedFolder.columnMetadata.lastModified
     } : null
   });
-
-  // Debug: Let's also check what happens when we log the files directly
-  if (formData.uploadedFolder) {
-    console.log('📁 Raw uploaded folder object:', formData.uploadedFolder);
-    if (formData.uploadedFolder.metadata) {
-      console.log('📄 Metadata file properties:', Object.getOwnPropertyDescriptors(formData.uploadedFolder.metadata));
-    }
-    if (formData.uploadedFolder.data) {
-      console.log('📊 Data file properties:', Object.getOwnPropertyDescriptors(formData.uploadedFolder.data));
-    }
-    if (formData.uploadedFolder.columnMetadata) {
-      console.log('🏷️ Column metadata file properties:', Object.getOwnPropertyDescriptors(formData.uploadedFolder.columnMetadata));
-    }
-  }
-  // Debug: Log folder upload data
-  if (formData.uploadedFolder) {
-    console.log('Transform debug - uploadedFolder:', {
-      metadata: formData.uploadedFolder.metadata ? {
-        name: formData.uploadedFolder.metadata.name,
-        size: formData.uploadedFolder.metadata.size,
-        lastModified: formData.uploadedFolder.metadata.lastModified,
-        type: formData.uploadedFolder.metadata.type
-      } : null,
-      data: formData.uploadedFolder.data ? {
-        name: formData.uploadedFolder.data.name,
-        size: formData.uploadedFolder.data.size,
-        lastModified: formData.uploadedFolder.data.lastModified,
-        type: formData.uploadedFolder.data.type
-      } : null,
-      columnMetadata: formData.uploadedFolder.columnMetadata ? {
-        name: formData.uploadedFolder.columnMetadata.name,
-        size: formData.uploadedFolder.columnMetadata.size,
-        lastModified: formData.uploadedFolder.columnMetadata.lastModified,
-        type: formData.uploadedFolder.columnMetadata.type
-      } : null
-    });
-  }
 
   return {
     validation_name: formData.validationName || undefined,
@@ -84,32 +59,32 @@ export function formDataToValidationData(formData: ValidationFormData): Validati
       characteristics: formData.datasetCharacteristics || undefined,
       uploadedFile: formData.uploadedFile ? {
         name: formData.uploadedFile.name,
-        size: formData.uploadedFile.size,
+        size: formData.uploadedFile.size || 0, // Direct access since files are in store
         type: formData.uploadedFile.type
       } : undefined,
-      // Handle folder upload data
+      // Handle folder upload data using store-based sizes
       folderUpload: formData.uploadedFolder ? {
         folderName: formData.folderName || 'Unknown Folder',
         fileCount: Object.keys(formData.uploadedFolder).length,
-        totalSize: Object.values(formData.uploadedFolder).reduce((total, file) => total + (file?.size || 0), 0),
+        totalSize: fileSizes.totalSize,
         hasMetadata: Boolean(formData.uploadedFolder.metadata),
         hasData: Boolean(formData.uploadedFolder.data),
         hasColumnMetadata: Boolean(formData.uploadedFolder.columnMetadata),
-        // Save detailed file information for UI display
+        // Save detailed file information for UI display with store-based sizes
         fileDetails: {
           metadata: formData.uploadedFolder.metadata ? {
             name: formData.uploadedFolder.metadata.name || 'metadata.json',
-            size: formData.uploadedFolder.metadata.size || 0,
+            size: fileSizes.metadataSize, // Use store-based size
             lastModified: formData.uploadedFolder.metadata.lastModified || Date.now()
           } : undefined,
           data: formData.uploadedFolder.data ? {
             name: formData.uploadedFolder.data.name || 'data.csv',
-            size: formData.uploadedFolder.data.size || 0,
+            size: fileSizes.dataSize, // Use store-based size
             lastModified: formData.uploadedFolder.data.lastModified || Date.now()
           } : undefined,
           columnMetadata: formData.uploadedFolder.columnMetadata ? {
             name: formData.uploadedFolder.columnMetadata.name || 'column_metadata.json',
-            size: formData.uploadedFolder.columnMetadata.size || 0,
+            size: fileSizes.columnMetadataSize, // Use store-based size
             lastModified: formData.uploadedFolder.columnMetadata.lastModified || Date.now()
           } : undefined
         }
@@ -120,7 +95,9 @@ export function formDataToValidationData(formData: ValidationFormData): Validati
       performance_description: formData.performanceMetrics || undefined,
       dataProvided: Boolean(formData.uploadedFile || formData.uploadedFolder?.data || formData.datasetName),
       dataCharacteristics: Boolean(formData.datasetDescription || formData.datasetCharacteristics),
-      metrics: Boolean(formData.metricsDescription)
+      metrics: Boolean(formData.metricsDescription),
+      // Include validation results from the store
+      validation_results: validationResults && validationResults.stage !== 'none' ? validationResults : undefined
     }
   };
 }
@@ -189,6 +166,11 @@ export function validationJobToFormData(job: ValidationJob): ValidationFormData 
         writable: false
       });
     }
+  }
+
+  // Load validation results into the store if they exist
+  if (job.validation_result?.validation_results) {
+    validationFormStore.setValidationResults(job.validation_result.validation_results);
   }
 
   return {
