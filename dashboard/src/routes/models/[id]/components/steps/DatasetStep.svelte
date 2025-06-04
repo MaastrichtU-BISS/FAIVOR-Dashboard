@@ -4,8 +4,11 @@
 	import FolderUpload from '$lib/components/ui/FolderUpload.svelte';
 	import ValidationErrorModal from '$lib/components/ui/ValidationErrorModal.svelte';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
-	import { datasetStorage, generateDatasetId, parseJSONFile } from '$lib/utils/indexeddb-storage';
-	import { FaivorBackendAPI, type CSVValidationResponse } from '$lib/api/faivor-backend';
+	import {
+		FaivorBackendAPI,
+		type CSVValidationResponse,
+		type ModelValidationResponse
+	} from '$lib/api/faivor-backend';
 
 	interface Props {
 		validationName?: string;
@@ -73,17 +76,30 @@
 	let isProcessingFolder = $state(false);
 	let isCheckingDataset = $state(false);
 	let isAutoValidating = $state(false);
+	let isRunningFullValidation = $state(false);
 	let showValidationModal = $state(false);
-	let checkResult = $state<{
-		success: boolean;
-		message: string;
-		details?: CSVValidationResponse;
-	} | null>(null);
+
+	// Enhanced validation results to support both CSV and model validation
+	let validationResults = $state<{
+		csvValidation?: {
+			success: boolean;
+			message: string;
+			details?: CSVValidationResponse;
+		};
+		modelValidation?: {
+			success: boolean;
+			message: string;
+			details?: ModelValidationResponse;
+		};
+		stage: 'none' | 'csv' | 'model' | 'complete';
+	}>({
+		stage: 'none'
+	});
 
 	async function handleFolderSelected(files: DatasetFolderFiles, selectedFolderName: string) {
 		isProcessingFolder = true;
-		// Clear previous check result when new folder is selected
-		checkResult = null;
+		// Clear previous validation results when new folder is selected
+		validationResults = { stage: 'none' };
 
 		try {
 			uploadedFolder = files;
@@ -94,27 +110,12 @@
 				datasetName = selectedFolderName;
 			}
 
-			// Store in IndexedDB for future reference
-			const datasetId = generateDatasetId();
-			const parsed: any = {};
-
-			// Parse JSON files
-			if (files.metadata) {
-				parsed.metadata = await parseJSONFile(files.metadata);
-			}
-			if (files.columnMetadata) {
-				parsed.columnMetadata = await parseJSONFile(files.columnMetadata);
-			}
-
-			await datasetStorage.saveDataset({
-				id: datasetId,
-				name: selectedFolderName,
-				uploadDate: new Date().toISOString(),
-				files,
-				parsed
+			console.log('Folder selected:', selectedFolderName);
+			console.log('Files:', {
+				metadata: files.metadata?.name,
+				data: files.data?.name,
+				columnMetadata: files.columnMetadata?.name
 			});
-
-			console.log('Dataset saved to IndexedDB with ID:', datasetId);
 
 			// Automatically validate the dataset after files are uploaded
 			await performAutoValidation();
@@ -133,45 +134,82 @@
 		isAutoValidating = true;
 
 		try {
-			// Parse the metadata file
+			// Read metadata fresh
 			const metadataText = await uploadedFolder.metadata.text();
-			const parsedMetadata = JSON.parse(metadataText);
+			const metadata = JSON.parse(metadataText);
 
-			// Call the backend API to validate the CSV
-			const validationResult = await FaivorBackendAPI.validateCSV(
-				parsedMetadata,
-				uploadedFolder.data
+			console.log('Auto validation - Fresh metadata keys:', Object.keys(metadata));
+			console.log(
+				'Auto validation - Has General Model Information:',
+				'General Model Information' in metadata
 			);
 
-			checkResult = {
-				success: validationResult.valid,
-				message: validationResult.valid
-					? `CSV validation successful! Found ${validationResult.csv_columns.length} columns in CSV and ${validationResult.model_input_columns.length} expected model input columns.`
-					: validationResult.message || 'CSV validation failed.',
-				details: validationResult
-			};
-
-			// Show modal if there are errors or warnings
-			if (!validationResult.valid || checkResult.details) {
-				showValidationModal = true;
-			}
+			// Go directly to full model validation
+			await performFullModelValidation(metadata);
 		} catch (error: any) {
 			console.error('Auto-validation failed:', error);
-			checkResult = {
+			validationResults.modelValidation = {
 				success: false,
-				message: `Dataset validation failed: ${error.message || 'Unknown error occurred'}`
+				message: `Model validation failed: ${error.message || 'Unknown error occurred'}`
 			};
+			validationResults.stage = 'model';
 			showValidationModal = true;
 		} finally {
 			isAutoValidating = false;
 		}
 	}
 
+	async function performFullModelValidation(metadata: any) {
+		if (!uploadedFolder?.data) {
+			return;
+		}
+
+		isRunningFullValidation = true;
+
+		try {
+			// Read column metadata fresh if available
+			let columnMetadata = {};
+			if (uploadedFolder.columnMetadata) {
+				const columnMetadataText = await uploadedFolder.columnMetadata.text();
+				columnMetadata = JSON.parse(columnMetadataText);
+			}
+
+			console.log('Full model validation - Using metadata with keys:', Object.keys(metadata));
+			console.log(
+				'Full model validation - Using column metadata:',
+				uploadedFolder.columnMetadata ? 'Available' : 'Not available'
+			);
+
+			// Call the full model validation API
+			const modelValidationResult = await FaivorBackendAPI.validateModel(
+				metadata,
+				uploadedFolder.data,
+				columnMetadata
+			);
+
+			validationResults.modelValidation = {
+				success: true,
+				message: `Model validation completed! Model: ${modelValidationResult.model_name}`,
+				details: modelValidationResult
+			};
+			validationResults.stage = 'complete';
+		} catch (error: any) {
+			console.error('Full model validation failed:', error);
+			validationResults.modelValidation = {
+				success: false,
+				message: `Model validation failed: ${error.message || 'Unknown error occurred'}`
+			};
+			validationResults.stage = 'model';
+		} finally {
+			isRunningFullValidation = false;
+		}
+	}
+
 	function handleFolderRemoved() {
 		uploadedFolder = undefined;
 		folderName = '';
-		// Clear check result when folder is removed
-		checkResult = null;
+		// Clear validation results when folder is removed
+		validationResults = { stage: 'none' };
 	}
 
 	function calculateSummary() {
@@ -181,40 +219,37 @@
 
 	async function checkDataset() {
 		if (!uploadedFolder?.data || !uploadedFolder?.metadata) {
-			checkResult = {
+			validationResults.modelValidation = {
 				success: false,
 				message: 'Please upload both data file (CSV) and metadata file before checking the dataset.'
 			};
+			validationResults.stage = 'model';
 			return;
 		}
 
 		isCheckingDataset = true;
-		checkResult = null;
+		validationResults = { stage: 'none' };
 
 		try {
-			// Parse the metadata file
+			// Read metadata fresh
 			const metadataText = await uploadedFolder.metadata.text();
-			const parsedMetadata = JSON.parse(metadataText);
+			const metadata = JSON.parse(metadataText);
 
-			// Call the backend API to validate the CSV
-			const validationResult = await FaivorBackendAPI.validateCSV(
-				parsedMetadata,
-				uploadedFolder.data
+			console.log('Manual validation - Fresh metadata keys:', Object.keys(metadata));
+			console.log(
+				'Manual validation - Has General Model Information:',
+				'General Model Information' in metadata
 			);
 
-			checkResult = {
-				success: validationResult.valid,
-				message: validationResult.valid
-					? `CSV validation successful! Found ${validationResult.csv_columns.length} columns in CSV and ${validationResult.model_input_columns.length} expected model input columns.`
-					: validationResult.message || 'CSV validation failed.',
-				details: validationResult
-			};
+			// Go directly to full model validation
+			await performFullModelValidation(metadata);
 		} catch (error: any) {
 			console.error('Dataset check failed:', error);
-			checkResult = {
+			validationResults.modelValidation = {
 				success: false,
-				message: `Dataset check failed: ${error.message || 'Unknown error occurred'}`
+				message: `Model validation failed: ${error.message || 'Unknown error occurred'}`
 			};
+			validationResults.stage = 'model';
 		} finally {
 			isCheckingDataset = false;
 		}
@@ -267,7 +302,7 @@
 		{#if isProcessingFolder}
 			<div class="text-info flex items-center justify-center gap-2">
 				<span class="loading loading-spinner loading-sm"></span>
-				<span>Processing folder and saving to local storage...</span>
+				<span>Processing folder...</span>
 			</div>
 		{/if}
 
@@ -278,11 +313,19 @@
 			</div>
 		{/if}
 
+		{#if isRunningFullValidation}
+			<div class="text-warning flex items-center justify-center gap-2">
+				<span class="loading loading-spinner loading-sm"></span>
+				<span>Running full model validation (this may take a while)...</span>
+			</div>
+		{/if}
+
 		<div class="flex flex-col items-center gap-4">
 			<button
 				class="btn btn-outline gap-2"
 				onclick={checkDataset}
 				disabled={isCheckingDataset ||
+					isRunningFullValidation ||
 					!uploadedFolder?.data ||
 					!uploadedFolder?.metadata ||
 					readonly}
@@ -293,20 +336,94 @@
 					Checking dataset...
 				{:else}
 					<MaterialSymbolsCheck />
-					Check the dataset
+					Run Full Validation
 				{/if}
 			</button>
 
-			{#if checkResult}
-				<div class="alert {checkResult.success ? 'alert-success' : 'alert-error'} w-full">
+			<!-- CSV Validation Results -->
+			{#if validationResults.csvValidation}
+				<div
+					class="alert {validationResults.csvValidation.success
+						? 'alert-success'
+						: 'alert-error'} w-full"
+				>
 					<div class="flex flex-col gap-2">
-						<span class="font-medium">{checkResult.message}</span>
-						{#if checkResult.success && checkResult.details}
+						<span class="font-medium">
+							CSV Validation: {validationResults.csvValidation.message}
+						</span>
+						{#if validationResults.csvValidation.success && validationResults.csvValidation.details}
 							<div class="text-sm opacity-80">
-								<div>CSV Columns: {checkResult.details.csv_columns.join(', ')}</div>
-								<div>Model Input Columns: {checkResult.details.model_input_columns.join(', ')}</div>
+								<div>
+									CSV Columns: {validationResults.csvValidation.details.csv_columns.join(', ')}
+								</div>
+								<div>
+									Model Input Columns: {validationResults.csvValidation.details.model_input_columns.join(
+										', '
+									)}
+								</div>
 							</div>
 						{/if}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Model Validation Results -->
+			{#if validationResults.modelValidation}
+				<div
+					class="alert {validationResults.modelValidation.success
+						? 'alert-success'
+						: 'alert-error'} w-full"
+				>
+					<div class="flex flex-col gap-2">
+						<span class="font-medium">
+							Model Validation: {validationResults.modelValidation.message}
+						</span>
+						{#if validationResults.modelValidation.success && validationResults.modelValidation.details}
+							<div class="text-sm opacity-80">
+								<div>Model: {validationResults.modelValidation.details.model_name}</div>
+								<div>
+									Metrics: {Object.keys(validationResults.modelValidation.details.metrics).length} calculated
+								</div>
+								<details class="mt-2">
+									<summary class="cursor-pointer text-xs">View Metrics</summary>
+									<div class="mt-1 text-xs">
+										{#each Object.entries(validationResults.modelValidation.details.metrics) as [key, value]}
+											<div>{key}: {value}</div>
+										{/each}
+									</div>
+								</details>
+							</div>
+						{/if}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Validation Stage Progress -->
+			{#if validationResults.stage !== 'none'}
+				<div class="w-full">
+					<div class="mb-2 text-sm font-medium">Validation Progress</div>
+					<div class="flex gap-2">
+						<div
+							class="badge {validationResults.stage === 'csv' ||
+							validationResults.stage === 'complete'
+								? 'badge-success'
+								: 'badge-outline'}"
+						>
+							CSV ✓
+						</div>
+						<div
+							class="badge {validationResults.stage === 'complete'
+								? 'badge-success'
+								: validationResults.stage === 'model'
+									? 'badge-warning'
+									: 'badge-outline'}"
+						>
+							{validationResults.stage === 'complete'
+								? 'Model ✓'
+								: validationResults.stage === 'model'
+									? 'Model...'
+									: 'Model'}
+						</div>
 					</div>
 				</div>
 			{/if}
@@ -384,6 +501,6 @@
 <!-- Validation Error Modal -->
 <ValidationErrorModal
 	bind:isOpen={showValidationModal}
-	validationResult={checkResult}
+	validationResult={validationResults.modelValidation}
 	onClose={() => (showValidationModal = false)}
 />

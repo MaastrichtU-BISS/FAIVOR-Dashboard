@@ -3,14 +3,14 @@
 	import MaterialSymbolsError from '~icons/material-symbols/error';
 	import MaterialSymbolsClose from '~icons/material-symbols/close';
 	import MaterialSymbolsWarning from '~icons/material-symbols/warning';
-	import type { CSVValidationResponse } from '$lib/api/faivor-backend';
+	import type { CSVValidationResponse, ModelValidationResponse } from '$lib/api/faivor-backend';
 
 	interface Props {
 		isOpen: boolean;
 		validationResult?: {
 			success: boolean;
 			message: string;
-			details?: CSVValidationResponse;
+			details?: CSVValidationResponse | ModelValidationResponse;
 		} | null;
 		onClose: () => void;
 	}
@@ -27,6 +27,16 @@
 		if (event.key === 'Escape') {
 			onClose();
 		}
+	}
+
+	// Type guard to check if details is CSV validation response
+	function isCSVValidationResponse(details: any): details is CSVValidationResponse {
+		return details && 'csv_columns' in details && 'model_input_columns' in details;
+	}
+
+	// Type guard to check if details is Model validation response
+	function isModelValidationResponse(details: any): details is ModelValidationResponse {
+		return details && 'model_name' in details && 'metrics' in details;
 	}
 </script>
 
@@ -80,34 +90,37 @@
 						<div class="space-y-3">
 							<h4 class="text-base-content font-medium">Validation Details:</h4>
 
-							<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-								<!-- CSV Columns -->
-								<div class="card bg-base-200">
-									<div class="card-body p-4">
-										<h5 class="text-base-content/80 text-sm font-medium">CSV Columns Found:</h5>
-										<div class="mt-2 space-y-1">
-											{#each validationResult.details.csv_columns as column}
-												<div class="badge badge-outline badge-sm">{column}</div>
-											{/each}
+							<!-- CSV Validation Details -->
+							{#if isCSVValidationResponse(validationResult.details)}
+								<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+									<!-- CSV Columns -->
+									<div class="card bg-base-200">
+										<div class="card-body p-4">
+											<h5 class="text-base-content/80 text-sm font-medium">CSV Columns Found:</h5>
+											<div class="mt-2 space-y-1">
+												{#each validationResult.details.csv_columns as column}
+													<div class="badge badge-outline badge-sm">{column}</div>
+												{/each}
+											</div>
+										</div>
+									</div>
+
+									<!-- Model Input Columns -->
+									<div class="card bg-base-200">
+										<div class="card-body p-4">
+											<h5 class="text-base-content/80 text-sm font-medium">
+												Expected Model Inputs:
+											</h5>
+											<div class="mt-2 space-y-1">
+												{#each validationResult.details.model_input_columns as column}
+													<div class="badge badge-primary badge-sm">{column}</div>
+												{/each}
+											</div>
 										</div>
 									</div>
 								</div>
 
-								<!-- Model Input Columns -->
-								<div class="card bg-base-200">
-									<div class="card-body p-4">
-										<h5 class="text-base-content/80 text-sm font-medium">Expected Model Inputs:</h5>
-										<div class="mt-2 space-y-1">
-											{#each validationResult.details.model_input_columns as column}
-												<div class="badge badge-primary badge-sm">{column}</div>
-											{/each}
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<!-- Column matching analysis -->
-							{#if validationResult.details.csv_columns && validationResult.details.model_input_columns}
+								<!-- Column matching analysis -->
 								{@const csvCols = new Set(validationResult.details.csv_columns)}
 								{@const modelCols = new Set(validationResult.details.model_input_columns)}
 								{@const missingInCsv = [...modelCols].filter((col) => !csvCols.has(col))}
@@ -132,6 +145,34 @@
 												✅ All required model input columns are present in CSV
 											</div>
 										{/if}
+									</div>
+								</div>
+							{/if}
+
+							<!-- Model Validation Details -->
+							{#if isModelValidationResponse(validationResult.details)}
+								<div class="space-y-3">
+									<div class="card bg-base-200">
+										<div class="card-body p-4">
+											<h5 class="text-base-content/80 text-sm font-medium">Model Information:</h5>
+											<div class="mt-2">
+												<div class="badge badge-primary">{validationResult.details.model_name}</div>
+											</div>
+										</div>
+									</div>
+
+									<div class="card bg-base-200">
+										<div class="card-body p-4">
+											<h5 class="text-base-content/80 text-sm font-medium">Calculated Metrics:</h5>
+											<div class="mt-2 space-y-1">
+												{#each Object.entries(validationResult.details.metrics) as [key, value]}
+													<div class="flex justify-between text-sm">
+														<span>{key}:</span>
+														<span class="font-mono">{value}</span>
+													</div>
+												{/each}
+											</div>
+										</div>
 									</div>
 								</div>
 							{/if}
