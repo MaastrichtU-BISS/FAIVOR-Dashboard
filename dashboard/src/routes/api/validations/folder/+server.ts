@@ -61,16 +61,11 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ error: 'Model ID is required' }, { status: 400 });
     }
 
-    // Validate required files
-    if (!metadataFile) {
-      return json({ error: 'metadata.json file is required' }, { status: 400 });
-    }
-
     if (!dataFile) {
       return json({ error: 'data.csv file is required' }, { status: 400 });
     }
 
-    // Get the model first to ensure it exists
+    // Get the model first to ensure it exists and check for metadata
     const model = await sql`
       SELECT * FROM model_checkpoints
       WHERE checkpoint_id = ${modelId}
@@ -80,13 +75,26 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ error: 'Model not found' }, { status: 404 });
     }
 
-    // Parse metadata file
+    // Check if we have metadata from either upload or model
+    const modelHasMetadata = model[0]?.metadata?.fairSpecific;
+    if (!metadataFile && !modelHasMetadata) {
+      return json({ error: 'metadata.json file is required (or model must have metadata configured)' }, { status: 400 });
+    }
+
+    // Parse metadata from file or use model metadata
     let parsedMetadata;
-    try {
-      const metadataText = await metadataFile.text();
-      parsedMetadata = JSON.parse(metadataText);
-    } catch (error) {
-      return json({ error: 'Invalid metadata.json format' }, { status: 400 });
+    if (metadataFile) {
+      try {
+        const metadataText = await metadataFile.text();
+        parsedMetadata = JSON.parse(metadataText);
+      } catch (error) {
+        return json({ error: 'Invalid metadata.json format' }, { status: 400 });
+      }
+    } else if (modelHasMetadata) {
+      // Use model metadata as fallback
+      parsedMetadata = modelHasMetadata;
+    } else {
+      return json({ error: 'No metadata available from file or model' }, { status: 400 });
     }
 
     // Parse column metadata file if provided
@@ -109,8 +117,8 @@ export const POST: RequestHandler = async ({ request }) => {
       uploadedFile: null, // No single file for folder uploads
       folderName,
       uploadedFolder: {
-        metadata: metadataFile,
-        data: dataFile,
+        metadata: metadataFile || undefined, // Will be undefined if using model metadata
+        data: dataFile!,  // Assert non-null since we validated it above
         columnMetadata: columnMetadataFile || undefined
       },
       datasetDescription,
@@ -122,12 +130,12 @@ export const POST: RequestHandler = async ({ request }) => {
 
     // Debug: Log file properties
     console.log('File properties debug:', {
-      metadataFile: {
-        name: metadataFile?.name,
-        size: metadataFile?.size,
-        lastModified: metadataFile?.lastModified,
-        type: metadataFile?.type
-      },
+      metadataFile: metadataFile ? {
+        name: metadataFile.name,
+        size: metadataFile.size,
+        lastModified: metadataFile.lastModified,
+        type: metadataFile.type
+      } : null,
       dataFile: {
         name: dataFile?.name,
         size: dataFile?.size,
@@ -152,6 +160,10 @@ export const POST: RequestHandler = async ({ request }) => {
           name: metadataFile.name,
           size: metadataFile.size,
           lastModified: metadataFile.lastModified
+        } : modelHasMetadata ? {
+          name: 'model-metadata',
+          size: 0,
+          lastModified: Date.now()
         } : undefined,
         data: dataFile ? {
           name: dataFile.name,
@@ -175,16 +187,17 @@ export const POST: RequestHandler = async ({ request }) => {
       parsedMetadata,
       parsedColumnMetadata,
       folderStructure: {
-        hasMetadata: true,
+        hasMetadata: !!metadataFile || !!modelHasMetadata,
+        metadataSource: metadataFile ? 'file' : 'model',
         hasData: true,
         hasColumnMetadata: !!columnMetadataFile,
         fileNames: {
-          metadata: metadataFile.name,
+          metadata: metadataFile?.name || 'model-metadata',
           data: dataFile.name,
           columnMetadata: columnMetadataFile?.name
         },
         fileSizes: {
-          metadata: metadataFile.size,
+          metadata: metadataFile?.size || 0,
           data: dataFile.size,
           columnMetadata: columnMetadataFile?.size
         }
@@ -221,7 +234,8 @@ export const POST: RequestHandler = async ({ request }) => {
       const validationResults = await FolderValidationService.performValidation(
         metadataFile,
         dataFile,
-        columnMetadataFile || undefined
+        columnMetadataFile || undefined,
+        modelHasMetadata  // Pass model metadata if available
       );
 
       console.log('FAIVOR validation completed:', {

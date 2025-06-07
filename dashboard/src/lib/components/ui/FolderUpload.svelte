@@ -6,6 +6,7 @@
 	import MaterialSymbolsError from '~icons/material-symbols/error';
 	import MaterialSymbolsInfo from '~icons/material-symbols/info';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
+	import type { Model } from '$lib/stores/models/types';
 	import { validateDatasetFolder, extractFolderName } from '$lib/utils/indexeddb-storage';
 	import { validationFormStore } from '$lib/stores/models/validation.store';
 
@@ -13,6 +14,7 @@
 		folderFiles?: DatasetFolderFiles;
 		folderName?: string;
 		readonly?: boolean;
+		model?: Model;
 		onFolderSelected?: (files: DatasetFolderFiles, folderName: string) => void;
 		onFolderRemoved?: () => void;
 	}
@@ -21,6 +23,7 @@
 		folderFiles = undefined,
 		folderName = '',
 		readonly = false,
+		model,
 		onFolderSelected = () => {},
 		onFolderRemoved = () => {}
 	}: Props = $props();
@@ -147,7 +150,7 @@
 	}
 
 	function processFolderUpload(files: FileList) {
-		const validation = validateDatasetFolder(files);
+		const validation = validateDatasetFolder(files, model);
 		validationResult = {
 			isValid: validation.isValid,
 			errors: validation.errors

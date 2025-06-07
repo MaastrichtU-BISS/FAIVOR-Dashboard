@@ -2,6 +2,7 @@
 import { FaivorBackendAPI, type CSVValidationResponse, type ModelValidationResponse } from '$lib/api/faivor-backend';
 import type { DatasetFolderFiles } from '$lib/types/validation';
 import type { ValidationResults } from '$lib/stores/models/validation.store';
+import type { Model } from '$lib/stores/models/types';
 
 // Types for the service
 export interface DatasetStepState {
@@ -36,13 +37,71 @@ export interface ValidationOperationResult {
 
 export class DatasetStepService {
   /**
+   * Get metadata from uploaded file or model fallback
+   */
+  private static async getMetadata(uploadedFolder?: DatasetFolderFiles, model?: Model): Promise<any> {
+    // Try uploaded metadata first
+    if (uploadedFolder?.metadata) {
+      const metadataText = await uploadedFolder.metadata.text();
+      return JSON.parse(metadataText);
+    }
+
+    // Fallback to model's database metadata
+    if (model?.metadata?.fairSpecific) {
+      // Transform model metadata to FAIR format
+      return this.transformModelMetadataToFAIR(model);
+    }
+
+    throw new Error('No metadata available from upload or model');
+  }
+
+  /**
+   * Transform model database metadata to FAIR format
+   */
+  private static transformModelMetadataToFAIR(model: Model): any {
+    const fairSpecific = model.metadata.fairSpecific;
+    if (!fairSpecific) {
+      throw new Error('Model does not have FAIR-specific metadata');
+    }
+
+    // Create a basic FAIR metadata structure from model data
+    return {
+      "@context": {
+        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "pav": "http://purl.org/pav/",
+        "schema": "http://schema.org/"
+      },
+      "General Model Information": {
+        "Title": { "@value": model.metadata.title || model.fair_model_id },
+        "Editor Note": { "@value": model.description || "" },
+        "Created by": { "@value": fairSpecific.createdBy || "" },
+        "FAIRmodels image name": { "@value": fairSpecific.dockerImage || "" },
+        "Contact email": { "@value": fairSpecific.contactEmail || "" },
+        "References to papers": []
+      },
+      "Input data": fairSpecific.inputs?.map((input, index) => ({
+        "Input label": { "@value": input },
+        "Description": { "@value": `Input feature ${index + 1}` },
+        "Type of input": { "@value": "numerical" }, // Default to numerical
+        "Input feature": {
+          "@id": `http://example.org/features/${input}`,
+          "rdfs:label": input
+        }
+      })) || [],
+      "Outcome": { "@value": fairSpecific.outcome || "" },
+      "Outcome label": { "@value": fairSpecific.outcome || "" }
+    };
+  }
+  /**
    * Process folder selection and perform auto-validation
    */
   static async handleFolderSelected(
     files: DatasetFolderFiles,
     selectedFolderName: string,
     currentDatasetName: string,
-    readonly: boolean = false
+    readonly: boolean = false,
+    model?: Model
   ): Promise<FolderProcessingResult> {
     try {
       const result: FolderProcessingResult = {
@@ -62,7 +121,7 @@ export class DatasetStepService {
 
       // Automatically validate the dataset after files are uploaded (if not readonly)
       if (!readonly) {
-        const autoValidationResult = await this.performAutoValidation(files, readonly);
+        const autoValidationResult = await this.performAutoValidation(files, readonly, model);
         result.validationResults = autoValidationResult.validationResults;
       }
 
@@ -81,22 +140,31 @@ export class DatasetStepService {
    */
   static async performAutoValidation(
     uploadedFolder: DatasetFolderFiles,
-    readonly: boolean = false
+    readonly: boolean = false,
+    model?: Model
   ): Promise<ValidationOperationResult> {
-    if (!uploadedFolder?.data || !uploadedFolder?.metadata || readonly) {
+    if (!uploadedFolder?.data || readonly) {
       return {
         success: false,
         validationResults: { stage: 'none' },
-        error: 'Missing required files or in readonly mode'
+        error: 'Missing data file or in readonly mode'
+      };
+    }
+
+    // Check if we have metadata from upload or model
+    if (!uploadedFolder?.metadata && !model?.metadata?.fairSpecific) {
+      return {
+        success: false,
+        validationResults: { stage: 'none' },
+        error: 'Missing metadata file and no model metadata available'
       };
     }
 
     try {
-      // Read metadata fresh
-      const metadataText = await uploadedFolder.metadata.text();
-      const metadata = JSON.parse(metadataText);
+      // Get metadata from upload or model fallback
+      const metadata = await this.getMetadata(uploadedFolder, model);
 
-      console.log('Auto validation - Fresh metadata keys:', Object.keys(metadata));
+      console.log('Auto validation - Using metadata keys:', Object.keys(metadata));
       console.log(
         'Auto validation - Has General Model Information:',
         'General Model Information' in metadata
@@ -217,28 +285,43 @@ export class DatasetStepService {
    * Check dataset manually (triggered by user button click)
    */
   static async checkDataset(
-    uploadedFolder?: DatasetFolderFiles
+    uploadedFolder?: DatasetFolderFiles,
+    model?: Model
   ): Promise<ValidationOperationResult> {
-    if (!uploadedFolder?.data || !uploadedFolder?.metadata) {
+    if (!uploadedFolder?.data) {
       return {
         success: false,
         validationResults: {
           modelValidation: {
             success: false,
-            message: 'Please upload both data file (CSV) and metadata file before checking the dataset.'
+            message: 'Please upload a data file (CSV) before checking the dataset.'
           },
           stage: 'model'
         },
-        error: 'Missing required files'
+        error: 'Missing data file'
+      };
+    }
+
+    // Check if we have metadata from upload or model
+    if (!uploadedFolder?.metadata && !model?.metadata?.fairSpecific) {
+      return {
+        success: false,
+        validationResults: {
+          modelValidation: {
+            success: false,
+            message: 'Please upload a metadata file or ensure the model has metadata before checking the dataset.'
+          },
+          stage: 'model'
+        },
+        error: 'Missing metadata'
       };
     }
 
     try {
-      // Read metadata fresh
-      const metadataText = await uploadedFolder.metadata.text();
-      const metadata = JSON.parse(metadataText);
+      // Get metadata from upload or model fallback
+      const metadata = await this.getMetadata(uploadedFolder, model);
 
-      console.log('Manual validation - Fresh metadata keys:', Object.keys(metadata));
+      console.log('Manual validation - Using metadata keys:', Object.keys(metadata));
       console.log(
         'Manual validation - Has General Model Information:',
         'General Model Information' in metadata

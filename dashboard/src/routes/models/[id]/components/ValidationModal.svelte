@@ -7,6 +7,7 @@
 	} from '$lib/stores/models/validation.store';
 	import { validationFormStore } from '$lib/stores/models/validation.store';
 	import type { ValidationFormData } from '$lib/types/validation';
+	import type { Model } from '$lib/stores/models/types';
 	import {
 		validationJobToFormData,
 		formDataToValidationData
@@ -23,9 +24,10 @@
 
 	interface Props {
 		modelId?: string;
+		model?: Model;
 	}
 
-	let { modelId }: Props = $props();
+	let { modelId, model }: Props = $props();
 
 	let currentStep = $state(0);
 	let isSubmitting = $state(false);
@@ -388,7 +390,11 @@
 		<!-- Content -->
 		<div class="h-[calc(100%-12rem)] w-full overflow-y-auto">
 			{#if currentStep === 0}
-				<DatasetStep readonly={$validationStore.mode === 'view'} onFieldChange={scheduleAutoSave} />
+				<DatasetStep
+					readonly={$validationStore.mode === 'view'}
+					onFieldChange={scheduleAutoSave}
+					{model}
+				/>
 			{:else if currentStep === 1}
 				<DatasetCharacteristicsStep readonly={$validationStore.mode === 'view'} />
 			{:else if currentStep === 2}

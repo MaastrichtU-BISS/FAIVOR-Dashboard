@@ -278,7 +278,7 @@ function createValidationFormStore() {
     },
 
     // Validate form and return errors
-    validate: (): Record<string, string> => {
+    validate: (model?: { metadata?: { fairSpecific?: any } }): Record<string, string> => {
       let currentState: ValidationFormState;
       const unsubscribe = subscribe(state => {
         currentState = state;
@@ -302,10 +302,13 @@ function createValidationFormStore() {
         errors.uploadedFile = 'Please upload a file or select a folder';
       }
 
-      // Folder validation
+      // Folder validation - metadata.json is optional if model has metadata
       if (state.uploadedFolder) {
-        if (!state.uploadedFolder.metadata) {
-          errors.uploadedFolder = 'Folder must contain metadata.json';
+        // Check if we have metadata from either the uploaded file or the model
+        const hasMetadata = state.uploadedFolder.metadata || model?.metadata?.fairSpecific;
+
+        if (!hasMetadata) {
+          errors.uploadedFolder = 'Folder must contain metadata.json or model must have metadata configured';
         }
         if (!state.uploadedFolder.data) {
           errors.uploadedFolder = 'Folder must contain data.csv';

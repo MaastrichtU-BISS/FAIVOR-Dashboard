@@ -30,13 +30,15 @@ export class FolderValidationService {
   static validateFolderStructure(
     metadataFile: File | null,
     dataFile: File | null,
-    columnMetadataFile?: File | null
+    columnMetadataFile?: File | null,
+    modelMetadata?: any
   ): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
-    if (!metadataFile) {
-      errors.push('metadata.json file is required');
-    } else if (!metadataFile.name.endsWith('.json')) {
+    // metadata.json is required unless model has metadata
+    if (!metadataFile && !modelMetadata) {
+      errors.push('metadata.json file is required (or model must have metadata configured)');
+    } else if (metadataFile && !metadataFile.name.endsWith('.json')) {
       errors.push('Metadata file must be a JSON file');
     }
 
@@ -60,8 +62,9 @@ export class FolderValidationService {
    * Parse and validate metadata files
    */
   static async parseMetadataFiles(
-    metadataFile: File,
-    columnMetadataFile?: File
+    metadataFile: File | null,
+    columnMetadataFile?: File,
+    modelMetadata?: any
   ): Promise<{
     parsedMetadata: any;
     parsedColumnMetadata?: any;
@@ -71,11 +74,19 @@ export class FolderValidationService {
     let parsedMetadata: any = null;
     let parsedColumnMetadata: any = null;
 
-    try {
-      const metadataText = await metadataFile.text();
-      parsedMetadata = JSON.parse(metadataText);
-    } catch (error: any) {
-      errors.push(`Invalid metadata.json format: ${error?.message || 'Parse error'}`);
+    // Parse metadata from file or use model metadata
+    if (metadataFile) {
+      try {
+        const metadataText = await metadataFile.text();
+        parsedMetadata = JSON.parse(metadataText);
+      } catch (error: any) {
+        errors.push(`Invalid metadata.json format: ${error?.message || 'Parse error'}`);
+      }
+    } else if (modelMetadata) {
+      // Use model metadata as fallback
+      parsedMetadata = modelMetadata;
+    } else {
+      errors.push('No metadata available from file or model');
     }
 
     if (columnMetadataFile) {
@@ -98,37 +109,62 @@ export class FolderValidationService {
    * Perform FAIVOR backend validation
    */
   static async performValidation(
-    metadataFile: File,
+    metadataFile: File | null,
     dataFile: File,
-    columnMetadataFile?: File
+    columnMetadataFile?: File,
+    modelMetadata?: any
   ): Promise<FolderValidationResult> {
     // Step 1: Validate folder structure
     const structureValidation = this.validateFolderStructure(
       metadataFile,
       dataFile,
-      columnMetadataFile
+      columnMetadataFile,
+      modelMetadata
     );
 
     if (!structureValidation.valid) {
       throw new Error(`Invalid folder structure: ${structureValidation.errors.join(', ')}`);
     }
 
-    // Step 2: Parse metadata files
+    // Step 2: Parse metadata files (or use model metadata)
     const { parsedMetadata, parsedColumnMetadata, errors } = await this.parseMetadataFiles(
       metadataFile,
-      columnMetadataFile
+      columnMetadataFile,
+      modelMetadata
     );
 
     if (errors.length > 0) {
       throw new Error(`Metadata parsing failed: ${errors.join(', ')}`);
     }
 
-    // Step 3: Call FAIVOR backend
-    const faivorResults = await FaivorBackendAPI.validateFolderData(
-      metadataFile,
-      dataFile,
-      columnMetadataFile
-    );
+    // Step 3: Call FAIVOR backend - validate with appropriate method
+    let faivorResults;
+    if (metadataFile) {
+      // Use the folder-based validation with file metadata
+      faivorResults = await FaivorBackendAPI.validateFolderData(
+        metadataFile,
+        dataFile,
+        columnMetadataFile
+      );
+    } else {
+      // Use the model metadata directly with CSV and model validation APIs
+      const csvValidation = await FaivorBackendAPI.validateCSV(parsedMetadata, dataFile);
+
+      if (!csvValidation.valid) {
+        throw new Error(`CSV validation failed: ${csvValidation.message}`);
+      }
+
+      const modelValidation = await FaivorBackendAPI.validateModel(
+        parsedMetadata,
+        dataFile,
+        parsedColumnMetadata || {}
+      );
+
+      faivorResults = {
+        csvValidation,
+        modelValidation
+      };
+    }
 
     // Step 4: Transform results to internal format
     const transformedResults = this.transformFaivorResults(

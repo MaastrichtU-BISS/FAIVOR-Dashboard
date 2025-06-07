@@ -142,7 +142,10 @@ class IndexedDBStorage {
 export const datasetStorage = new IndexedDBStorage();
 
 // Utility functions for folder validation
-export function validateDatasetFolder(files: FileList): {
+export function validateDatasetFolder(
+  files: FileList,
+  model?: { metadata?: { fairSpecific?: any } }
+): {
   isValid: boolean;
   errors: string[];
   validFiles: {
@@ -172,9 +175,11 @@ export function validateDatasetFolder(files: FileList): {
       relativePath.endsWith('/metadata.json') ||
       (relativePath.includes('/') && relativePath.split('/').pop() === 'metadata.json');
   });
-  if (!metadataFile) {
-    errors.push('metadata.json file is required (found column_metadata.json but need main model metadata)');
-  } else {
+
+  // metadata.json is now optional if model has metadata
+  if (!metadataFile && !model?.metadata?.fairSpecific) {
+    errors.push('metadata.json file is required (or model must have metadata configured)');
+  } else if (metadataFile) {
     validFiles.metadata = metadataFile;
   }
 

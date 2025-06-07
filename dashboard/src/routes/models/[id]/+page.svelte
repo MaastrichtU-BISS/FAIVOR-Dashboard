@@ -322,6 +322,7 @@
 
 	<ValidationModal
 		modelId={typedModel.checkpoint_id}
+		model={typedModel}
 		on:close={handleModalClose}
 		on:validationChange={handleValidationChange}
 	/>

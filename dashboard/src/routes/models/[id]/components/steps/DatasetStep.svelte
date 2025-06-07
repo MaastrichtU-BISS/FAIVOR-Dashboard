@@ -4,6 +4,7 @@
 	import FolderUpload from '$lib/components/ui/FolderUpload.svelte';
 	import ValidationErrorModal from '$lib/components/ui/ValidationErrorModal.svelte';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
+	import type { Model } from '$lib/stores/models/types';
 	import { validationFormStore } from '$lib/stores/models/validation.store';
 	import { DatasetStepService, type DatasetStepState } from '$lib/services/dataset-step-service';
 	import type { ValidationResults } from '$lib/stores/models/validation.store';
@@ -11,9 +12,10 @@
 	interface Props {
 		readonly?: boolean;
 		onFieldChange?: () => void;
+		model?: Model;
 	}
 
-	let { readonly = false, onFieldChange = () => {} }: Props = $props();
+	let { readonly = false, onFieldChange = () => {}, model }: Props = $props();
 
 	// Use the validation form store for all data
 	let formData = $derived($validationFormStore);
@@ -100,7 +102,8 @@
 				files,
 				selectedFolderName,
 				formData.datasetName,
-				readonly
+				readonly,
+				model
 			);
 
 			if (result.success) {
@@ -148,7 +151,8 @@
 		try {
 			const result = await DatasetStepService.performAutoValidation(
 				formData.uploadedFolder,
-				readonly
+				readonly,
+				model
 			);
 
 			// Update store with validation results
@@ -211,13 +215,106 @@
 		validationFormStore.setValidationResults(result.validationResults);
 	}
 
+	// Helper functions for CSV validation results display
+	interface ColumnMappingRow {
+		csvColumn: string | null;
+		modelColumn: string | null;
+	}
+
+	function getColumnMappingRows(csvColumns: string[], modelColumns: string[]): ColumnMappingRow[] {
+		const maxLength = Math.max(csvColumns.length, modelColumns.length);
+		const rows: ColumnMappingRow[] = [];
+
+		for (let i = 0; i < maxLength; i++) {
+			rows.push({
+				csvColumn: csvColumns[i] || null,
+				modelColumn: modelColumns[i] || null
+			});
+		}
+
+		return rows;
+	}
+
+	// Reactive state to track column types from metadata
+	let columnTypes = $state<Record<string, boolean>>({});
+
+	// Effect to update column types when uploaded folder or model changes
+	$effect(() => {
+		async function updateColumnTypes() {
+			const newColumnTypes: Record<string, boolean> = {};
+
+			// First check if uploaded metadata has the column type information
+			if (formData.uploadedFolder?.metadata) {
+				try {
+					const metadataText = await formData.uploadedFolder.metadata.text();
+					const metadata = JSON.parse(metadataText);
+
+					// Get all columns from the metadata and their types
+					const inputData = (metadata as any)['Input data'] || [];
+					for (const input of inputData) {
+						const inputLabel = input['Input label']?.['@value'];
+						const typeOfInput = input['Type of input']?.['@value'];
+						if (inputLabel) {
+							newColumnTypes[inputLabel] = typeOfInput === 'categorical';
+						}
+					}
+				} catch (error) {
+					console.warn('Error parsing uploaded metadata:', error);
+				}
+			}
+			// Fallback to model's database metadata if no uploaded metadata file
+			else if (model?.metadata?.fairSpecific) {
+				try {
+					const metadata = model.metadata.fairSpecific as any;
+
+					// Get all columns from the model metadata and their types
+					const inputData = metadata['Input data'] || [];
+					for (const input of inputData) {
+						const inputLabel = input['Input label']?.['@value'];
+						const typeOfInput = input['Type of input']?.['@value'];
+						if (inputLabel) {
+							newColumnTypes[inputLabel] = typeOfInput === 'categorical';
+						}
+					}
+				} catch (error) {
+					console.warn('Error parsing model metadata:', error);
+				}
+			}
+
+			columnTypes = newColumnTypes;
+		}
+
+		updateColumnTypes();
+	});
+
+	function getIsCategorical(modelColumn: string): boolean {
+		// Use the reactive columnTypes state
+		return columnTypes[modelColumn] || false;
+	}
+
+	function checkColumnTypeFromMetadata(metadata: any, columnName: string): boolean {
+		// Handle FAIR model metadata structure
+		const inputData = metadata['Input data'] || [];
+
+		for (const input of inputData) {
+			const inputLabel = input['Input label']?.['@value'];
+			const typeOfInput = input['Type of input']?.['@value'];
+
+			if (inputLabel === columnName && typeOfInput === 'categorical') {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	async function checkDataset() {
 		isCheckingDataset = true;
 		// Clear previous validation results
 		validationFormStore.clearValidationResults();
 
 		try {
-			const result = await DatasetStepService.checkDataset(formData.uploadedFolder);
+			const result = await DatasetStepService.checkDataset(formData.uploadedFolder, model);
 			// Update store with validation results
 			validationFormStore.setValidationResults(result.validationResults);
 		} catch (error: any) {
@@ -276,6 +373,7 @@
 			folderFiles={formData.uploadedFolder}
 			folderName={formData.folderName || ''}
 			{readonly}
+			{model}
 			onFolderSelected={handleFolderSelected}
 			onFolderRemoved={handleFolderRemoved}
 		/>
@@ -423,14 +521,63 @@
 		</div>
 	</div>
 
-	<!-- Right Column Content Removed -->
-	<!-- The User, Date, Dataset description, Dataset characteristics, -->
-	<!-- Calculate the summary button, and the large readonly textarea -->
-	<!-- have been moved to DatasetCharacteristicsStep.svelte -->
-	<div>
-		<!-- This div is kept to maintain the grid structure if needed, -->
-		<!-- or can be removed if the left column should take full width. -->
-		<!-- For now, leaving it empty. -->
+	<!-- Right Column: CSV Validation Results -->
+	<div class="space-y-6">
+		{#if validationResults.csvValidation?.details}
+			{@const csvDetails = validationResults.csvValidation.details}
+			<div class="card bg-base-100 shadow-xl">
+				<div class="card-body">
+					<h3 class="card-title text-lg">Column Mapping</h3>
+
+					<div class="grid grid-cols-3 gap-4">
+						<!-- CSV Columns Header -->
+						<div class="text-base-content/70 text-sm font-medium">CSV columns</div>
+						<!-- Model Columns Header -->
+						<div class="text-base-content/70 text-sm font-medium">Model columns</div>
+						<!-- Categorical Header -->
+						<div class="text-base-content/70 text-sm font-medium">Is categorical</div>
+					</div>
+
+					<div class="divider my-2"></div>
+
+					<!-- Column Mapping Rows -->
+					{#each getColumnMappingRows(csvDetails.csv_columns, csvDetails.model_input_columns) as row}
+						<div class="grid grid-cols-3 items-center gap-4 py-2">
+							<!-- CSV Column -->
+							<div class="text-sm {row.csvColumn ? 'text-base-content' : 'text-base-content/40'}">
+								{row.csvColumn || '—'}
+							</div>
+							<!-- Model Column -->
+							<div class="text-sm {row.modelColumn ? 'text-base-content' : 'text-base-content/40'}">
+								{row.modelColumn || '—'}
+							</div>
+							<!-- Categorical Indicator -->
+							<div class="flex justify-center">
+								{#if row.modelColumn}
+									<input
+										type="checkbox"
+										class="checkbox checkbox-sm"
+										checked={getIsCategorical(row.modelColumn)}
+										disabled
+									/>
+								{:else}
+									<span class="text-base-content/40">—</span>
+								{/if}
+							</div>
+						</div>
+					{/each}
+
+					{#if csvDetails.csv_columns.length !== csvDetails.model_input_columns.length}
+						<div class="alert alert-warning mt-4">
+							<span class="text-sm">
+								Column count mismatch: CSV has {csvDetails.csv_columns.length} columns, model expects
+								{csvDetails.model_input_columns.length} columns
+							</span>
+						</div>
+					{/if}
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>
 
