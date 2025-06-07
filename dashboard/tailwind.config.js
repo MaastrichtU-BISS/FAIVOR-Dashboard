@@ -1,4 +1,3 @@
-import { de } from 'date-fns/locale'
 
 /** @type {import('tailwindcss').Config} */
 export default {
