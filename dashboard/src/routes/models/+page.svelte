@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { goto } from '$app/navigation';
-	import SearchModelsModal from '$lib/components/ui/models/SearchModelsModal.svelte';
+	import SearchModelsModal from '$components/SearchModelsModal.svelte';
 	import { PUBLIC_ORGANIZATION_NAME } from '$env/static/public';
 	import MaterialSymbolsMoreVert from '~icons/material-symbols/more-vert';
 	import MaterialSymbolsDelete from '~icons/material-symbols/delete';
