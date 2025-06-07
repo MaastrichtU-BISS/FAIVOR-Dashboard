@@ -13,7 +13,7 @@ export default {
     dashes: 'oldschool'
   },
   layout: {
-    _: "./src/lib/markdown-layouts/default.svelte"
+    _: "./src/lib/components/ui/markdown-layouts/default.svelte",
   },
   remarkPlugins: [
     videos,
