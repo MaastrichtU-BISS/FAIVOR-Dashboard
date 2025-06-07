@@ -102,7 +102,7 @@ export class DatasetStepService {
         'General Model Information' in metadata
       );
 
-      // Step 1: CSV Validation
+      // Step 1: CSV Validation only (model validation happens at final submission)
       const csvValidationResult = await FaivorBackendAPI.validateCSV(metadata, uploadedFolder.data);
 
       if (!csvValidationResult.valid) {
@@ -121,10 +121,7 @@ export class DatasetStepService {
         };
       }
 
-      // Step 2: Model Validation (only if CSV validation passes)
-      const modelValidationResult = await this.performFullModelValidation(uploadedFolder, metadata);
-
-      // Combine both validation results
+      // Return only CSV validation results - model validation will happen at final submission
       return {
         success: true,
         validationResults: {
@@ -133,7 +130,7 @@ export class DatasetStepService {
             message: 'CSV validation passed',
             details: csvValidationResult
           },
-          ...modelValidationResult.validationResults
+          stage: 'csv'
         }
       };
     } catch (error: any) {

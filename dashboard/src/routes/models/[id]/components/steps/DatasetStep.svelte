@@ -20,15 +20,13 @@
 
 	// Local state for input fields that sync with the store
 	let validationName = $state(formData.validationName || '');
-	let userName = $state(formData.userName || '');
-	let date = $state(formData.date || '');
 
 	// Store initial values to track actual changes using service
 	let initialValues = $state<DatasetStepState>(
 		DatasetStepService.createInitialValues({
 			validationName: formData.validationName || '',
-			userName: formData.userName || '',
-			date: formData.date || '',
+			userName: formData.userName || '', // Keep for initialValues if service needs it
+			date: formData.date || '', // Keep for initialValues if service needs it
 			datasetName: formData.datasetName || '',
 			uploadedFolder: formData.uploadedFolder,
 			folderName: formData.folderName || ''
@@ -41,8 +39,6 @@
 	$effect(() => {
 		if (!isUpdatingStore) {
 			validationName = formData.validationName || '';
-			userName = formData.userName || '';
-			date = formData.date || '';
 		}
 	});
 
@@ -55,18 +51,13 @@
 			if (validationName !== formData.validationName) {
 				validationFormStore.updateField('validationName', validationName);
 			}
-			if (userName !== formData.userName) {
-				validationFormStore.updateField('userName', userName);
-			}
-			if (date !== formData.date) {
-				validationFormStore.updateField('date', date);
-			}
 
 			// Track changes for the onFieldChange callback
+			// Note: userName and date are removed from direct updates here
 			const currentState: DatasetStepState = {
 				validationName: validationName,
-				userName: userName,
-				date: date,
+				userName: formData.userName || '', // Use store value
+				date: formData.date || '', // Use store value
 				datasetName: formData.datasetName || '',
 				uploadedFolder: formData.uploadedFolder,
 				folderName: formData.folderName || ''
@@ -84,15 +75,20 @@
 		}
 	}
 
-	let datasetDescription = $state('');
-	let datasetCharacteristics = $state('');
 	let isProcessingFolder = $state(false);
 	let isCheckingDataset = $state(false);
 	let isAutoValidating = $state(false);
 	let isRunningFullValidation = $state(false);
 
 	// Get validation results from the store instead of local state
-	let validationResults = $derived(formData.validationResults || { stage: 'none' });
+	// Ensure the default object conforms to the ValidationResults interface
+	let validationResults = $derived(
+		formData.validationResults || {
+			stage: 'none',
+			csvValidation: undefined,
+			modelValidation: undefined
+		}
+	);
 
 	async function handleFolderSelected(files: DatasetFolderFiles, selectedFolderName: string) {
 		isProcessingFolder = true;
@@ -213,10 +209,6 @@
 		validationFormStore.clearFolderFiles();
 		// Update store with validation results
 		validationFormStore.setValidationResults(result.validationResults);
-	}
-
-	function calculateSummary() {
-		DatasetStepService.calculateSummary();
 	}
 
 	async function checkDataset() {
@@ -431,71 +423,14 @@
 		</div>
 	</div>
 
-	<!-- Right Column -->
+	<!-- Right Column Content Removed -->
+	<!-- The User, Date, Dataset description, Dataset characteristics, -->
+	<!-- Calculate the summary button, and the large readonly textarea -->
+	<!-- have been moved to DatasetCharacteristicsStep.svelte -->
 	<div>
-		<div class="grid grid-cols-2 gap-8">
-			<div>
-				<label class="label" for="userName">User</label>
-				<input
-					type="text"
-					id="userName"
-					class="input input-bordered w-full"
-					placeholder="Add user name (Sam Smith)"
-					bind:value={userName}
-					{readonly}
-					oninput={handleFieldUpdate}
-				/>
-			</div>
-
-			<div>
-				<label class="label" for="date">Date</label>
-				<input
-					type="date"
-					id="date"
-					class="input input-bordered w-full"
-					bind:value={date}
-					{readonly}
-					onchange={handleFieldUpdate}
-				/>
-			</div>
-		</div>
-		<div class="mt-6 grid grid-cols-2 gap-8">
-			<div>
-				<h3 class="text-lg font-medium">Dataset description</h3>
-				<textarea
-					class="textarea textarea-bordered h-48 w-full"
-					placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
-					bind:value={datasetDescription}
-					{readonly}
-				></textarea>
-			</div>
-			<div>
-				<h3 class="text-lg font-medium">Dataset characteristics</h3>
-				<textarea
-					class="textarea textarea-bordered h-48 w-full"
-					placeholder="Characteristics of dataset that are not given in the data file (as sex distribution, ethnicity, characteristics of groups)"
-					bind:value={datasetCharacteristics}
-					{readonly}
-				></textarea>
-			</div>
-		</div>
-
-		<!-- Right Column -->
-		<div class="mt-8 space-y-4">
-			{#if !readonly}
-				<div>
-					<button class="btn btn-outline w-auto gap-2" onclick={calculateSummary}>
-						<SolarCalculatorMinimalisticLinear />
-						Calculate the summary
-					</button>
-				</div>
-			{/if}
-			<textarea
-				class="textarea textarea-bordered h-48 w-full"
-				placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
-				readonly
-			></textarea>
-		</div>
+		<!-- This div is kept to maintain the grid structure if needed, -->
+		<!-- or can be removed if the left column should take full width. -->
+		<!-- For now, leaving it empty. -->
 	</div>
 </div>
 

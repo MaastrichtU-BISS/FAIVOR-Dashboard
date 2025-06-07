@@ -232,6 +232,57 @@
 
 			console.log('📤 Submitting form data from store:', formData);
 
+			// **NEW: Perform full model validation before submitting**
+			if ($validationStore.mode === 'create' && formData.uploadedFolder) {
+				console.log('🔍 Performing full model validation before submission...');
+
+				try {
+					// Get metadata - prioritize uploaded metadata.json over model metadata
+					let metadata: any;
+					if (formData.uploadedFolder.metadata) {
+						const metadataText = await formData.uploadedFolder.metadata.text();
+						metadata = JSON.parse(metadataText);
+					} else {
+						// Fallback to model metadata if no uploaded metadata
+						throw new Error('No metadata available for validation');
+					}
+
+					// Import the DatasetStepService for validation
+					const { DatasetStepService } = await import('$lib/services/dataset-step-service');
+
+					// Perform full model validation
+					const validationResult = await DatasetStepService.performFullModelValidation(
+						formData.uploadedFolder,
+						metadata
+					);
+
+					// Update validation results in the store
+					validationFormStore.setValidationResults(validationResult.validationResults);
+
+					// If validation failed, show error and don't submit
+					if (!validationResult.success) {
+						validationFormStore.setShowValidationModal(true);
+						console.error('❌ Model validation failed:', validationResult.error);
+						return; // Don't proceed with submission
+					}
+
+					console.log('✅ Model validation completed successfully');
+				} catch (validationError) {
+					console.error('❌ Model validation error:', validationError);
+
+					// Update validation results with error
+					validationFormStore.setValidationResults({
+						modelValidation: {
+							success: false,
+							message: `Model validation failed: ${validationError.message || 'Unknown error occurred'}`
+						},
+						stage: 'model'
+					});
+					validationFormStore.setShowValidationModal(true);
+					return; // Don't proceed with submission
+				}
+			}
+
 			if ($validationStore.mode === 'create') {
 				const response = await fetch('/api/validations', {
 					method: 'POST',
