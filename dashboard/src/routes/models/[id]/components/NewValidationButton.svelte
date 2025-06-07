@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { validationStore } from '$lib/stores/validation.store.ts';
+	import { validationStore } from '$lib/stores/models/validation.store';
 	import { page } from '$app/stores';
 
 	function openModal() {

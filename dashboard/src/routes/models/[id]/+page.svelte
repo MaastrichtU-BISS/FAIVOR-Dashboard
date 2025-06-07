@@ -10,7 +10,7 @@
 	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
 	import ValidationModal from './components/ValidationModal.svelte';
 	import ResultsModal from './components/ResultsModal.svelte';
-	import { validationStore } from '$lib/stores/validation.store';
+	import { validationStore } from '$lib/stores/models/validation.store';
 
 	interface Props {
 		data: PageData;

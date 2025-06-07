@@ -1,7 +1,7 @@
 // src/lib/services/dataset-step-service.ts
 import { FaivorBackendAPI, type CSVValidationResponse, type ModelValidationResponse } from '$lib/api/faivor-backend';
 import type { DatasetFolderFiles } from '$lib/types/validation';
-import type { ValidationResults } from '$lib/stores/validation-form.store';
+import type { ValidationResults } from '$lib/stores/models/validation.store';
 
 // Types for the service
 export interface DatasetStepState {

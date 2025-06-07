@@ -4,8 +4,8 @@
 		validationStore,
 		type ValidationJob,
 		type ValidationMode
-	} from '$lib/stores/validation.store';
-	import { validationFormStore } from '$lib/stores/validation-form.store';
+	} from '$lib/stores/models/validation.store';
+	import { validationFormStore } from '$lib/stores/models/validation.store';
 	import type { ValidationFormData } from '$lib/types/validation';
 	import {
 		validationJobToFormData,

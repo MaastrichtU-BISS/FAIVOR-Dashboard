@@ -4,7 +4,7 @@
 	import MaterialSymbolsClose from '~icons/material-symbols/close';
 	import MaterialSymbolsWarning from '~icons/material-symbols/warning';
 	import type { CSVValidationResponse, ModelValidationResponse } from '$lib/api/faivor-backend';
-	import { validationFormStore } from '$lib/stores/validation-form.store';
+	import { validationFormStore } from '$lib/stores/models/validation.store';
 
 	// Get validation data from the store
 	let formState = $derived($validationFormStore);

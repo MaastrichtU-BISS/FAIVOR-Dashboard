@@ -8,7 +8,7 @@ import type {
   ValidationRow,
   DatasetFolderFiles
 } from '$lib/types/validation';
-import { getFileSizesFromStore, validationFormStore, type ValidationResults } from '$lib/stores/validation-form.store';
+import { getFileSizesFromStore, validationFormStore, type ValidationResults } from '$lib/stores/models/validation.store';
 
 /**
  * Transform form data to ValidationData structure - simplified using store

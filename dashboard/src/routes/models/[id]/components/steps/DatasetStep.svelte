@@ -4,9 +4,9 @@
 	import FolderUpload from '$lib/components/ui/FolderUpload.svelte';
 	import ValidationErrorModal from '$lib/components/ui/ValidationErrorModal.svelte';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
-	import { validationFormStore } from '$lib/stores/validation-form.store';
+	import { validationFormStore } from '$lib/stores/models/validation.store';
 	import { DatasetStepService, type DatasetStepState } from '$lib/services/dataset-step-service';
-	import type { ValidationResults } from '$lib/stores/validation-form.store';
+	import type { ValidationResults } from '$lib/stores/models/validation.store';
 
 	interface Props {
 		readonly?: boolean;

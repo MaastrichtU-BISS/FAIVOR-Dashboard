@@ -7,7 +7,7 @@
 	import MaterialSymbolsInfo from '~icons/material-symbols/info';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
 	import { validateDatasetFolder, extractFolderName } from '$lib/utils/indexeddb-storage';
-	import { validationFormStore } from '$lib/stores/validation.store';
+	import { validationFormStore } from '$lib/stores/models/validation.store';
 
 	interface Props {
 		folderFiles?: DatasetFolderFiles;
