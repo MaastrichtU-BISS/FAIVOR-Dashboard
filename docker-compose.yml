@@ -42,8 +42,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      dashboard:
+        condition: service_started
 
-  frontend:
+  dashboard:
     image: oven/bun:1
     working_dir: /app
     volumes:

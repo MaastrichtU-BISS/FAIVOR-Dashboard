@@ -12,7 +12,7 @@ Database schema
 1. Copy `.env.example` to `.env` and fill in the required variables
 
 ## Runnin with Docker
-It will run the database, migrations and frontend services.
+It will run the database, migrations and dashboard services.
 ```bash
 docker compose up
 ```

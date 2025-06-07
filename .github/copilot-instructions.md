@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-FAIRmodels-validator is a web application for validating machine learning models against FAIR (Findable, Accessible, Interoperable, Reusable) principles. The project consists of a SvelteKit dashboard frontend with PostgreSQL backend and integrates with an external ML validator service.
+FAIRmodels-validator is a web application for validating machine learning models against FAIR (Findable, Accessible, Interoperable, Reusable) principles. The project consists of a SvelteKit dashboard with PostgreSQL backend and integrates with an external ML validator service.
 
 ## Technology Stack
 
