@@ -5,7 +5,7 @@
 	import Login from '$lib/components/ui/Login/LoginButton.svelte';
 	import { toggleMenu } from '$lib/stores/menu.store';
 	import IconamoonMenuBurgerHorizontalBold from '~icons/iconamoon/menu-burger-horizontal-bold';
-	import menuItems from '$lib/models/menu-itmes';
+	import menuItems from './menu-itmes';
 
 	let activeCategory = '';
 	let isDesktop = $state(true);
