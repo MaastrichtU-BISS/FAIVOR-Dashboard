@@ -234,9 +234,7 @@
 				</div>
 				<div class="text-center">
 					<h3 class="text-lg font-semibold">Select Dataset Folder</h3>
-					<p class="text-base-content/70 text-sm">
-						Choose a folder containing metadata.json, data.csv, and column_metadata.json
-					</p>
+					<p class="text-base-content/70 text-sm">Choose a folder containing data.csv</p>
 					<p class="text-base-content/50 mt-1 text-xs">or drag and drop folder here</p>
 				</div>
 			</div>
@@ -312,20 +310,6 @@
 							<span class="text-base-content/50">
 								({formatFileSize(folderFiles.data.size || 0)})
 							</span>
-						</div>
-					{/if}
-					{#if folderFiles.columnMetadata}
-						<div class="flex items-center gap-2 text-sm">
-							<MaterialSymbolsCheck class="text-success h-4 w-4" />
-							<span>column_metadata.json</span>
-							<span class="text-base-content/50">
-								({formatFileSize(folderFiles.columnMetadata.size || 0)})
-							</span>
-						</div>
-					{:else}
-						<div class="text-warning flex items-center gap-2 text-sm">
-							<MaterialSymbolsInfo class="h-4 w-4" />
-							<span>column_metadata.json (optional)</span>
 						</div>
 					{/if}
 				</div>

@@ -176,11 +176,10 @@ export function validateDatasetFolder(
       (relativePath.includes('/') && relativePath.split('/').pop() === 'metadata.json');
   });
 
-  // metadata.json is now optional if model has metadata
-  if (!metadataFile && !model?.metadata?.fairSpecific) {
-    errors.push('metadata.json file is required (or model must have metadata configured)');
-  } else if (metadataFile) {
-    validFiles.metadata = metadataFile;
+  // metadata.json is now entirely optional from the folder.
+  // The actual metadata for validation will come from the 'model' prop elsewhere.
+  if (metadataFile) {
+    validFiles.metadata = metadataFile; // Still capture it if present
   }
 
   // Look for data.csv - check both direct name and relative path

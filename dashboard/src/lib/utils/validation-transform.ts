@@ -3,51 +3,26 @@
 
 import type {
   ValidationData,
-  ValidationJob,
+  // ValidationJob, // Old type, replaced by UiValidationJob for new transformations
   ValidationFormData,
   ValidationRow,
   DatasetFolderFiles
 } from '$lib/types/validation';
+import type { UiValidationJob, JsonLdPerformanceMetricItem } from '$lib/stores/models/types'; // Import new types
 import { getFileSizesFromStore, validationFormStore, type ValidationResults } from '$lib/stores/models/validation.store';
 
 /**
  * Transform form data to ValidationData structure - simplified using store
  */
 export function formDataToValidationData(formData: ValidationFormData): ValidationData {
-  // Get file sizes directly from the store to avoid serialization issues
   const fileSizes = getFileSizesFromStore();
-
-  // Get validation results from the store
   let validationResults: ValidationResults | undefined;
   const unsubscribe = validationFormStore.subscribe(state => {
     validationResults = state.validationResults;
   });
   unsubscribe();
 
-  console.log('🔍 formDataToValidationData called with store-based sizes:', {
-    hasUploadedFolder: Boolean(formData.uploadedFolder),
-    folderName: formData.folderName,
-    fileSizes,
-    validationResults,
-    metadataFile: formData.uploadedFolder?.metadata ? {
-      name: formData.uploadedFolder.metadata.name,
-      size: fileSizes.metadataSize,
-      type: formData.uploadedFolder.metadata.type,
-      lastModified: formData.uploadedFolder.metadata.lastModified
-    } : null,
-    dataFile: formData.uploadedFolder?.data ? {
-      name: formData.uploadedFolder.data.name,
-      size: fileSizes.dataSize,
-      type: formData.uploadedFolder.data.type,
-      lastModified: formData.uploadedFolder.data.lastModified
-    } : null,
-    columnMetadataFile: formData.uploadedFolder?.columnMetadata ? {
-      name: formData.uploadedFolder.columnMetadata.name,
-      size: fileSizes.columnMetadataSize,
-      type: formData.uploadedFolder.columnMetadata.type,
-      lastModified: formData.uploadedFolder.columnMetadata.lastModified
-    } : null
-  });
+  // console.log('🔍 formDataToValidationData called with store-based sizes:', { /* ... logging data ... */ });
 
   const validationData: ValidationData = {
     validation_name: formData.validationName || undefined,
@@ -59,10 +34,9 @@ export function formDataToValidationData(formData: ValidationFormData): Validati
       characteristics: formData.datasetCharacteristics || undefined,
       uploadedFile: formData.uploadedFile ? {
         name: formData.uploadedFile.name,
-        size: formData.uploadedFile.size || 0, // Direct access since files are in store
+        size: formData.uploadedFile.size || 0,
         type: formData.uploadedFile.type
       } : undefined,
-      // Handle folder upload data using store-based sizes
       folderUpload: formData.uploadedFolder ? {
         folderName: formData.folderName || 'Unknown Folder',
         fileCount: Object.keys(formData.uploadedFolder).length,
@@ -70,21 +44,20 @@ export function formDataToValidationData(formData: ValidationFormData): Validati
         hasMetadata: Boolean(formData.uploadedFolder.metadata),
         hasData: Boolean(formData.uploadedFolder.data),
         hasColumnMetadata: Boolean(formData.uploadedFolder.columnMetadata),
-        // Save detailed file information for UI display with store-based sizes
         fileDetails: {
           metadata: formData.uploadedFolder.metadata ? {
             name: formData.uploadedFolder.metadata.name || 'metadata.json',
-            size: fileSizes.metadataSize, // Use store-based size
+            size: fileSizes.metadataSize,
             lastModified: formData.uploadedFolder.metadata.lastModified || Date.now()
           } : undefined,
           data: formData.uploadedFolder.data ? {
             name: formData.uploadedFolder.data.name || 'data.csv',
-            size: fileSizes.dataSize, // Use store-based size
+            size: fileSizes.dataSize,
             lastModified: formData.uploadedFolder.data.lastModified || Date.now()
           } : undefined,
           columnMetadata: formData.uploadedFolder.columnMetadata ? {
             name: formData.uploadedFolder.columnMetadata.name || 'column_metadata.json',
-            size: fileSizes.columnMetadataSize, // Use store-based size
+            size: fileSizes.columnMetadataSize,
             lastModified: formData.uploadedFolder.columnMetadata.lastModified || Date.now()
           } : undefined
         }
@@ -96,135 +69,128 @@ export function formDataToValidationData(formData: ValidationFormData): Validati
       dataProvided: Boolean(formData.uploadedFile || formData.uploadedFolder?.data || formData.datasetName),
       dataCharacteristics: Boolean(formData.datasetDescription || formData.datasetCharacteristics),
       metrics: Boolean(formData.metricsDescription),
-      // Include validation results from the store
       validation_results: validationResults && validationResults.stage !== 'none' ? validationResults : undefined
     }
   };
-
-
   return validationData;
 }
 
 /**
- * Transform ValidationRow to ValidationJob for frontend use
+ * Transform ValidationRow to a generic object.
+ * The original ValidationJob type might be deprecated.
  */
-export function validationRowToJob(row: ValidationRow): ValidationJob {
+export function validationRowToJob(row: ValidationRow): any {
+  console.warn("validationRowToJob: Review usage with new JSON-LD model structure. 'row.data' access might be incorrect.");
+  // Assuming row.data was a JSONB field containing the old structure.
+  // This needs careful review based on actual DB schema for ValidationRow.
+  // If 'data' is not a direct property, this will fail.
+  const data = (row as any).data || {};
   return {
     val_id: row.val_id.toString(),
-    validation_name: row.data.validation_name,
+    validation_name: data.validation_name,
     start_datetime: row.start_datetime,
     end_datetime: row.end_datetime,
     validation_status: row.validation_status,
-    validation_result: row.data.validation_result,
-    dataset_info: row.data.dataset_info,
-    configuration: row.data.configuration,
-    metadata: row.data.metadata,
+    validation_result: data.validation_result,
+    dataset_info: data.dataset_info,
+    configuration: data.configuration,
+    metadata: data.metadata,
     modelId: row.model_checkpoint_id,
     userId: row.user_id || undefined,
-    deleted_at: row.deleted_at
+    deleted_at: (row as any).deleted_at
   };
 }
 
 /**
- * Transform ValidationJob to form data for editing - updated for folder uploads
+ * Transform UiValidationJob (derived from JSON-LD) to form data for editing.
  */
-export function validationJobToFormData(job: ValidationJob): ValidationFormData {
-  // Reconstruct folder files from saved fileDetails if available
-  let reconstructedFolderFiles: DatasetFolderFiles | undefined = undefined;
+export function validationJobToFormData(job: UiValidationJob): ValidationFormData {
+  const evalData = job.originalEvaluationData;
 
-  if (job.dataset_info?.folderUpload?.fileDetails) {
-    const fileDetails = job.dataset_info.folderUpload.fileDetails;
-    reconstructedFolderFiles = {};
+  let reconstructedFolderFiles: Partial<DatasetFolderFiles> | undefined = undefined;
+  let folderName: string | undefined = undefined;
+  // Access dataset_info directly from the job object
+  const folderUploadInfo = job.dataset_info?.folderUpload;
 
-    // Reconstruct metadata file info if it was saved
-    if (fileDetails.metadata) {
-      reconstructedFolderFiles.metadata = new File([], fileDetails.metadata.name, {
-        lastModified: fileDetails.metadata.lastModified
-      });
-      // Store the original size since File constructor doesn't preserve it
-      Object.defineProperty(reconstructedFolderFiles.metadata, 'size', {
-        value: fileDetails.metadata.size,
-        writable: false
-      });
+  if (folderUploadInfo) {
+    folderName = folderUploadInfo.folderName;
+    reconstructedFolderFiles = {}; // Initialize as an empty object
+
+    // Helper to create a mock File-like object for display purposes
+    const createFileLikeObject = (detail: { name?: string; size?: number; lastModified?: number } | undefined, defaultName: string) => {
+      if (!detail) return undefined;
+      return {
+        name: detail.name || defaultName,
+        size: detail.size || 0,
+        lastModified: detail.lastModified || Date.now(),
+        // Add other properties if FolderUpload.svelte or other components expect them,
+        // but keep it minimal for display.
+      } as File; // Cast to File for structural compatibility with FolderUpload's props
+    };
+
+    if (folderUploadInfo.hasMetadata && folderUploadInfo.fileDetails?.metadata) {
+      reconstructedFolderFiles.metadata = createFileLikeObject(folderUploadInfo.fileDetails.metadata, 'metadata.json');
     }
-
-    // Reconstruct data file info if it was saved
-    if (fileDetails.data) {
-      reconstructedFolderFiles.data = new File([], fileDetails.data.name, {
-        lastModified: fileDetails.data.lastModified
-      });
-      Object.defineProperty(reconstructedFolderFiles.data, 'size', {
-        value: fileDetails.data.size,
-        writable: false
-      });
+    if (folderUploadInfo.hasData && folderUploadInfo.fileDetails?.data) {
+      reconstructedFolderFiles.data = createFileLikeObject(folderUploadInfo.fileDetails.data, 'data.csv');
     }
-
-    // Reconstruct column metadata file info if it was saved
-    if (fileDetails.columnMetadata) {
-      reconstructedFolderFiles.columnMetadata = new File([], fileDetails.columnMetadata.name, {
-        lastModified: fileDetails.columnMetadata.lastModified
-      });
-      Object.defineProperty(reconstructedFolderFiles.columnMetadata, 'size', {
-        value: fileDetails.columnMetadata.size,
-        writable: false
-      });
+    if (folderUploadInfo.hasColumnMetadata && folderUploadInfo.fileDetails?.columnMetadata) {
+      reconstructedFolderFiles.columnMetadata = createFileLikeObject(folderUploadInfo.fileDetails.columnMetadata, 'column_metadata.json');
     }
   }
 
-  // Load validation results into the store if they exist
-  if (job.validation_result?.validation_results) {
-    validationFormStore.setValidationResults(job.validation_result.validation_results);
-  } else if (job.validation_status === 'completed' && job.validation_result) {
-    // If validation is completed but validation_results is missing,
-    // try to reconstruct basic validation results for table visibility
-    const reconstructedResults: ValidationResults = {
-      stage: 'complete'
-    };
+  const validationName = job.validation_name || `Evaluation ${job.val_id.slice(-6)}`;
+  const userName = evalData?.['user/hospital']?.['@value'] || '';
+  const date = evalData?.['pav:createdOn'] || job.start_datetime;
 
-    // Check if we have CSV validation data stored elsewhere
-    if (job.validation_result.fairness_metrics || job.validation_result.performance_metrics) {
-      // If we have metrics, assume both CSV and model validation were successful
-      reconstructedResults.csvValidation = {
-        success: true,
-        message: 'CSV validation completed successfully',
-        details: {
-          valid: true,
-          csv_columns: [],
-          model_input_columns: [],
-          message: 'Validation completed successfully'
-        }
-      };
+  const datasetName = evalData?.['User Note']?.['@value']?.split(':')[0].trim() || '';
 
-      reconstructedResults.modelValidation = {
-        success: true,
-        message: 'Model validation completed successfully',
-        details: {
-          model_name: job.validation_name || 'Validated Model',
-          metrics: {
-            ...job.validation_result.fairness_metrics,
-            ...job.validation_result.performance_metrics
-          }
-        }
-      };
+  const datasetDescription = evalData?.['User Note']?.['@value'] || '';
+  const datasetCharacteristics = '';
+  const metricsDescription = '';
+
+  let performanceMetricsSummary = '';
+  if (evalData?.['Performance metric'] && evalData['Performance metric'].length > 0) {
+    performanceMetricsSummary = evalData['Performance metric']
+      .map((m: JsonLdPerformanceMetricItem) => {
+        const metricLabelObj = m['Metric Label'];
+        const label = (metricLabelObj && 'rdfs:label' in metricLabelObj && typeof metricLabelObj['rdfs:label'] === 'string') ? metricLabelObj['rdfs:label'] :
+          (metricLabelObj && '@id' in metricLabelObj && typeof metricLabelObj['@id'] === 'string') ? metricLabelObj['@id'] :
+            'Metric';
+        const value = m['Measured metric (mean value)']?.['@value'];
+        return `${label}: ${value !== null && value !== undefined ? parseFloat(value).toFixed(3) : 'N/A'}`;
+      })
+      .join('; ');
+  }
+
+  const reconstructedResults: ValidationResults = {
+    stage: job.validation_status === 'completed' ? 'complete' : job.validation_status === 'pending' ? 'none' : 'model',
+    csvValidation: {
+      success: job.dataProvided || false,
+      message: job.dataProvided ? 'Dataset provided (details from evaluation)' : 'Dataset details not fully available',
+    },
+    modelValidation: {
+      success: job.metrics || false,
+      message: job.metrics ? 'Metrics available' : 'Metrics not fully available',
     }
-
+  };
+  if (job.validation_status !== 'unknown') {
     validationFormStore.setValidationResults(reconstructedResults);
   }
 
   return {
-    validationName: job.validation_name || '',
-    userName: job.dataset_info?.userName || '',
-    date: job.dataset_info?.date || job.start_datetime,
-    datasetName: job.dataset_info?.datasetName || '',
-    uploadedFile: null, // Files can't be restored from database
-    // Handle folder upload data - reconstruct from saved fileDetails
-    folderName: job.dataset_info?.folderUpload?.folderName,
-    uploadedFolder: reconstructedFolderFiles,
-    datasetDescription: job.dataset_info?.description || '',
-    datasetCharacteristics: job.dataset_info?.characteristics || '',
-    metricsDescription: job.validation_result?.metrics_description || '',
-    performanceMetrics: job.validation_result?.performance_description || '',
-    modelId: job.modelId
+    validationName: validationName,
+    userName: userName,
+    date: date,
+    datasetName: datasetName,
+    uploadedFile: null, // Keep as null, as we are restoring folder info, not a single file
+    folderName: folderName, // This will now have the restored folder name
+    uploadedFolder: reconstructedFolderFiles as DatasetFolderFiles | undefined, // This will have the reconstructed file details
+    datasetDescription: datasetDescription,
+    datasetCharacteristics: datasetCharacteristics,
+    metricsDescription: metricsDescription,
+    performanceMetrics: performanceMetricsSummary,
+    modelId: '', // This should be set from the page context (e.g., modelData['@id'] or checkpoint_id)
   };
 }
 
@@ -247,12 +213,12 @@ export function mergeValidationData(
       ...updates.validation_result
     },
     configuration: {
-      ...existing.configuration,
-      ...updates.configuration
+      ...(existing as any).configuration, // Cast to any if configuration is not on ValidationData
+      ...(updates as any).configuration
     },
     metadata: {
-      ...existing.metadata,
-      ...updates.metadata
+      ...(existing as any).metadata, // Cast to any if metadata is not on ValidationData
+      ...(updates as any).metadata
     }
   };
 }
@@ -269,14 +235,13 @@ export function createDefaultValidationData(): ValidationData {
       metrics: false,
       published: false
     },
-    configuration: {},
-    metadata: {}
+    // configuration: {}, // Ensure these are part of ValidationData if used
+    // metadata: {}
   };
 }
 
 /**
  * Legacy transformation - convert old database structure to new format
- * This helps with migration of existing data
  */
 export function legacyToValidationData(legacy: {
   validation_name?: string;

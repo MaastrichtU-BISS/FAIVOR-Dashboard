@@ -1,41 +1,14 @@
-import type { ModelMetadata } from '$lib/stores/models/types';
+import type { FullJsonLdModel, ModelMetadata, JsonLdValue, JsonLdIdRef } from '$lib/stores/models/types'; // Updated import
 import { createHash } from 'node:crypto';
 
-export interface FAIRModelResponse {
-  '@context': Record<string, any>;
-  '@id': string;
-  'Title': { '@value': string };
-  'Editor Note'?: { '@value': string };
-  'Created by'?: { '@value': string };
-  'Creation date'?: { '@value': string; '@type': string };
-  'Contact email'?: { '@value': string };
-  'References'?: Array<{ '@value': string }>;
-  'Reference to code'?: Array<{ '@value': string | null }>;
-  'Software License'?: { '@id': string; 'rdfs:label': string };
-  'FAIRmodels image name'?: { '@value': string };
-  'Outcome'?: { '@id': string; 'rdfs:label': string };
-  'Input'?: Array<{ '@id': string; 'rdfs:label': string }>;
-  'Applicability criteria'?: Array<{ '@value': string }>;
-  'Foundational model or algorithm used'?: { '@value': string };
-  'Primary intended use(s)'?: Array<{ '@value': string }>;
-  'Primary intended users'?: Array<{ '@value': string }>;
-  'Out-of-scope use cases'?: Array<{ '@value': string }>;
-  'Data'?: Array<{ '@value': string }>;
-  'Human life'?: Array<{ '@value': string }>;
-  'Mitigations'?: Array<{ '@value': string }>;
-  'Risks and harms'?: Array<{ '@value': string }>;
-  'Use cases'?: Array<{ '@value': string | null }>;
-  'Additional concerns'?: Array<{ '@value': string | null }>;
-  'pav:lastUpdatedOn'?: string;
-  'pav:createdOn'?: string;
-  'schema:isBasedOn'?: string;
-}
+// FAIRModelResponse is now effectively FullJsonLdModel, so we can remove the old interface.
+// export interface FAIRModelResponse { ... } // Removed
 
 export class ModelImportService {
   /**
    * Fetch model data from FAIR models URL
    */
-  static async fetchModelData(url: string): Promise<FAIRModelResponse> {
+  static async fetchModelData(url: string): Promise<FullJsonLdModel> { // Return FullJsonLdModel
     const response = await fetch(url, {
       headers: {
         'accept': 'application/json-ld'
@@ -47,7 +20,7 @@ export class ModelImportService {
     }
 
     const data = await response.json();
-    return data as FAIRModelResponse;
+    return data as FullJsonLdModel; // Cast to FullJsonLdModel
   }
 
   /**
@@ -61,73 +34,74 @@ export class ModelImportService {
    * Extract FAIR model ID from URL
    */
   static extractFairModelId(url: string): string {
-    // Extract the UUID from URL like https://v3.fairmodels.org/instance/3f400afb-df5e-4798-ad50-0687dd439d9b
-    const match = url.match(/\/instance\/([a-f0-9-]+)$/);
+    const match = url.match(/\/instance\/([a-f0-9-]+)$/i); // Added 'i' for case-insensitivity
     return match ? match[1] : url;
   }
 
   /**
-   * Transform FAIR model response to internal metadata format
+   * Transform FullJsonLdModel to internal ModelMetadata format
    */
-  static transformToMetadata(data: FAIRModelResponse): ModelMetadata {
+  static transformToMetadata(data: FullJsonLdModel): ModelMetadata {
+    const generalInfo = data["General Model Information"];
+    const fairSpecific: ModelMetadata['fairSpecific'] = { // Initialize fairSpecific
+      outcome: data.Outcome?.["rdfs:label"] || data["Outcome label"]?.["@value"] || '',
+      inputs: data["Input data1"]?.map(input => input["Input label"]?.["@value"] || 'Unnamed Input') || [],
+      algorithm: data["Foundational model or algorithm used"]?.["rdfs:label"] || data["Foundational model or algorithm used"]?.["@id"] || '',
+      outOfScopeUseCases: data["Out-of-scope use cases"]?.map(item => item["@value"] || '') || [],
+      humanLifeImpact: data["Human life"]?.map(item => item["@value"] || '') || [],
+      mitigations: data.Mitigations?.map(item => item["@value"] || '') || [],
+      risksAndHarms: data["Risks and harms"]?.map(item => item["@value"] || '') || [],
+      dockerImage: generalInfo?.["FAIRmodels image name"]?.["@value"] || '',
+      softwareLicense: generalInfo?.["Software License"]?.["rdfs:label"] || generalInfo?.["Software License"]?.["@id"] || '',
+      createdBy: generalInfo?.["Created by"]?.["@value"] || '',
+      creationDate: generalInfo?.["Creation date"]?.["@value"] || data["pav:createdOn"] || '',
+      contactEmail: generalInfo?.["Contact email"]?.["@value"] || '',
+      lastUpdated: data["pav:lastUpdatedOn"] || '',
+      basedOn: data["schema:isBasedOn"] || ''
+    };
+
     return {
-      title: data['Title']?.['@value'] || '',
-      applicabilityCriteria: data['Applicability criteria']?.map(item => item['@value']) || [],
-      primaryIntendedUse: data['Primary intended use(s)']?.[0]?.['@value'] || '',
+      title: generalInfo?.Title?.["@value"] || data["@id"],
+      applicabilityCriteria: data["Applicability criteria"]?.map(item => item["@value"] || '') || [],
+      primaryIntendedUse: data["Primary intended use(s)"]?.[0]?.["@value"] || '',
       users: {
-        intendedUsers: data['Primary intended users']?.map(item => item['@value']) || [],
-        requiredExpertise: '' // Not available in FAIR model data
+        intendedUsers: data["Primary intended users"]?.map(item => item["@value"] || '') || [],
+        requiredExpertise: '' // Not directly available in the new structure example
       },
       reference: {
-        paper: data['References']?.[0]?.['@value'] || '',
-        codeRepository: data['Reference to code']?.find(ref => ref['@value'])?.['@value'] || '',
+        paper: generalInfo?.["References to papers"]?.[0]?.["@value"] || '',
+        codeRepository: generalInfo?.["References to code"]?.[0]?.["@value"] || '',
         documentation: '' // Not directly available
       },
       datasetRequirements: {
-        format: '', // Not directly available
-        minimumSamples: '', // Not directly available
-        annotations: data['Data']?.[0]?.['@value'] || '',
-        preprocessing: '' // Not directly available
+        format: '',
+        minimumSamples: '',
+        annotations: data.Data?.[0]?.["@value"] || '',
+        preprocessing: ''
       },
       metricsAndValidation: {
-        metrics: {}, // Not available in basic metadata
+        metrics: {},
         validationDataset: '',
         crossValidation: ''
       },
-      // Additional fields from FAIR model
-      fairSpecific: {
-        outcome: data['Outcome']?.['rdfs:label'] || '',
-        inputs: data['Input']?.map(input => input['rdfs:label']) || [],
-        algorithm: data['Foundational model or algorithm used']?.['@value'] || '',
-        outOfScopeUseCases: data['Out-of-scope use cases']?.map(item => item['@value']) || [],
-        humanLifeImpact: data['Human life']?.map(item => item['@value']) || [],
-        mitigations: data['Mitigations']?.map(item => item['@value']) || [],
-        risksAndHarms: data['Risks and harms']?.map(item => item['@value']) || [],
-        dockerImage: data['FAIRmodels image name']?.['@value'] || '',
-        softwareLicense: data['Software License']?.['rdfs:label'] || '',
-        createdBy: data['Created by']?.['@value'] || '',
-        creationDate: data['Creation date']?.['@value'] || '',
-        contactEmail: data['Contact email']?.['@value'] || '',
-        lastUpdated: data['pav:lastUpdatedOn'] || '',
-        basedOn: data['schema:isBasedOn'] || ''
-      }
+      fairSpecific: fairSpecific
     };
   }
 
   /**
-   * Generate description from FAIR model data
+   * Generate description from FullJsonLdModel data
    */
-  static generateDescription(data: FAIRModelResponse): string {
-    const editorNote = data['Editor Note']?.['@value'];
-    const primaryUse = data['Primary intended use(s)']?.[0]?.['@value'];
+  static generateDescription(data: FullJsonLdModel): string {
+    const generalInfo = data["General Model Information"];
+    const editorNote = generalInfo?.["Editor Note"]?.["@value"];
+    const description = generalInfo?.Description?.["@value"];
+    const primaryUse = data["Primary intended use(s)"]?.[0]?.["@value"];
 
-    if (editorNote) {
-      return editorNote;
-    } else if (primaryUse) {
-      return primaryUse;
-    } else {
-      return `Model for ${data['Outcome']?.['rdfs:label'] || 'prediction'}`;
-    }
+    if (description) return description;
+    if (editorNote) return editorNote;
+    if (primaryUse) return primaryUse;
+
+    return `Model for ${data.Outcome?.["rdfs:label"] || data["Outcome label"]?.["@value"] || 'prediction'}`;
   }
 
   /**
@@ -135,25 +109,43 @@ export class ModelImportService {
    */
   static async importModel(url: string) {
     try {
-      // Fetch model data from FAIR models API
       const fairModelData = await this.fetchModelData(url);
 
-      // Generate checkpoint ID and extract FAIR model ID
       const checkpointId = this.generateCheckpointId(url);
-      const fairModelId = this.extractFairModelId(url);
+      const fairModelId = this.extractFairModelId(fairModelData["@id"] || url); // Use @id from data if available
 
-      // Transform to internal format
+      // The transformation to the old ModelMetadata is kept for now,
+      // but the application should ideally move towards using FullJsonLdModel directly.
       const metadata = this.transformToMetadata(fairModelData);
       const description = this.generateDescription(fairModelData);
 
       return {
-        checkpointId,
-        fairModelId,
-        fairModelUrl: url,
-        metadata,
-        description,
-        title: fairModelData['Title']?.['@value'] || '',
-        rawFairData: fairModelData
+        checkpoint_id: checkpointId, // Ensure key matches DB/internal Model type
+        fair_model_id: fairModelId,
+        fair_model_url: fairModelData["@id"] || url,
+        // metadata: metadata, // This is the old ModelMetadata structure
+        description: description,
+        // title: generalInfo?.Title?.["@value"], // This is part of metadata now
+
+        // It's better to return the full JSON-LD data and let the backend decide what to store/transform.
+        // The +server.ts endpoint will receive this and can then decide how to structure the DB entry.
+        // For now, the `modelData` in `+page.svelte` expects the full JSON-LD.
+        // So, the API endpoint should probably store/return this `fairModelData`.
+
+        // Let's return an object that can be directly used if the backend stores the full JSON-LD
+        // and also provides the simplified parts if needed by older structures.
+        jsonLdFullModel: fairModelData, // The complete fetched JSON-LD
+
+        // Fields for direct database insertion if DB schema is still based on old Model type
+        dbFields: {
+          checkpoint_id: checkpointId,
+          fair_model_id: fairModelId,
+          fair_model_url: fairModelData["@id"] || url,
+          metadata: metadata, // Transformed to old ModelMetadata
+          description: description,
+          created_at: fairModelData["pav:createdOn"] || new Date().toISOString(),
+          updated_at: fairModelData["pav:lastUpdatedOn"] || new Date().toISOString(),
+        }
       };
     } catch (error) {
       console.error('Error importing model:', error);

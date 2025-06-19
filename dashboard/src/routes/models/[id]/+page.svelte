@@ -11,23 +11,26 @@
 	import ValidationModal from './components/ValidationModal.svelte';
 	import ResultsModal from './components/ResultsModal.svelte';
 	import { validationStore } from '$lib/stores/models/validation.store';
-
-	interface Props {
-		data: PageData;
-	}
-
-	let showResultsModal = $state(false);
-	let showValidationModal = $state(false);
-	let selectedValidation: ValidationJob | null = $state(null);
-	let currentValidationJob: ValidationJob | null = $state(null);
-
-	import type { Model } from '$lib/stores/models/types';
+	import type {
+		FullJsonLdModel,
+		UiValidationJob,
+		JsonLdEvaluationResultItem
+	} from '$lib/stores/models/types';
 	import toast from 'svelte-french-toast';
 	import MaterialSymbolsSettingsSuggestRounded from '~icons/material-symbols/settings-suggest-rounded';
 	import MaterialSymbolsAutoGraphRounded from '~icons/material-symbols/auto-graph-rounded';
-	let { data }: Props = $props();
-	let modelData = $state(data.model);
-	let typedModel = $derived(modelData as Model);
+
+	interface Props {
+		data: PageData; // PageData likely contains the initial model data
+	}
+
+	let { data: pageRouteData }: Props = $props(); // Renamed to avoid conflict
+	let modelData = $state(pageRouteData.model as FullJsonLdModel); // Cast to new type
+
+	let showResultsModal = $state(false);
+	let showValidationModal = $state(false);
+	let selectedValidation: UiValidationJob | null = $state(null);
+	let currentValidationJob: UiValidationJob | null = $state(null);
 
 	const handleGoBack = () => {
 		goto('/models');
@@ -38,26 +41,63 @@
 		console.log('Downloading CSV...');
 	};
 
-	interface ValidationJob {
-		val_id: string;
-		validation_name?: string;
-		start_datetime: string;
-		validation_status: 'pending' | 'running' | 'completed' | 'failed';
-		validation_result?: {
-			dataProvided?: boolean;
-			dataCharacteristics?: boolean;
-			metrics?: boolean;
-			published?: boolean;
-		};
-		userName?: string;
-		datasetDescription?: string;
-		metricsDescription?: string;
-		performanceMetrics?: string;
-	}
+	let validationJobs = $derived<UiValidationJob[]>(
+		modelData?.['Evaluation results1'] && Array.isArray(modelData['Evaluation results1'])
+			? modelData['Evaluation results1']
+					.map((evalItem: JsonLdEvaluationResultItem, index: number): UiValidationJob => {
+						const val_id = evalItem['@id'] || `eval-${index}-${Date.now()}`;
+						const name = evalItem['User Note']?.['@value'] || `Evaluation ${val_id.slice(-6)}`;
+						const startDate = evalItem['pav:createdOn'] || new Date().toISOString();
 
-	let validationJobs = $derived(
-		typedModel.validations?.all
-			? typedModel.validations.all
+						let status: UiValidationJob['validation_status'] = 'unknown';
+						const hasPerformanceMetrics =
+							evalItem['Performance metric'] &&
+							evalItem['Performance metric'].length > 0 &&
+							evalItem['Performance metric'].some(
+								(pm) => pm['Measured metric (mean value)']?.['@value'] !== null
+							);
+						const hasDatasetChars =
+							evalItem['Dataset characteristics'] &&
+							evalItem['Dataset characteristics'].length > 0 &&
+							evalItem['Dataset characteristics'].some(
+								(dc) =>
+									dc['The number of subject for evaluation']?.['@value'] !== null ||
+									dc.Volume?.['@value'] !== null
+							);
+
+						if (hasPerformanceMetrics && hasDatasetChars) {
+							status = 'completed';
+						} else if (hasDatasetChars) {
+							status = 'running'; // Or some other intermediate state like 'data_uploaded'
+						} else {
+							status = 'pending';
+						}
+
+						const deleted_at = (evalItem as any).deleted_at || null;
+						// Extract dataset_info if it was merged by the API
+						const dataset_info = (evalItem as any).dataset_info || undefined;
+
+						return {
+							val_id: val_id,
+							validation_name: name,
+							start_datetime: startDate,
+							validation_status: status,
+							dataProvided: hasDatasetChars,
+							dataCharacteristics:
+								hasDatasetChars &&
+								(evalItem['Dataset characteristics']?.some(
+									(dc) =>
+										dc.Volume?.['@value'] || dc['The number of subject for evaluation']?.['@value']
+								) ??
+									false),
+							metrics: hasPerformanceMetrics,
+							published: false, // This needs specific logic if it's a feature
+							userName: evalItem['user/hospital']?.['@value'] || undefined,
+							originalEvaluationData: evalItem,
+							deleted_at: deleted_at,
+							dataset_info: dataset_info // Add dataset_info to UiValidationJob
+						};
+					})
 					.filter((v) => !v.deleted_at)
 					.sort((a, b) => {
 						return new Date(b.start_datetime).getTime() - new Date(a.start_datetime).getTime();
@@ -70,36 +110,65 @@
 		showValidationModal = true;
 	}
 
-	function openValidation(validation: ValidationJob) {
+	function openValidation(validation: UiValidationJob) {
 		selectedValidation = validation;
-		validationStore.openModal(validation, 'view');
+		validationStore.openModal(validation.originalEvaluationData as any, 'view'); // Cast as any for now if store expects old type
 		showValidationModal = true;
 	}
 
-	function openResults(validation: ValidationJob) {
+	function openResults(validation: UiValidationJob) {
 		currentValidationJob = validation;
 		showResultsModal = true;
 	}
 
 	async function refreshModelData() {
-		console.log('Refreshing model data for:', typedModel.checkpoint_id);
-		const response = await fetch(`/api/models/${typedModel.checkpoint_id}`);
-		if (!response.ok) {
-			console.error('Failed to refresh model data:', response.statusText);
+		const modelIdUrl = modelData['@id'];
+		const checkpointId = modelData.checkpoint_id;
+
+		let idToFetch: string | undefined = undefined;
+
+		if (modelIdUrl) {
+			const parts = modelIdUrl.split('/');
+			const potentialUuid = parts[parts.length - 1];
+			if (potentialUuid && potentialUuid.length === 36 && potentialUuid.includes('-')) {
+				idToFetch = potentialUuid;
+			}
+		}
+
+		if (!idToFetch && checkpointId) {
+			idToFetch = checkpointId;
+		}
+
+		if (!idToFetch) {
+			console.error('Cannot refresh model data: Missing model identifier (@id or checkpoint_id).');
+			toast.error('Could not refresh model data: Identifier missing.');
 			return;
 		}
 
-		const data = await response.json();
-		console.log('Received updated model data:', data);
+		console.log('Refreshing model data for ID:', idToFetch);
+		try {
+			const response = await fetch(`/api/models/${idToFetch}`);
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error('Failed to refresh model data:', response.status, errorText);
+				toast.error(`Failed to refresh model: ${response.statusText}`);
+				return;
+			}
 
-		if (data.success && data.model) {
-			// Use the validations directly from the API as they're already transformed
-			modelData = data.model;
+			const responseData = await response.json();
+			console.log('Received updated model data:', responseData);
 
-			console.log('Updated model data:', modelData);
-			console.log('Updated validationJobs:', validationJobs);
-		} else {
-			console.error('Invalid response format:', data);
+			if (responseData.success && responseData.model) {
+				modelData = responseData.model as FullJsonLdModel;
+				console.log('Updated model data:', modelData);
+				toast.success('Model data refreshed!');
+			} else {
+				console.error('Invalid response format or error in fetching model:', responseData);
+				toast.error('Error in fetched model data.');
+			}
+		} catch (error) {
+			console.error('Network or other error refreshing model data:', error);
+			toast.error('Network error refreshing model data.');
 		}
 	}
 
@@ -108,9 +177,7 @@
 		await refreshModelData();
 	}
 
-	// Modal event handlers
 	function handleModalClose() {
-		// Only refresh model data if a validation was actually changed (handled by validationChange event)
 		showValidationModal = false;
 		selectedValidation = null;
 	}
@@ -120,22 +187,21 @@
 
 		if (confirm('Are you sure you want to delete this validation?')) {
 			try {
-				if (typedModel.validations?.all) {
-					const updatedValidations = typedModel.validations.all.map((v) => {
-						const validation = { ...v };
-						if (validation.val_id.toString() === validationId) {
-							validation.deleted_at = new Date().toISOString();
+				if (modelData['Evaluation results1']) {
+					modelData['Evaluation results1'] = modelData['Evaluation results1'].map((evalItem) => {
+						const current_eval_id =
+							evalItem['@id'] ||
+							`eval-${modelData['Evaluation results1']!.indexOf(evalItem)}-${Date.now()}`;
+						if (current_eval_id === validationId) {
+							return {
+								...evalItem,
+								deleted_at: new Date().toISOString()
+							} as JsonLdEvaluationResultItem;
 						}
-						return validation;
+						return evalItem;
 					});
-					modelData = {
-						...modelData,
-						validations: {
-							...modelData.validations,
-							all: updatedValidations
-						}
-					};
 				}
+
 				const response = await fetch(`/api/validations/${validationId}`, {
 					method: 'DELETE'
 				});
@@ -143,10 +209,12 @@
 					throw new Error('Failed to delete validation');
 				}
 				toast.success('Validation deleted successfully!');
-				await refreshModelData();
+				await refreshModelData(); // Refresh to get the definitive state from backend
 			} catch (error) {
 				console.error('Error deleting validation:', error);
 				toast.error('Failed to delete validation.');
+				// Potentially revert optimistic update if needed, or rely on next refresh
+				await refreshModelData();
 			}
 		}
 	}
@@ -154,55 +222,60 @@
 
 <div class="container mx-auto space-y-8 p-4">
 	<div class="flex justify-between">
-		<!-- Back Button -->
 		<button class="btn btn-ghost gap-2" onclick={handleGoBack}>
 			<MaterialSymbolsArrowBack class="h-6 w-6" />
 			Go Back
 		</button>
-
-		<!-- Add Validation Job Button -->
 		<button class="btn btn-primary" onclick={openNewValidation}>New Validation</button>
 	</div>
-	<!-- <pre class="h-52 overflow-scroll text-xs">{JSON.stringify(modelData, null, 2)}</pre> -->
-	<!-- Model Header -->
+
 	<div class="flex items-start gap-4">
 		<div class="bg-base-200 flex h-16 w-16 items-center justify-center rounded-lg">
 			<MaterialSymbolsScreenshotMonitorOutline class="h-8 w-8" />
 		</div>
 		<div>
 			<h1 class="text-2xl font-bold">
-				{typedModel.metadata.title || typedModel.title || typedModel.fair_model_id}
+				{modelData['General Model Information']?.Title?.['@value'] ||
+					modelData['General Model Information']?.Description?.['@value'] ||
+					modelData['@id'] ||
+					'Model Details'}
 			</h1>
-
-			<p class="text-base-content/70">{typedModel.description}</p>
+			<p class="text-base-content/70">
+				{modelData['General Model Information']?.Description?.['@value'] ||
+					modelData['General Model Information']?.['Editor Note']?.['@value'] ||
+					'No description available.'}
+			</p>
 			<div class="mt-2 flex flex-wrap gap-2">
-				{#if typedModel.metadata.applicabilityCriteria}
-					{#each typedModel.metadata.applicabilityCriteria as criteria}
-						<span class="badge badge-outline">{criteria}</span>
+				{#if modelData['Applicability criteria'] && Array.isArray(modelData['Applicability criteria'])}
+					{#each modelData['Applicability criteria'] as criteria}
+						{#if criteria?.['@value']}
+							<span class="badge badge-outline">{criteria['@value']}</span>
+						{/if}
 					{/each}
 				{/if}
 			</div>
 			<div class="text-base-content/70 mt-4 text-sm">
-				<p>
-					<strong>Primary Use:</strong>
-					{typedModel.metadata.primaryIntendedUse}
-				</p>
-				<p>
-					<strong>Repository:</strong>
-					<a
-						href={typedModel.fair_model_url}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="link"
-					>
-						{typedModel.fair_model_url}
-					</a>
-				</p>
-				{#if typedModel.metadata.reference?.paper}
+				{#if modelData['Primary intended use(s)']?.[0]?.['@value']}
+					<p>
+						<strong>Primary Use:</strong>
+						{modelData['Primary intended use(s)']?.[0]?.['@value']}
+					</p>
+				{/if}
+				{#if modelData['@id']}
+					<p>
+						<strong>Repository:</strong>
+						<a href={modelData['@id']} target="_blank" rel="noopener noreferrer" class="link">
+							{modelData['@id']}
+						</a>
+					</p>
+				{/if}
+				{#if modelData['General Model Information']?.['References to papers']?.[0]?.['@value']}
 					<p>
 						<strong>Paper:</strong>
 						<a
-							href={typedModel.metadata.reference.paper}
+							href={modelData['General Model Information']?.['References to papers']?.[0]?.[
+								'@value'
+							]}
 							target="_blank"
 							rel="noopener noreferrer"
 							class="link"
@@ -215,7 +288,6 @@
 		</div>
 	</div>
 
-	<!-- Validation Jobs Table -->
 	<div>
 		<table class="table">
 			<thead>
@@ -237,17 +309,17 @@
 						</td>
 					</tr>
 				{:else}
-					{#each validationJobs as job}
+					{#each validationJobs as job (job.val_id)}
 						<tr class="hover cursor-pointer">
 							<td class="font-bold" onclick={() => openValidation(job)}>
-								{job.validation_name || `Validation ${job.val_id}`}
+								{job.validation_name || `Validation ${job.val_id.slice(-6)}`}
 							</td>
 							<td onclick={() => openValidation(job)}>
 								{new Date(job.start_datetime).toLocaleDateString()}
 							</td>
 							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
-									{#if job.validation_result?.dataProvided}
+									{#if job.dataProvided}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
 									{:else}
 										<MaterialSymbolsClose class="text-error h-6 w-6" />
@@ -256,7 +328,7 @@
 							</td>
 							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
-									{#if job.validation_result?.dataCharacteristics}
+									{#if job.dataCharacteristics}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
 									{:else}
 										<MaterialSymbolsClose class="text-error h-6 w-6" />
@@ -265,7 +337,7 @@
 							</td>
 							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
-									{#if job.validation_result?.metrics}
+									{#if job.metrics}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
 									{:else}
 										<MaterialSymbolsClose class="text-error h-6 w-6" />
@@ -274,7 +346,7 @@
 							</td>
 							<td onclick={() => openValidation(job)}>
 								<div class="w-8">
-									{#if job.validation_result?.published}
+									{#if job.published}
 										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
 									{:else}
 										<MaterialSymbolsClose class="text-error h-6 w-6" />
@@ -306,7 +378,10 @@
 										<li>
 											<button
 												class="flex items-center gap-2"
-												onclick={() => handleDeleteValidation(job.val_id)}
+												onclick={(event) => {
+													event.stopPropagation();
+													handleDeleteValidation(job.val_id);
+												}}
 											>
 												<MaterialSymbolsDeleteOutline class="h-5 w-5" />Delete
 											</button>
@@ -321,18 +396,32 @@
 		</table>
 	</div>
 
-	<ValidationModal
-		modelId={typedModel.checkpoint_id}
-		model={typedModel}
-		on:close={handleModalClose}
-		on:validationChange={handleValidationChange}
-	/>
+	{#if showValidationModal}
+		<ValidationModal
+			modelId={modelData.checkpoint_id || modelData['@id']}
+			model={modelData as any}
+			on:close={handleModalClose}
+			on:validationChange={handleValidationChange}
+		/>
+	{/if}
 
-	{#if showResultsModal}
+	<!--
+	{#if showResultsModal && currentValidationJob}
 		<ResultsModal
 			validationJob={currentValidationJob}
 			isOpen={showResultsModal}
 			on:close={() => (showResultsModal = false)}
 		/>
 	{/if}
+-->
+
+	<!--
+	<pre
+		class="relative h-52 w-full overflow-scroll overscroll-contain rounded-lg bg-slate-100 p-1 text-left text-xs"
+		id="textToCopy"><button
+			class="btn btn-ghost btn-sm tooltip absolute right-0 top-0"
+			onclick={() => {
+				navigator.clipboard.writeText(document.getElementById('textToCopy').textContent);
+			}}>Copy</button>{JSON.stringify(modelData, null, 2)}</pre>
+-->
 </div>
