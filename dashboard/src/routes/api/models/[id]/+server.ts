@@ -72,6 +72,9 @@ export const GET: RequestHandler = async ({ params }) => {
       });
     }
 
+    // Ensure the evaluation list is empty on screen for the model display
+    modelWithCheckpointId['Evaluation results1'] = [];
+
     return json({
       success: true,
       model: modelWithCheckpointId
