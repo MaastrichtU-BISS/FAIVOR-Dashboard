@@ -13,6 +13,7 @@ export const GET: RequestHandler = async () => {
 
     const models = await response.json();
 
+
     // Transform to a standardized format
     const transformedModels = Object.entries(models).map(([id, data]: [string, any]) => ({
       id,
