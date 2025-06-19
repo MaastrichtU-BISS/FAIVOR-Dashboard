@@ -14,7 +14,7 @@ export default {
   },
   layout: {
     // Using SvelteKit alias $lib which should resolve to dashboard/src/lib
-    _: 'dashboard/src/lib/components/ui/markdown-layouts/default.svelte',
+    _: 'src/lib/components/ui/markdown-layouts/default.svelte',
     // If the above doesn't work, try an absolute path from project root if mdsvex resolves from there
     // _: '/dashboard/src/lib/components/ui/markdown-layouts/default.svelte',
   },
