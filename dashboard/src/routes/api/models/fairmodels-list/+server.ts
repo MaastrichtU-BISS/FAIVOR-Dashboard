@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
   try {
-    const response = await fetch('https://v2.fairmodels.org', {
+    const response = await fetch('https://v3.fairmodels.org', {
       headers: { 'Accept': 'application/json' }
     });
 
@@ -18,7 +18,7 @@ export const GET: RequestHandler = async () => {
       id,
       title: data.title,
       created_at: data.time,
-      url: `https://v2.fairmodels.org/instance/${id}`,
+      url: `https://v3.fairmodels.org/instance/${id}`,
       source: 'fairmodels.org'
     }));
 

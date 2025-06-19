@@ -49,7 +49,7 @@ export function formDataToValidationData(formData: ValidationFormData): Validati
     } : null
   });
 
-  return {
+  const validationData: ValidationData = {
     validation_name: formData.validationName || undefined,
     dataset_info: {
       userName: formData.userName || undefined,
@@ -100,6 +100,9 @@ export function formDataToValidationData(formData: ValidationFormData): Validati
       validation_results: validationResults && validationResults.stage !== 'none' ? validationResults : undefined
     }
   };
+
+
+  return validationData;
 }
 
 /**
@@ -171,6 +174,41 @@ export function validationJobToFormData(job: ValidationJob): ValidationFormData 
   // Load validation results into the store if they exist
   if (job.validation_result?.validation_results) {
     validationFormStore.setValidationResults(job.validation_result.validation_results);
+  } else if (job.validation_status === 'completed' && job.validation_result) {
+    // If validation is completed but validation_results is missing,
+    // try to reconstruct basic validation results for table visibility
+    const reconstructedResults: ValidationResults = {
+      stage: 'complete'
+    };
+
+    // Check if we have CSV validation data stored elsewhere
+    if (job.validation_result.fairness_metrics || job.validation_result.performance_metrics) {
+      // If we have metrics, assume both CSV and model validation were successful
+      reconstructedResults.csvValidation = {
+        success: true,
+        message: 'CSV validation completed successfully',
+        details: {
+          valid: true,
+          csv_columns: [],
+          model_input_columns: [],
+          message: 'Validation completed successfully'
+        }
+      };
+
+      reconstructedResults.modelValidation = {
+        success: true,
+        message: 'Model validation completed successfully',
+        details: {
+          model_name: job.validation_name || 'Validated Model',
+          metrics: {
+            ...job.validation_result.fairness_metrics,
+            ...job.validation_result.performance_metrics
+          }
+        }
+      };
+    }
+
+    validationFormStore.setValidationResults(reconstructedResults);
   }
 
   return {

@@ -163,7 +163,7 @@
 		<!-- Add Validation Job Button -->
 		<button class="btn btn-primary" onclick={openNewValidation}>New Validation</button>
 	</div>
-
+	<!-- <pre class="h-52 overflow-scroll text-xs">{JSON.stringify(modelData, null, 2)}</pre> -->
 	<!-- Model Header -->
 	<div class="flex items-start gap-4">
 		<div class="bg-base-200 flex h-16 w-16 items-center justify-center rounded-lg">
@@ -173,6 +173,7 @@
 			<h1 class="text-2xl font-bold">
 				{typedModel.metadata.title || typedModel.title || typedModel.fair_model_id}
 			</h1>
+
 			<p class="text-base-content/70">{typedModel.description}</p>
 			<div class="mt-2 flex flex-wrap gap-2">
 				{#if typedModel.metadata.applicabilityCriteria}

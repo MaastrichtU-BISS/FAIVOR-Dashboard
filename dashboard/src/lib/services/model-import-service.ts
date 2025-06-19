@@ -61,7 +61,7 @@ export class ModelImportService {
    * Extract FAIR model ID from URL
    */
   static extractFairModelId(url: string): string {
-    // Extract the UUID from URL like https://v2.fairmodels.org/instance/3f400afb-df5e-4798-ad50-0687dd439d9b
+    // Extract the UUID from URL like https://v3.fairmodels.org/instance/3f400afb-df5e-4798-ad50-0687dd439d9b
     const match = url.match(/\/instance\/([a-f0-9-]+)$/);
     return match ? match[1] : url;
   }
