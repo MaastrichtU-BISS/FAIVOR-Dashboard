@@ -38,7 +38,7 @@ dashboard/                 # Main SvelteKit application
 │   │   ├── components/   # Reusable Svelte components
 │   │   ├── db/          # Database utilities and types
 │   │   ├── server/      # Server-side utilities
-│   │   └── stores/      # Svelte stores
+│   │   └── stores/      # Svelte stores (in Sevelte v5 reactivity system)
 │   ├── routes/          # SvelteKit file-based routing
 │   └── auth.ts          # Authentication configuration
 ├── migrations/          # Database migration files

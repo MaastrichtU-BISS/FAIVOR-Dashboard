@@ -4,8 +4,15 @@ import { sql } from '$lib/db';
 import type { ValidationFormData, CreateValidationRequest } from '$lib/types/validation';
 import { formDataToValidationData } from '$lib/utils/validation-transform';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
   try {
+    const session = await locals.auth();
+    if (!session?.user?.id) {
+      console.error('User not authenticated');
+      return json({ error: 'User not authenticated' }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const formData: ValidationFormData = await request.json();
     const startTime = new Date().toISOString();
 
@@ -49,12 +56,14 @@ export const POST: RequestHandler = async ({ request }) => {
       INSERT INTO validations (
         fair_model_id,
         model_checkpoint_id,
+        user_id,
         validation_status,
         start_datetime,
         data
       ) VALUES (
         ${model[0].fair_model_id},
         ${formData.modelId},
+        ${userId},
         ${'pending'},
         ${startTime},
         ${sql.json(validationData as any)}

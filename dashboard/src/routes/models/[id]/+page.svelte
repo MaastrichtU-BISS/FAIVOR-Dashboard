@@ -122,30 +122,17 @@
 	}
 
 	async function refreshModelData() {
-		const modelIdUrl = modelData['@id'];
-		const checkpointId = modelData.checkpoint_id;
+		const checkpointId = modelData.checkpoint_id; // This is the ID our API route /api/models/[id] expects
 
-		let idToFetch: string | undefined = undefined;
-
-		if (modelIdUrl) {
-			const parts = modelIdUrl.split('/');
-			const potentialUuid = parts[parts.length - 1];
-			if (potentialUuid && potentialUuid.length === 36 && potentialUuid.includes('-')) {
-				idToFetch = potentialUuid;
-			}
-		}
-
-		if (!idToFetch && checkpointId) {
-			idToFetch = checkpointId;
-		}
-
-		if (!idToFetch) {
-			console.error('Cannot refresh model data: Missing model identifier (@id or checkpoint_id).');
-			toast.error('Could not refresh model data: Identifier missing.');
+		if (!checkpointId) {
+			console.error('Cannot refresh model data: Missing model checkpoint_id.');
+			toast.error('Could not refresh model data: Checkpoint identifier missing.');
 			return;
 		}
 
-		console.log('Refreshing model data for ID:', idToFetch);
+		const idToFetch = checkpointId; // Always use checkpoint_id
+
+		console.log('Refreshing model data for ID (checkpoint_id):', idToFetch);
 		try {
 			const response = await fetch(`/api/models/${idToFetch}`);
 			if (!response.ok) {
@@ -411,7 +398,10 @@
 		id="textToCopy"><button
 			class="btn btn-ghost btn-sm tooltip absolute right-0 top-0"
 			onclick={() => {
-				navigator.clipboard.writeText(document.getElementById('textToCopy').textContent);
+				const el = document.getElementById('textToCopy');
+				if (el) {
+					navigator.clipboard.writeText(el.textContent || '');
+				}
 			}}>Copy</button>{JSON.stringify(modelData, null, 2)}</pre>
 	===
 
@@ -431,7 +421,10 @@
 		id="textToCopy"><button
 			class="btn btn-ghost btn-sm tooltip absolute right-0 top-0"
 			onclick={() => {
-				navigator.clipboard.writeText(document.getElementById('textToCopy').textContent);
+				const el = document.getElementById('textToCopy');
+				if (el) {
+					navigator.clipboard.writeText(el.textContent || '');
+				}
 			}}>Copy</button>{JSON.stringify(modelData, null, 2)}</pre>
 -->
 </div>

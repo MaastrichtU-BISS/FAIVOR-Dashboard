@@ -2,7 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { ModelImportService } from '$lib/services/model-import-service'; // Import the service
 import { sql } from '$lib/db';
-import type { FullJsonLdModel } from '$lib/stores/models/types';
+import type { FullJsonLdModel, JsonLdEvaluationResultItem, JsonLdPerformanceMetricItem, JsonLdDatasetCharacteristicItem } from '$lib/stores/models/types';
+import type { ValidationData } from '$lib/types/validation';
 
 export const GET: RequestHandler = async ({ params }) => {
   const checkpointId = params.id;
@@ -36,44 +37,62 @@ export const GET: RequestHandler = async ({ params }) => {
       // fair_model_id: ModelImportService.extractFairModelId(fullModelData['@id'] || fairModelUrl)
     };
 
-    // The frontend's +page.svelte now expects the FullJsonLdModel structure directly.
-    // The 'Evaluation results1' array within fullModelData will be used for validations.
-    // Fetch local validation data to merge dataset_info.
-    const localValidationsRows: { val_id: string; data: import('$lib/types/validation').ValidationData, fair_eval_id: string | null }[] = await sql`
-      SELECT val_id, data, data->>'fair_eval_id' AS fair_eval_id FROM validations
+    // Fetch local validation data which will be the primary source for 'Evaluation results1'
+    const localValidationsRows: {
+      val_id: number;
+      start_datetime: string;
+      data: ValidationData;
+      fair_eval_id: string | null;
+    }[] = await sql`
+      SELECT val_id, start_datetime, data, data->>'fair_eval_id' AS fair_eval_id
+      FROM validations
       WHERE model_checkpoint_id = ${checkpointId} AND deleted_at IS NULL
+      ORDER BY start_datetime DESC
     `;
 
-    const localValidationsMap = new Map<string, import('$lib/types/validation').ValidationData>();
-    for (const row of localValidationsRows) {
-      if (row.fair_eval_id) { // Assuming fair_eval_id stores the @id of JsonLdEvaluationResultItem
-        localValidationsMap.set(row.fair_eval_id, row.data);
-      }
-      // Fallback or alternative mapping if fair_eval_id is not reliable:
-      // Could map by index or another property if available and consistent.
-    }
+    const transformedEvaluations: JsonLdEvaluationResultItem[] = localValidationsRows.map(row => {
+      const validationData = row.data;
+      const metricsData = validationData.validation_result?.validation_results?.modelValidation?.details?.metrics;
+      const performanceMetrics: JsonLdPerformanceMetricItem[] = [];
 
-    if (fullModelData['Evaluation results1'] && Array.isArray(fullModelData['Evaluation results1'])) {
-      fullModelData['Evaluation results1'] = fullModelData['Evaluation results1'].map(evalItem => {
-        const evalItemId = evalItem['@id'];
-        if (evalItemId && localValidationsMap.has(evalItemId)) {
-          const localData = localValidationsMap.get(evalItemId);
-          return {
-            ...evalItem,
-            // Attach dataset_info from the local database record
-            dataset_info: localData?.dataset_info
-          };
+      if (metricsData) {
+        for (const key in metricsData) {
+          performanceMetrics.push({
+            // '@type': 'Performance metric', // This was incorrect and removed. The type is implicitly Performance metric by being in this array.
+            'Metric Label': { 'rdfs:label': key }, // Simplified: using metric key as label
+            'Measured metric (mean value)': {
+              '@type': 'xsd:decimal', // This is correct as part of JsonLdValue
+              '@value': String(metricsData[key])
+            }
+            // Add other optional fields like 'Measured metric (lower bound...)'
+            // or 'Acceptance level' if they are available in validationData.metrics
+          });
         }
-        // If no local match, return the item as is, or with default/empty dataset_info
-        return {
-          ...evalItem,
-          dataset_info: undefined // Or some default structure if needed by frontend
-        };
-      });
-    }
+      }
 
-    // Ensure the evaluation list is empty on screen for the model display
-    modelWithCheckpointId['Evaluation results1'] = [];
+      // Dataset characteristics: For now, this will be an empty array.
+      // The frontend expects specific keys like 'The number of subject for evaluation' or 'Volume'.
+      // These are not directly available in `ValidationData` in a structured way that maps to JSON-LD.
+      // This might affect how 'hasDatasetChars' is determined on the frontend, potentially impacting status display.
+      const datasetCharacteristics: JsonLdDatasetCharacteristicItem[] = [];
+
+      return {
+        '@id': row.fair_eval_id || `local-eval-${String(row.val_id)}`,
+        '@type': 'Evaluation result', // Standard type for evaluation results in JSON-LD
+        'User Note': { '@value': validationData.validation_name || `Validation ${row.val_id}` },
+        'pav:createdOn': row.start_datetime, // Ensure this is in ISO 8601 format if not already
+        'Performance metric': performanceMetrics,
+        'Dataset characteristics': datasetCharacteristics,
+        'user/hospital': { '@value': validationData.dataset_info?.userName || '' },
+        // Pass dataset_info directly as the frontend page expects to find it here
+        // for constructing UiValidationJob
+        dataset_info: validationData.dataset_info,
+        // Include other fields if the frontend's UiValidationJob mapping relies on them
+        // from the original JsonLdEvaluationResultItem structure.
+      } as JsonLdEvaluationResultItem; // Cast to ensure type alignment
+    });
+
+    modelWithCheckpointId['Evaluation results1'] = transformedEvaluations;
 
     return json({
       success: true,
