@@ -1,4 +1,5 @@
 import { visit } from 'unist-util-visit'
+import path from 'path'; // Added import
 
 import autolinkHeadings from 'rehype-autolink-headings'
 import slugPlugin from 'rehype-slug'
@@ -13,7 +14,7 @@ export default {
     dashes: 'oldschool'
   },
   layout: {
-    _: "./src/lib/components/ui/markdown-layouts/default.svelte",
+    _: path.resolve('./src/lib/components/ui/markdown-layouts/default.svelte'),
   },
   remarkPlugins: [
     videos,
