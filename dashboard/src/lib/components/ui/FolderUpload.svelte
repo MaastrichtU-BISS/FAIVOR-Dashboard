@@ -230,7 +230,7 @@
 					: ''}"
 			>
 				<div class="transition-transform duration-200 {isDragging ? 'scale-110' : ''}">
-					<MaterialSymbolsFolder class="text-base-content/40 h-12 w-12" />
+					<MaterialSymbolsFolder class="text-base-content/40 text-primary h-12 w-12" />
 				</div>
 				<div class="text-center">
 					<h3 class="text-lg font-semibold">Select Dataset Folder</h3>
