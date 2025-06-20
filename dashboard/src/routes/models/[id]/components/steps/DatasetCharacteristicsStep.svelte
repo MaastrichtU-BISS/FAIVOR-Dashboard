@@ -23,10 +23,7 @@
 	let datasetDescription = $state(formData.datasetDescription || '');
 	let datasetCharacteristics = $state(formData.datasetCharacteristics || '');
 
-	// Show/hide dataset analysis section
-	let showDatasetAnalysis = $state(false);
-
-	// Check if we have uploaded data
+	// Check if we have uploaded data - analysis will show automatically
 	let hasUploadedData = $derived(
 		!!(formData.uploadedFolder?.data && formData.folderName)
 	);
@@ -145,47 +142,33 @@
 		<!-- If it needs to display data from calculateSummary, that logic needs to be added. -->
 	</div>
 
-	<!-- Dataset Analysis Section -->
-	{#if hasUploadedData}
+	<!-- Dataset Analysis Section - Shows automatically when data is available -->
+	{#if hasUploadedData && formData.uploadedFolder}
 		<div class="mt-8 space-y-4">
-			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-3">
-					<MaterialSymbolsAnalytics class="h-6 w-6 text-primary" />
-					<h2 class="text-xl font-semibold">Dataset Analysis</h2>
-				</div>
-				<button
-					class="btn btn-outline btn-sm"
-					onclick={() => showDatasetAnalysis = !showDatasetAnalysis}
-				>
-					{showDatasetAnalysis ? 'Hide' : 'Show'} Analysis
-				</button>
+			<div class="flex items-center gap-3 mb-6">
+				<MaterialSymbolsAnalytics class="h-6 w-6 text-primary" />
+				<h2 class="text-xl font-semibold">Dataset Analysis</h2>
+				<div class="badge badge-primary badge-sm">Auto-generated</div>
 			</div>
 
-			{#if showDatasetAnalysis && formData.uploadedFolder}
-				<div class="border-t pt-6">
-					<DatasetVisualization 
-						folderFiles={formData.uploadedFolder}
-						folderName={formData.folderName || 'Dataset'}
-					/>
+			<div class="bg-base-100 rounded-lg border border-base-300">
+				<DatasetVisualization 
+					folderFiles={formData.uploadedFolder}
+					folderName={formData.folderName || 'Dataset'}
+				/>
+			</div>
+		</div>
+	{:else if !hasUploadedData}
+		<div class="mt-8">
+			<div class="card bg-base-100 border border-base-300">
+				<div class="card-body text-center py-8">
+					<MaterialSymbolsAnalytics class="h-12 w-12 text-base-content/40 mx-auto mb-4" />
+					<h3 class="text-lg font-medium mb-2">Dataset Analysis</h3>
+					<p class="text-base-content/70 text-sm">
+						Upload a dataset in Step 1 to see detailed statistics, distributions, and visualizations automatically.
+					</p>
 				</div>
-			{:else}
-				<div class="card bg-base-100 border border-base-300">
-					<div class="card-body text-center py-8">
-						<MaterialSymbolsAnalytics class="h-12 w-12 text-base-content/40 mx-auto mb-4" />
-						<h3 class="text-lg font-medium mb-2">Dataset Analysis Available</h3>
-						<p class="text-base-content/70 text-sm mb-4">
-							View detailed statistics, distributions, and visualizations for your uploaded dataset.
-						</p>
-						<button
-							class="btn btn-primary btn-sm"
-							onclick={() => showDatasetAnalysis = true}
-						>
-							<MaterialSymbolsAnalytics class="h-4 w-4" />
-							View Dataset Analysis
-						</button>
-					</div>
-				</div>
-			{/if}
+			</div>
 		</div>
 	{/if}
 </div>

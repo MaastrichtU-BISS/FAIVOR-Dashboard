@@ -19,9 +19,10 @@
 	let analysisError = $state<string | null>(null);
 	let gridColumns = $state(3);
 
-	onMount(async () => {
+	// Reactive analysis when folderFiles.data changes
+	$effect(() => {
 		if (folderFiles.data) {
-			await analyzeDataset(folderFiles.data);
+			analyzeDataset(folderFiles.data);
 		}
 	});
 
