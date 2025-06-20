@@ -315,7 +315,7 @@ function createValidationFormStore() {
           errors.uploadedFolder = 'Folder must contain metadata.json or model must have metadata configured';
         }
         if (!state.uploadedFolder.data) {
-          errors.uploadedFolder = 'Folder must contain data.csv';
+          errors.uploadedFolder = 'Folder must contain a CSV file';
         }
       }
 

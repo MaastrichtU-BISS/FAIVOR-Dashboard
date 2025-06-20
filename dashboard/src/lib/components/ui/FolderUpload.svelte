@@ -1,4 +1,12 @@
 <!-- src/lib/components/ui/FolderUpload.svelte -->
+<!--
+Dataset Upload Component
+- Supports uploading folders containing CSV files (any CSV filename accepted)
+- Supports direct CSV file upload
+- Accepts drag and drop for both folders and CSV files
+- Validates file types and structure
+- Integrates with validation form store
+-->
 <script lang="ts">
 	import MaterialSymbolsFolder from '~icons/material-symbols/folder';
 	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
@@ -29,6 +37,7 @@
 	}: Props = $props();
 
 	let folderInput: HTMLInputElement;
+	let csvInput: HTMLInputElement;
 	let isDragging = $state(false);
 	let validationResult = $state<{
 		isValid: boolean;
@@ -39,6 +48,13 @@
 		const input = event.target as HTMLInputElement;
 		if (input.files && input.files.length > 0) {
 			processFolderUpload(input.files);
+		}
+	}
+
+	function handleCsvSelect(event: Event) {
+		const input = event.target as HTMLInputElement;
+		if (input.files && input.files.length > 0) {
+			processCsvUpload(input.files[0]);
 		}
 	}
 
@@ -67,6 +83,15 @@
 			const files = event.dataTransfer.files;
 
 			if (items && items.length > 0) {
+				// Check if we have a single CSV file
+				if (items.length === 1 && items[0].kind === 'file') {
+					const file = items[0].getAsFile();
+					if (file && (file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv'))) {
+						processCsvUpload(file);
+						return;
+					}
+				}
+
 				// Try to handle directory items first
 				const fileList: File[] = [];
 				const promises: Promise<void>[] = [];
@@ -104,7 +129,15 @@
 					}
 				});
 			} else if (files.length > 0) {
-				processFolderUpload(files);
+				// Check if it's a single CSV file
+				if (
+					files.length === 1 &&
+					(files[0].type === 'text/csv' || files[0].name.toLowerCase().endsWith('.csv'))
+				) {
+					processCsvUpload(files[0]);
+				} else {
+					processFolderUpload(files);
+				}
 			}
 		}
 	}
@@ -168,6 +201,35 @@
 		}
 	}
 
+	function processCsvUpload(file: File) {
+		// Create a simple validation for single CSV file
+		const validation = {
+			isValid: file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv'),
+			errors: [] as string[],
+			validFiles: { data: file } as DatasetFolderFiles
+		};
+
+		if (!validation.isValid) {
+			validation.errors.push('Please select a valid CSV file');
+		}
+
+		validationResult = {
+			isValid: validation.isValid,
+			errors: validation.errors
+		};
+
+		if (validation.isValid) {
+			const fileName = file.name.replace('.csv', '').replace(/[^a-zA-Z0-9]/g, '_');
+			folderFiles = validation.validFiles;
+			folderName = fileName;
+
+			// Update the validation form store with the files
+			validationFormStore.setFolderFiles(validation.validFiles, fileName);
+
+			onFolderSelected(validation.validFiles, fileName);
+		}
+	}
+
 	function removeFolder() {
 		if (readonly) return;
 		folderFiles = undefined;
@@ -175,6 +237,9 @@
 		validationResult = { isValid: true, errors: [] };
 		if (folderInput) {
 			folderInput.value = '';
+		}
+		if (csvInput) {
+			csvInput.value = '';
 		}
 
 		// Clear files from the validation form store
@@ -186,6 +251,12 @@
 	function openFolderDialog() {
 		if (!readonly) {
 			folderInput?.click();
+		}
+	}
+
+	function openCsvDialog() {
+		if (!readonly) {
+			csvInput?.click();
 		}
 	}
 
@@ -212,17 +283,15 @@
 	<!-- Folder Upload Area - Only show if no folder is selected -->
 	{#if !folderFiles || !folderName}
 		<div
-			class="border-base-300 hover:border-primary/50 relative cursor-pointer rounded-lg border-2 border-dashed p-8 transition-all duration-200 ease-in-out {isDragging
+			class="border-base-300 hover:border-primary/50 relative rounded-lg border-2 border-dashed p-8 transition-all duration-200 ease-in-out {isDragging
 				? 'border-primary bg-primary/5'
 				: ''} {readonly ? 'cursor-not-allowed opacity-50' : ''}"
 			ondragenter={handleDragEnter}
 			ondragover={handleDragOver}
 			ondragleave={handleDragLeave}
 			ondrop={handleDrop}
-			onclick={openFolderDialog}
-			onkeydown={(e) => e.key === 'Enter' && openFolderDialog()}
-			role="button"
-			tabindex="0"
+			role="region"
+			aria-label="File upload area"
 		>
 			<div
 				class="flex flex-col items-center justify-center gap-4 transition-transform duration-200 {isDragging
@@ -233,10 +302,32 @@
 					<MaterialSymbolsFolder class="text-base-content/40 text-primary h-12 w-12" />
 				</div>
 				<div class="text-center">
-					<h3 class="text-lg font-semibold">Select Dataset Folder</h3>
-					<p class="text-base-content/70 text-sm">Choose a folder containing data.csv</p>
-					<p class="text-base-content/50 mt-1 text-xs">or drag and drop folder here</p>
+					<h3 class="text-lg font-semibold">Upload Dataset</h3>
+					<p class="text-base-content/70 text-sm">
+						Choose a folder containing a CSV file or upload a CSV file directly
+					</p>
+					<p class="text-base-content/50 mt-1 text-xs">or drag and drop here</p>
 				</div>
+
+				{#if !readonly}
+					<div class="flex gap-3">
+						<button class="btn btn-primary btn-sm" onclick={openFolderDialog} type="button">
+							<MaterialSymbolsFolder class="h-4 w-4" />
+							Select Folder
+						</button>
+						<button class="btn btn-outline btn-sm" onclick={openCsvDialog} type="button">
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/>
+							</svg>
+							Select CSV File
+						</button>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Hidden file input for folder selection -->
@@ -247,6 +338,16 @@
 				webkitdirectory
 				multiple
 				onchange={handleFolderSelect}
+				disabled={readonly}
+			/>
+
+			<!-- Hidden file input for single CSV file selection -->
+			<input
+				bind:this={csvInput}
+				type="file"
+				class="hidden"
+				accept=".csv"
+				onchange={handleCsvSelect}
 				disabled={readonly}
 			/>
 		</div>
@@ -306,7 +407,7 @@
 					{#if folderFiles.data}
 						<div class="flex items-center gap-2 text-sm">
 							<MaterialSymbolsCheck class="text-success h-4 w-4" />
-							<span>data.csv</span>
+							<span>{folderFiles.data.name}</span>
 							<span class="text-base-content/50">
 								({formatFileSize(folderFiles.data.size || 0)})
 							</span>

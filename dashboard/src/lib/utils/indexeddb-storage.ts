@@ -182,16 +182,15 @@ export function validateDatasetFolder(
     validFiles.metadata = metadataFile; // Still capture it if present
   }
 
-  // Look for data.csv - check both direct name and relative path
+  // Look for any CSV file - check both direct name and relative path
   const dataFile = fileArray.find(f => {
     const fileName = f.name.toLowerCase();
     const relativePath = (f as any).webkitRelativePath?.toLowerCase() || '';
-    return fileName === 'data.csv' ||
-      relativePath.endsWith('/data.csv') ||
-      relativePath.endsWith('data.csv');
+    return fileName.endsWith('.csv') ||
+      relativePath.endsWith('.csv');
   });
   if (!dataFile) {
-    errors.push('data.csv file is required');
+    errors.push('A CSV file is required');
   } else {
     validFiles.data = dataFile;
   }
