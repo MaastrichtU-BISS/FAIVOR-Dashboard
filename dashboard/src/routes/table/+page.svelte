@@ -40,9 +40,14 @@
 	}
 
 	// Helper function to get features by type
-	function getFeaturesByType(stats: SummaryStatistics) {
+	function getFeaturesByType(stats: SummaryStatistics | null | undefined) {
 		const numerical: (Feature & { name: string })[] = [];
 		const categorical: (Feature & { name: string })[] = [];
+
+		if (!stats || typeof stats !== 'object') {
+			console.warn('getFeaturesByType received invalid stats input:', stats);
+			return { numerical, categorical };
+		}
 
 		for (const [key, value] of Object.entries(stats)) {
 			const processedValue = {

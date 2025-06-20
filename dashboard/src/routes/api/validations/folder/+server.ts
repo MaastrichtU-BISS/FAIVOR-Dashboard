@@ -62,7 +62,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     if (!dataFile) {
-      return json({ error: 'data.csv file is required' }, { status: 400 });
+      return json({ error: 'CSV file is required' }, { status: 400 });
     }
 
     // Get the model first to ensure it exists and check for metadata

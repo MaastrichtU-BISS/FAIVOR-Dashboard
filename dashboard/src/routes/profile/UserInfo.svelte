@@ -5,7 +5,9 @@
 	import ChangePasswordModal from './ChangePasswordModal.svelte';
 
 	let showPasswordModal = false;
-	$: isCredentialsProvider = $page.data?.session?.provider === 'credentials';
+	// TODO: Fix provider detection - session.provider doesn't exist in current Session type
+	// let isCredentialsProvider = $derived($page.data?.session?.provider === 'credentials');
+	let isCredentialsProvider = $derived(false); // Temporarily disabled until proper provider detection is implemented
 </script>
 
 <div class="w-11/12">
@@ -16,7 +18,7 @@
 					class="!object-contain"
 					src={$page.data?.session?.user?.image ?? '/images/profile.avif'}
 					alt="username"
-					on:error={(e: Event) => {
+					onerror={(e: Event) => {
 						if (e.target instanceof HTMLImageElement) {
 							console.error('Image failed to load:', e.target.src);
 							e.target.onerror = null; // Prevent infinite loop
@@ -41,7 +43,7 @@
 
 			<!-- <LogOutButton /> -->
 			{#if isCredentialsProvider}
-				<button class="btn btn-outline mt-4" on:click={() => (showPasswordModal = true)}>
+				<button class="btn btn-outline mt-4" onclick={() => (showPasswordModal = true)}>
 					<Key />
 					Change Password
 				</button>

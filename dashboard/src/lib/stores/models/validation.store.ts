@@ -83,11 +83,15 @@ export interface ValidationResults {
     success: boolean;
     message: string;
     details?: CSVValidationResponse;
+    warning?: string; // Added for CSV validation warnings
+    mock_columns_added?: string[]; // Added for CSV mock columns
   };
   modelValidation?: {
     success: boolean;
     message: string;
     details?: ModelValidationResponse;
+    warning?: string; // Added for model validation warnings
+    mockColumns?: string[]; // Added for model mock columns
   };
   stage: 'none' | 'csv' | 'model' | 'complete';
 }
@@ -311,7 +315,7 @@ function createValidationFormStore() {
           errors.uploadedFolder = 'Folder must contain metadata.json or model must have metadata configured';
         }
         if (!state.uploadedFolder.data) {
-          errors.uploadedFolder = 'Folder must contain data.csv';
+          errors.uploadedFolder = 'Folder must contain a CSV file';
         }
       }
 

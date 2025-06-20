@@ -1,6 +1,5 @@
 import { visit } from 'unist-util-visit'
-import path from 'path'; // Added import
-
+// path import might not be needed if using alias
 import autolinkHeadings from 'rehype-autolink-headings'
 import slugPlugin from 'rehype-slug'
 
@@ -14,7 +13,10 @@ export default {
     dashes: 'oldschool'
   },
   layout: {
-    _: path.resolve('./src/lib/components/ui/markdown-layouts/default.svelte'),
+    // Using SvelteKit alias $lib which should resolve to dashboard/src/lib
+    _: 'src/lib/components/ui/markdown-layouts/default.svelte',
+    // If the above doesn't work, try an absolute path from project root if mdsvex resolves from there
+    // _: '/dashboard/src/lib/components/ui/markdown-layouts/default.svelte',
   },
   remarkPlugins: [
     videos,

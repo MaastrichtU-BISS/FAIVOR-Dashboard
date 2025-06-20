@@ -45,7 +45,7 @@ export class FolderValidationService {
     }
 
     if (!dataFile) {
-      errors.push('data.csv file is required');
+      errors.push('CSV file is required');
     } else if (!dataFile.name.endsWith('.csv')) {
       errors.push('Data file must be a CSV file');
     }

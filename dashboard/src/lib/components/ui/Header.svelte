@@ -7,7 +7,6 @@
 	import IconamoonMenuBurgerHorizontalBold from '~icons/iconamoon/menu-burger-horizontal-bold';
 	import menuItems from './menu-itmes';
 
-	let activeCategory = '';
 	let isDesktop = $state(true);
 
 	onMount(() => {
@@ -49,12 +48,7 @@
 			<!-- Desktop menu -->
 			<div class="z-10 hidden w-full flex-1 justify-end space-x-4 sm:flex lg:space-x-8">
 				{#each menuItems as link}
-					<a
-						class="menu-link"
-						onclick={() => (active = link.title)}
-						class:active={activeCategory === link.title}
-						href={link.path}
-					>
+					<a class="menu-link" href={link.path}>
 						{link.displayTitle}
 					</a>
 				{/each}

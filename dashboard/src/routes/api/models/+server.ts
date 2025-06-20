@@ -52,7 +52,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const importData = await ModelImportService.importModel(url);
 
     // Check if model exists by checkpoint ID (in case URL changed but content is same)
-    const existsByCheckpoint = await ModelRepository.existsByCheckpointId(importData.checkpointId);
+    const existsByCheckpoint = await ModelRepository.existsByCheckpointId(importData.dbFields.checkpoint_id);
     if (existsByCheckpoint) {
       return json(
         { success: false, error: 'Model with this content already exists' },
@@ -62,18 +62,20 @@ export const POST: RequestHandler = async ({ request }) => {
 
     // Save to database
     const model = await ModelRepository.create({
-      checkpointId: importData.checkpointId,
-      fairModelId: importData.fairModelId,
-      fairModelUrl: importData.fairModelUrl,
-      metadata: importData.metadata,
-      description: importData.description
+      checkpointId: importData.dbFields.checkpoint_id,
+      fairModelId: importData.dbFields.fair_model_id,
+      fairModelUrl: importData.dbFields.fair_model_url,
+      metadata: importData.dbFields.metadata,
+      description: importData.dbFields.description
+      // created_at and updated_at are handled by the repository or DB by default
     });
 
     return json({
       success: true,
       model: {
-        ...model,
-        title: importData.metadata.title || importData.title
+        ...model, // model from DB already has the correct fields
+        // title can be derived if needed, but ensure it's consistent
+        // title: importData.dbFields.metadata.title // Assuming title is in metadata
       },
       message: 'Model imported successfully'
     });
