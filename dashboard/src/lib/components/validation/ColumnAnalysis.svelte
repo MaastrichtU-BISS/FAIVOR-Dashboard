@@ -110,16 +110,16 @@
 	// Prepare histogram data (convert distribution to the format expected by /table route)
 	function getHistogramData() {
 		const histograms: Record<string, Record<string, number>> = {};
-		
-		categoricalColumns.forEach(column => {
+
+		categoricalColumns.forEach((column) => {
 			if (column.distribution && column.distribution.length > 0) {
 				histograms[column.name] = {};
-				column.distribution.forEach(item => {
+				column.distribution.forEach((item) => {
 					histograms[column.name][String(item.value)] = item.count;
 				});
 			}
 		});
-		
+
 		return histograms;
 	}
 
@@ -227,7 +227,7 @@
 {/if}
 
 <!-- Category Distributions (Histograms) - exact copy from /table route -->
-{#if categoricalColumns.some(c => c.distribution && c.distribution.length > 0)}
+{#if categoricalColumns.some((c) => c.distribution && c.distribution.length > 0)}
 	<div class="card bg-base-100 shadow-xl">
 		<div class="card-body">
 			<div class="mb-6 flex items-center justify-between">
@@ -260,7 +260,7 @@
 						? 'md:grid-cols-3'
 						: 'md:grid-cols-4'}"
 			>
-				{#each categoricalColumns.filter(c => c.distribution && c.distribution.length > 0) as feature}
+				{#each categoricalColumns.filter((c) => c.distribution && c.distribution.length > 0) as feature}
 					<div class="card bg-base-200">
 						<div class="card-body">
 							<div class="mb-4 flex items-center justify-between">

@@ -24,9 +24,7 @@
 	let datasetCharacteristics = $state(formData.datasetCharacteristics || '');
 
 	// Check if we have uploaded data - analysis will show automatically
-	let hasUploadedData = $derived(
-		!!(formData.uploadedFolder?.data && formData.folderName)
-	);
+	let hasUploadedData = $derived(!!(formData.uploadedFolder?.data && formData.folderName));
 
 	// Store initial values to track actual changes
 	// We don't have a specific service for this step, so we manage initial values locally
@@ -76,7 +74,7 @@
 
 <div class="space-y-6">
 	<div class="grid grid-cols-2 gap-8">
-		<div>
+		<!-- <div>
 			<label class="label" for="userName-step2">User</label>
 			<input
 				type="text"
@@ -87,9 +85,9 @@
 				{readonly}
 				oninput={() => handleFieldUpdate('userName', userName)}
 			/>
-		</div>
+		</div> -->
 
-		<div>
+		<!-- <div>
 			<label class="label" for="date-step2">Date</label>
 			<input
 				type="date"
@@ -99,13 +97,13 @@
 				{readonly}
 				onchange={handleDateChange}
 			/>
-		</div>
+		</div> -->
 	</div>
 	<div class="grid grid-cols-2 gap-8">
 		<div>
 			<h3 class="text-lg font-medium">Dataset description</h3>
 			<textarea
-				class="textarea textarea-bordered h-48 w-full"
+				class="textarea textarea-bordered h-24 w-full"
 				placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
 				bind:value={datasetDescription}
 				{readonly}
@@ -115,7 +113,7 @@
 		<div>
 			<h3 class="text-lg font-medium">Dataset characteristics</h3>
 			<textarea
-				class="textarea textarea-bordered h-48 w-full"
+				class="textarea textarea-bordered h-24 w-full"
 				placeholder="Characteristics of dataset that are not given in the data file (as sex distribution, ethnicity, characteristics of groups)"
 				bind:value={datasetCharacteristics}
 				{readonly}
@@ -124,7 +122,7 @@
 		</div>
 	</div>
 
-	<div class="mt-8 space-y-4">
+	<!-- <div class="mt-8 space-y-4">
 		{#if !readonly}
 			<div>
 				<button class="btn btn-outline w-auto gap-2" onclick={calculateSummary}>
@@ -138,21 +136,21 @@
 			placeholder="Free text or structure, including purpose of validation (to test data (N=5), to validate (N>30), quality assurance), source of data, etc)"
 			readonly
 		></textarea>
-		<!-- This last textarea is readonly and doesn't seem to be bound to any data. -->
-		<!-- If it needs to display data from calculateSummary, that logic needs to be added. -->
-	</div>
+		This last textarea is readonly and doesn't seem to be bound to any data.
+		If it needs to display data from calculateSummary, that logic needs to be added.
+	</div> -->
 
 	<!-- Dataset Analysis Section - Shows automatically when data is available -->
 	{#if hasUploadedData && formData.uploadedFolder}
 		<div class="mt-8 space-y-4">
-			<div class="flex items-center gap-3 mb-6">
-				<MaterialSymbolsAnalytics class="h-6 w-6 text-primary" />
+			<div class="mb-6 flex items-center gap-3">
+				<MaterialSymbolsAnalytics class="text-primary h-6 w-6" />
 				<h2 class="text-xl font-semibold">Dataset Analysis</h2>
 				<div class="badge badge-primary badge-sm">Auto-generated</div>
 			</div>
 
-			<div class="bg-base-100 rounded-lg border border-base-300">
-				<DatasetVisualization 
+			<div class="bg-base-100 border-base-300 rounded-lg border">
+				<DatasetVisualization
 					folderFiles={formData.uploadedFolder}
 					folderName={formData.folderName || 'Dataset'}
 				/>
@@ -160,12 +158,13 @@
 		</div>
 	{:else if !hasUploadedData}
 		<div class="mt-8">
-			<div class="card bg-base-100 border border-base-300">
-				<div class="card-body text-center py-8">
-					<MaterialSymbolsAnalytics class="h-12 w-12 text-base-content/40 mx-auto mb-4" />
-					<h3 class="text-lg font-medium mb-2">Dataset Analysis</h3>
+			<div class="card bg-base-100 border-base-300 border">
+				<div class="card-body py-8 text-center">
+					<MaterialSymbolsAnalytics class="text-base-content/40 mx-auto mb-4 h-12 w-12" />
+					<h3 class="mb-2 text-lg font-medium">Dataset Analysis</h3>
 					<p class="text-base-content/70 text-sm">
-						Upload a dataset in Step 1 to see detailed statistics, distributions, and visualizations automatically.
+						Upload a dataset in Step 1 to see detailed statistics, distributions, and visualizations
+						automatically.
 					</p>
 				</div>
 			</div>

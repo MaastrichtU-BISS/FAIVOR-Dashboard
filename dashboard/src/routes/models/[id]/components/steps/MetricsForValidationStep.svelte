@@ -36,30 +36,8 @@
 	});
 </script>
 
-<div class="grid grid-cols-2 gap-8">
-	<div class="space-y-4">
-		<div>
-			<h3 class="text-lg font-medium">Validation metrics</h3>
-			<textarea
-				class="textarea textarea-bordered h-96 w-full"
-				placeholder="Free text or structure for validation metrics"
-				bind:value={metricsDescription}
-				{readonly}
-				oninput={onFieldChange}
-			></textarea>
-		</div>
-	</div>
-
-	<div class="space-y-4">
-		<div>
-			<h3 class="text-lg font-medium">Model performance metrics</h3>
-			<textarea
-				class="textarea textarea-bordered h-96 w-full"
-				placeholder="Free text or structure for performance metrics"
-				bind:value={performanceMetrics}
-				{readonly}
-				oninput={onFieldChange}
-			></textarea>
-		</div>
+<div class="grid grid-cols-1 gap-8">
+	<div class="border-base-300 rounded-xl border p-4">
+		<div>Table of metrics</div>
 	</div>
 </div>

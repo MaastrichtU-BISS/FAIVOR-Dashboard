@@ -25,16 +25,16 @@
 
 <div class="card bg-base-100 shadow-xl">
 	<div class="card-body">
-		<div class="flex items-center gap-3 mb-6">
-			<MaterialSymbolsDataTable class="h-6 w-6 text-primary" />
+		<div class="mb-6 flex items-center gap-3">
+			<MaterialSymbolsDataTable class="text-primary h-6 w-6" />
 			<h2 class="card-title text-xl">Dataset Overview</h2>
 		</div>
-		
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
 			<!-- Dataset Name -->
 			<div class="stat bg-base-200 rounded-lg p-4">
 				<div class="stat-title text-sm">Dataset File</div>
-				<div class="stat-value text-lg text-primary truncate" title={analysis.fileName}>
+				<div class="stat-value text-primary truncate text-lg" title={analysis.fileName}>
 					{analysis.fileName}
 				</div>
 				<div class="stat-desc text-xs">

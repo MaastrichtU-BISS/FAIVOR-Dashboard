@@ -30,7 +30,7 @@
 		try {
 			isAnalyzing = true;
 			analysisError = null;
-			
+
 			const analysis = await CSVAnalysisService.analyzeCSV(csvFile);
 			datasetAnalysis = analysis;
 		} catch (error) {
@@ -79,36 +79,41 @@
 		<DatasetOverview analysis={datasetAnalysis} />
 
 		<!-- Column Analysis -->
-		<ColumnAnalysis 
-			columns={datasetAnalysis.columns} 
-			bind:gridColumns={gridColumns}
-		/>
+		<ColumnAnalysis columns={datasetAnalysis.columns} bind:gridColumns />
 
 		<!-- Analysis Summary -->
 		<div class="card bg-base-100 shadow-xl">
 			<div class="card-body">
-				<h2 class="card-title text-xl mb-4">Analysis Summary</h2>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<h2 class="card-title mb-4 text-xl">Analysis Summary</h2>
+				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<!-- Data Quality -->
 					<div>
-						<h3 class="text-lg font-semibold mb-3">Data Quality</h3>
+						<h3 class="mb-3 text-lg font-semibold">Data Quality</h3>
 						<div class="space-y-2">
 							<div class="flex justify-between">
 								<span>Completeness:</span>
-								<span class="font-medium {datasetAnalysis.completeness >= 95 ? 'text-success' : datasetAnalysis.completeness >= 85 ? 'text-warning' : 'text-error'}">
+								<span
+									class="font-medium {datasetAnalysis.completeness >= 95
+										? 'text-success'
+										: datasetAnalysis.completeness >= 85
+											? 'text-warning'
+											: 'text-error'}"
+								>
 									{datasetAnalysis.completeness}%
 								</span>
 							</div>
 							<div class="flex justify-between">
 								<span>Missing Values:</span>
 								<span class="font-medium">
-									{datasetAnalysis.columns.reduce((sum, col) => sum + col.nullValues, 0).toLocaleString()}
+									{datasetAnalysis.columns
+										.reduce((sum, col) => sum + col.nullValues, 0)
+										.toLocaleString()}
 								</span>
 							</div>
 							<div class="flex justify-between">
 								<span>Columns with Missing Data:</span>
 								<span class="font-medium">
-									{datasetAnalysis.columns.filter(c => c.nullValues > 0).length} / {datasetAnalysis.totalColumns}
+									{datasetAnalysis.columns.filter((c) => c.nullValues > 0).length} / {datasetAnalysis.totalColumns}
 								</span>
 							</div>
 						</div>
@@ -116,24 +121,27 @@
 
 					<!-- Data Types -->
 					<div>
-						<h3 class="text-lg font-semibold mb-3">Data Types</h3>
+						<h3 class="mb-3 text-lg font-semibold">Data Types</h3>
 						<div class="space-y-2">
 							<div class="flex justify-between">
 								<span>Numerical Columns:</span>
-								<span class="font-medium text-primary">
-									{datasetAnalysis.columns.filter(c => c.type === 'numerical').length}
+								<span class="text-primary font-medium">
+									{datasetAnalysis.columns.filter((c) => c.type === 'numerical').length}
 								</span>
 							</div>
 							<div class="flex justify-between">
 								<span>Categorical Columns:</span>
-								<span class="font-medium text-secondary">
-									{datasetAnalysis.columns.filter(c => c.type === 'categorical').length}
+								<span class="text-secondary font-medium">
+									{datasetAnalysis.columns.filter((c) => c.type === 'categorical').length}
 								</span>
 							</div>
 							<div class="flex justify-between">
 								<span>Average Unique Values:</span>
 								<span class="font-medium">
-									{Math.round(datasetAnalysis.columns.reduce((sum, col) => sum + col.uniqueValues, 0) / datasetAnalysis.totalColumns)}
+									{Math.round(
+										datasetAnalysis.columns.reduce((sum, col) => sum + col.uniqueValues, 0) /
+											datasetAnalysis.totalColumns
+									)}
 								</span>
 							</div>
 						</div>
@@ -142,39 +150,41 @@
 
 				<!-- Recommendations -->
 				<div class="mt-6">
-					<h3 class="text-lg font-semibold mb-3">Recommendations</h3>
+					<h3 class="mb-3 text-lg font-semibold">Recommendations</h3>
 					<div class="space-y-2">
 						{#if datasetAnalysis.completeness < 85}
 							<div class="alert alert-warning">
 								<span class="text-sm">
-									Consider addressing missing data before model training. 
-									{datasetAnalysis.completeness < 70 ? 'High' : 'Moderate'} amount of missing values detected.
+									Consider addressing missing data before model training.
+									{datasetAnalysis.completeness < 70 ? 'High' : 'Moderate'} amount of missing values
+									detected.
 								</span>
 							</div>
 						{/if}
-						
-						{#if datasetAnalysis.columns.some(c => c.type === 'categorical' && c.uniqueValues > 50)}
+
+						{#if datasetAnalysis.columns.some((c) => c.type === 'categorical' && c.uniqueValues > 50)}
 							<div class="alert alert-info">
 								<span class="text-sm">
-									Some categorical columns have high cardinality (>50 unique values). 
-									Consider feature engineering or encoding strategies.
+									Some categorical columns have high cardinality (>50 unique values). Consider
+									feature engineering or encoding strategies.
 								</span>
 							</div>
 						{/if}
-						
+
 						{#if datasetAnalysis.totalRows < 100}
 							<div class="alert alert-warning">
 								<span class="text-sm">
-									Small dataset detected ({datasetAnalysis.totalRows} rows). 
-									Consider collecting more data for robust model training.
+									Small dataset detected ({datasetAnalysis.totalRows} rows). Consider collecting more
+									data for robust model training.
 								</span>
 							</div>
 						{/if}
-						
+
 						{#if datasetAnalysis.completeness >= 95 && datasetAnalysis.totalRows >= 1000}
 							<div class="alert alert-success">
 								<span class="text-sm">
-									Excellent data quality! High completeness and sufficient sample size for model training.
+									Excellent data quality! High completeness and sufficient sample size for model
+									training.
 								</span>
 							</div>
 						{/if}
