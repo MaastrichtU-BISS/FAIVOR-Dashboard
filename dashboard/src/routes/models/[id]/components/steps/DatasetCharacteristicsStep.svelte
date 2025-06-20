@@ -1,7 +1,9 @@
 <script lang="ts">
 	import SolarCalculatorMinimalisticLinear from '~icons/solar/calculator-minimalistic-linear';
+	import MaterialSymbolsAnalytics from '~icons/material-symbols/analytics';
 	import { validationFormStore } from '$lib/stores/models/validation.store';
 	import { DatasetStepService } from '$lib/services/dataset-step-service'; // For calculateSummary
+	import DatasetVisualization from '$lib/components/validation/DatasetVisualization.svelte';
 
 	interface Props {
 		readonly?: boolean;
@@ -20,6 +22,14 @@
 	let date = $state(formData.date || '');
 	let datasetDescription = $state(formData.datasetDescription || '');
 	let datasetCharacteristics = $state(formData.datasetCharacteristics || '');
+
+	// Show/hide dataset analysis section
+	let showDatasetAnalysis = $state(false);
+
+	// Check if we have uploaded data
+	let hasUploadedData = $derived(
+		!!(formData.uploadedFolder?.data && formData.folderName)
+	);
 
 	// Store initial values to track actual changes
 	// We don't have a specific service for this step, so we manage initial values locally
@@ -134,4 +144,48 @@
 		<!-- This last textarea is readonly and doesn't seem to be bound to any data. -->
 		<!-- If it needs to display data from calculateSummary, that logic needs to be added. -->
 	</div>
+
+	<!-- Dataset Analysis Section -->
+	{#if hasUploadedData}
+		<div class="mt-8 space-y-4">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-3">
+					<MaterialSymbolsAnalytics class="h-6 w-6 text-primary" />
+					<h2 class="text-xl font-semibold">Dataset Analysis</h2>
+				</div>
+				<button
+					class="btn btn-outline btn-sm"
+					onclick={() => showDatasetAnalysis = !showDatasetAnalysis}
+				>
+					{showDatasetAnalysis ? 'Hide' : 'Show'} Analysis
+				</button>
+			</div>
+
+			{#if showDatasetAnalysis && formData.uploadedFolder}
+				<div class="border-t pt-6">
+					<DatasetVisualization 
+						folderFiles={formData.uploadedFolder}
+						folderName={formData.folderName || 'Dataset'}
+					/>
+				</div>
+			{:else}
+				<div class="card bg-base-100 border border-base-300">
+					<div class="card-body text-center py-8">
+						<MaterialSymbolsAnalytics class="h-12 w-12 text-base-content/40 mx-auto mb-4" />
+						<h3 class="text-lg font-medium mb-2">Dataset Analysis Available</h3>
+						<p class="text-base-content/70 text-sm mb-4">
+							View detailed statistics, distributions, and visualizations for your uploaded dataset.
+						</p>
+						<button
+							class="btn btn-primary btn-sm"
+							onclick={() => showDatasetAnalysis = true}
+						>
+							<MaterialSymbolsAnalytics class="h-4 w-4" />
+							View Dataset Analysis
+						</button>
+					</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
 </div>
