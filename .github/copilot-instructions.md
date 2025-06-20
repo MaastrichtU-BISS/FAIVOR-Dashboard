@@ -1035,56 +1035,287 @@ Organize by business domains when features become complex:
 └── types/
 ```
 
-### Store Modularity
+## Svelte 5 Reactive State Management
 
-Create focused stores for specific concerns:
+### Store Architecture and Naming Convention
+
+**ALL shared state and data fetching must be managed through Svelte 5 stores using pure `$state`, `$derived`, and `$effect` runes.** Store files should be named with the `.store.svelte.ts` extension to clearly identify reactive state containers.
+
+#### Core Principles for Store Design
+
+1. **Centralized State Management**: All application state that needs to be shared across components must live in stores
+2. **Business Logic in Stores**: Keep business logic, API calls, and data transformations within stores, not in components
+3. **Pure Svelte 5 Runes**: Use only `$state`, `$derived`, and `$effect` - avoid complex structures or external state libraries
+4. **Modular by Domain**: Create focused stores for specific business domains (validation, user, notifications, etc.)
+5. **Clear Store Naming**: Use `name.store.svelte.ts` pattern for easy identification of reactive state containers
+
+#### Store Structure Pattern
 
 ```typescript
-// src/lib/stores/validation-store.ts
-export const validationStore = () => {
+// src/lib/stores/validation.store.svelte.ts
+function createValidationStore() {
+  // Core reactive state using $state
   let validations = $state<ModelValidation[]>([]);
   let currentValidation = $state<ModelValidation | null>(null);
+  let isValidating = $state(false);
+  let validationProgress = $state<{
+    step: string;
+    progress: number;
+    message: string;
+  } | null>(null);
 
+  // Derived state for computed values using $derived
+  let hasValidations = $derived(validations.length > 0);
+  let pendingValidations = $derived(
+    validations.filter((v) => v.status === "pending")
+  );
+  let validationStats = $derived({
+    total: validations.length,
+    pending: pendingValidations.length,
+    completed: validations.filter((v) => v.status === "completed").length,
+    successRate:
+      validations.length > 0
+        ? (validations.filter((v) => v.status === "completed").length /
+            validations.length) *
+          100
+        : 0,
+  });
+
+  // All business logic methods within the store
+  const loadValidations = async (userId?: string) => {
+    try {
+      const response = await fetch(
+        `/api/validations${userId ? `?userId=${userId}` : ""}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        validations = data.validations || [];
+      }
+    } catch (error) {
+      console.error("Failed to load validations:", error);
+    }
+  };
+
+  const startValidation = async (modelData: any, csvFile: File) => {
+    isValidating = true;
+    validationProgress = {
+      step: "Initializing",
+      progress: 0,
+      message: "Starting validation process...",
+    };
+
+    try {
+      // Multi-step validation process with progress tracking
+      const result = await performValidationSteps(modelData, csvFile);
+
+      // Update local state
+      validations = [...validations, result];
+      return result;
+    } catch (error) {
+      console.error("Validation failed:", error);
+      throw error;
+    } finally {
+      isValidating = false;
+      validationProgress = null;
+    }
+  };
+
+  // Return read-only reactive interface
   return {
+    // Reactive state (read-only getters)
     get validations() {
       return validations;
     },
     get currentValidation() {
       return currentValidation;
     },
-
-    setValidations: (newValidations: ModelValidation[]) => {
-      validations = newValidations;
+    get isValidating() {
+      return isValidating;
+    },
+    get validationProgress() {
+      return validationProgress;
     },
 
-    addValidation: (validation: ModelValidation) => {
-      validations = [...validations, validation];
+    // Derived state (computed values)
+    get hasValidations() {
+      return hasValidations;
+    },
+    get pendingValidations() {
+      return pendingValidations;
+    },
+    get validationStats() {
+      return validationStats;
+    },
+
+    // Actions (methods that modify state)
+    loadValidations,
+    startValidation,
+    selectValidation: (validation: ModelValidation) => {
+      currentValidation = validation;
+    },
+    clearCurrentValidation: () => {
+      currentValidation = null;
     },
   };
-};
+}
 
-// src/lib/stores/ui-store.ts
-export const uiStore = () => {
-  let isLoading = $state(false);
+// Export singleton instance
+export const validationStore = createValidationStore();
+```
+
+#### Store Usage in Components
+
+Components should be thin layers that consume store state and trigger store actions:
+
+```svelte
+<!-- src/lib/components/validation/ValidationDashboard.svelte -->
+<script lang="ts">
+  import { validationStore } from '$lib/stores/validation.store.svelte';
+  import { onMount } from 'svelte';
+
+  // Destructure reactive state from store
+  const {
+    validations,
+    isValidating,
+    validationStats,
+    validationProgress
+  } = validationStore;
+
+  // Component initialization - delegate to store
+  onMount(() => {
+    validationStore.loadValidations();
+  });
+
+  // Event handlers - delegate to store actions
+  const handleStartValidation = async (modelData: any, csvFile: File) => {
+    try {
+      await validationStore.startValidation(modelData, csvFile);
+      // UI automatically updates due to reactive state
+    } catch (error) {
+      // Handle error (could trigger toast store)
+    }
+  };
+</script>
+
+<div class="validation-dashboard">
+  <!-- Reactive state automatically updates UI -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-title">Total Validations</div>
+      <div class="stat-value">{validationStats.total}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Success Rate</div>
+      <div class="stat-value">{validationStats.successRate.toFixed(1)}%</div>
+    </div>
+  </div>
+
+  {#if isValidating && validationProgress}
+    <div class="progress-section">
+      <div class="progress progress-primary w-full">
+        <div
+          class="progress-bar"
+          style="width: {validationProgress.progress}%"
+        ></div>
+      </div>
+      <p>{validationProgress.message}</p>
+    </div>
+  {/if}
+
+  {#each validations as validation}
+    <div class="validation-card">
+      <h3>{validation.model_name}</h3>
+      <p>Status: {validation.status}</p>
+      <button
+        class="btn btn-primary"
+        onclick={() => validationStore.selectValidation(validation)}
+      >
+        View Details
+      </button>
+    </div>
+  {/each}
+</div>
+```
+
+#### Multi-Store Composition
+
+For complex features, compose multiple focused stores:
+
+```typescript
+// src/lib/stores/user.store.svelte.ts
+function createUserStore() {
+  let currentUser = $state<User | null>(null);
+  let isAuthenticated = $derived(currentUser !== null);
+
+  return {
+    get currentUser() {
+      return currentUser;
+    },
+    get isAuthenticated() {
+      return isAuthenticated;
+    },
+    login: async (credentials: LoginCredentials) => {
+      /* ... */
+    },
+    logout: async () => {
+      /* ... */
+    },
+  };
+}
+
+export const userStore = createUserStore();
+
+// src/lib/stores/notifications.store.svelte.ts
+function createNotificationStore() {
   let notifications = $state<Notification[]>([]);
 
   return {
-    get isLoading() {
-      return isLoading;
-    },
     get notifications() {
       return notifications;
-    },
-
-    setLoading: (loading: boolean) => {
-      isLoading = loading;
     },
     addNotification: (notification: Notification) => {
       notifications = [...notifications, notification];
     },
+    removeNotification: (id: string) => {
+      notifications = notifications.filter((n) => n.id !== id);
+    },
   };
-};
+}
+
+export const notificationStore = createNotificationStore();
+
+// Usage in components - multiple stores
+<script lang="ts">
+  import {validationStore} from '$lib/stores/validation.store.svelte'; import{" "}
+  {userStore} from '$lib/stores/user.store.svelte'; import {notificationStore}{" "}
+  from '$lib/stores/notifications.store.svelte'; const {validations} =
+  validationStore; const {(currentUser, isAuthenticated)} = userStore; const{" "}
+  {notifications} = notificationStore;
+</script>;
 ```
+
+#### Store Organization Guidelines
+
+```typescript
+// src/lib/stores/ - All reactive state containers
+├── validation.store.svelte.ts    # Validation workflow state
+├── user.store.svelte.ts          # User authentication state
+├── notifications.store.svelte.ts # UI notifications state
+├── models.store.svelte.ts        # Model management state
+├── ui.store.svelte.ts            # Global UI state (loading, modals)
+└── theme.store.svelte.ts         # Theme and preferences state
+```
+
+#### Key Benefits of This Approach
+
+1. **Reactive by Default**: All state changes automatically trigger UI updates
+2. **Centralized Logic**: Business logic lives in stores, not scattered across components
+3. **Easy Testing**: Store logic can be tested independently of UI
+4. **Type Safety**: Full TypeScript support with proper inference
+5. **Simple Mental Model**: Pure Svelte 5 runes without external dependencies
+6. **Clear Separation**: Components handle presentation, stores handle state and logic
+
+### Store Modularity
 
 ### API Layer Separation
 
