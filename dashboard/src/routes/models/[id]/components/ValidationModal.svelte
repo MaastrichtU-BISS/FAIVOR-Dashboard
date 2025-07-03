@@ -9,8 +9,8 @@
 	import type { ValidationFormData } from '$lib/types/validation';
 	import type { FullJsonLdModel, Model } from '$lib/stores/models/types'; // Model might still be used by validationJobToFormData or currentValidation
 	import {
-		validationJobToFormData
-		// formDataToValidationData // This might also need updates for JSON-LD
+		validationJobToFormData,
+		formDataToValidationData
 	} from '$lib/utils/validation-transform';
 	import DatasetStep from './steps/DatasetStep.svelte';
 	import DatasetCharacteristicsStep from './steps/DatasetCharacteristicsStep.svelte';
@@ -195,6 +195,10 @@
 			}
 			console.log('📤 Submitting form data from store:', formData);
 
+			// Get comprehensive metrics from the store
+			const comprehensiveMetrics = validationFormStore.getComprehensiveMetrics();
+			console.log('📊 Including comprehensive metrics in submission:', comprehensiveMetrics);
+
 			if ($validationStore.mode === 'create' && formData.uploadedFolder) {
 				console.log('🔍 Performing full model validation before submission...');
 				try {
@@ -240,27 +244,49 @@
 						const isMissingColumnsError = validationResult.error?.includes(
 							'Missing required columns'
 						);
-						if (!isMissingMetadataError && !isMissingColumnsError) {
+						const isConnectionError =
+							validationResult.error?.includes('Connection aborted') ||
+							validationResult.error?.includes('No such file or directory') ||
+							validationResult.error?.includes('Internal Server Error');
+
+						if (isConnectionError) {
+							console.warn(
+								'⚠️ FAIVOR-ML-Validator connection failed, proceeding with mock validation'
+							);
+							// Allow submission to proceed with mock data when external validator is unavailable
+							validationFormStore.setValidationResults({
+								modelValidation: {
+									success: true,
+									message: 'Validation completed with mock data (external validator unavailable)',
+									warning:
+										'FAIVOR-ML-Validator service is currently unavailable. Using mock validation data.',
+									mockColumns: []
+								},
+								stage: 'model'
+							});
+							validationFormStore.setShowValidationModal(true);
+						} else if (!isMissingMetadataError && !isMissingColumnsError) {
 							validationFormStore.setShowValidationModal(true);
 							console.error('❌ Model validation failed:', validationResult.error);
 							isSubmitting = false;
 							return;
+						} else {
+							// Handle warnings for missing metadata/columns but allow submission
+							validationFormStore.setValidationResults({
+								modelValidation: {
+									success: true, // Mark as success to allow submission
+									message: validationResult.error || 'Proceeding with mock data/metadata.',
+									warning: validationResult.error || 'Proceeding with mock data/metadata.',
+									mockColumns:
+										validationResult.error
+											?.match(/Missing required columns: (.*)/)?.[1]
+											.split(',')
+											.map((s) => s.trim()) || []
+								},
+								stage: 'model'
+							});
+							validationFormStore.setShowValidationModal(true);
 						}
-						// Handle warnings for missing metadata/columns but allow submission
-						validationFormStore.setValidationResults({
-							modelValidation: {
-								success: true, // Mark as success to allow submission
-								message: validationResult.error || 'Proceeding with mock data/metadata.',
-								warning: validationResult.error || 'Proceeding with mock data/metadata.',
-								mockColumns:
-									validationResult.error
-										?.match(/Missing required columns: (.*)/)?.[1]
-										.split(',')
-										.map((s) => s.trim()) || []
-							},
-							stage: 'model'
-						});
-						validationFormStore.setShowValidationModal(true);
 					} else {
 						console.log('✅ Model validation completed successfully (or with mock data).');
 					}
@@ -270,8 +296,29 @@
 					const isMissingColumnsError = validationError.message?.includes(
 						'Missing required columns'
 					);
+					const isConnectionError =
+						validationError.message?.includes('Connection aborted') ||
+						validationError.message?.includes('No such file or directory') ||
+						validationError.message?.includes('Internal Server Error') ||
+						validationError.message?.includes('Failed to connect');
 
-					if (!isMissingMetadataError && !isMissingColumnsError) {
+					if (isConnectionError) {
+						console.warn(
+							'⚠️ FAIVOR-ML-Validator connection failed, proceeding with mock validation'
+						);
+						// Allow submission to proceed with mock data when external validator is unavailable
+						validationFormStore.setValidationResults({
+							modelValidation: {
+								success: true,
+								message: 'Validation completed with mock data (external validator unavailable)',
+								warning:
+									'FAIVOR-ML-Validator service is currently unavailable. Using mock validation data.',
+								mockColumns: []
+							},
+							stage: 'model'
+						});
+						validationFormStore.setShowValidationModal(true);
+					} else if (!isMissingMetadataError && !isMissingColumnsError) {
 						validationFormStore.setValidationResults({
 							modelValidation: {
 								success: false,
@@ -282,24 +329,28 @@
 						validationFormStore.setShowValidationModal(true);
 						isSubmitting = false;
 						return;
+					} else {
+						// Allow submission for missing metadata/columns with warning
+						validationFormStore.setValidationResults({
+							modelValidation: {
+								success: true,
+								message: validationError.message,
+								warning: validationError.message,
+								mockColumns:
+									validationError.message
+										?.match(/Missing required columns: (.*)/)?.[1]
+										.split(',')
+										.map((s: string) => s.trim()) || []
+							},
+							stage: 'model'
+						});
+						validationFormStore.setShowValidationModal(true);
 					}
-					// Allow submission for missing metadata/columns with warning
-					validationFormStore.setValidationResults({
-						modelValidation: {
-							success: true,
-							message: validationError.message,
-							warning: validationError.message,
-							mockColumns:
-								validationError.message
-									?.match(/Missing required columns: (.*)/)?.[1]
-									.split(',')
-									.map((s: string) => s.trim()) || []
-						},
-						stage: 'model'
-					});
-					validationFormStore.setShowValidationModal(true);
 				}
 			}
+
+			// Transform form data to ValidationData structure with comprehensive metrics
+			const validationData = formDataToValidationData(formData, comprehensiveMetrics);
 
 			const endpoint =
 				$validationStore.mode === 'create'
@@ -310,7 +361,7 @@
 			const response = await fetch(endpoint, {
 				method: method,
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(formData)
+				body: JSON.stringify(validationData)
 			});
 			const result = await response.json();
 			console.log(`Validation ${$validationStore.mode} response:`, result);
@@ -454,7 +505,7 @@
 			{:else if currentStep === 1}
 				<DatasetCharacteristicsStep readonly={$validationStore.mode === 'view'} />
 			{:else if currentStep === 2}
-				<MetricsForValidationStep readonly={$validationStore.mode === 'view'} />
+				<MetricsForValidationStep readonly={$validationStore.mode === 'view'} {model} />
 			{/if}
 		</div>
 

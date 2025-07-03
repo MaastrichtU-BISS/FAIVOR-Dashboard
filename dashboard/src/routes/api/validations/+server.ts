@@ -13,13 +13,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
     const userId = session.user.id;
 
-    const formData: ValidationFormData = await request.json();
+    const requestData = await request.json();
     const startTime = new Date().toISOString();
 
-    console.log('Creating validation with data:', formData);
-    console.log('ValidationName from form:', formData.validationName);
+    console.log('Creating validation with data:', requestData);
 
-    if (!formData.modelId) {
+    // Handle both old ValidationFormData format and new ValidationData format
+    let validationData;
+    let modelId: string;
+
+    if (requestData.validation_name || requestData.dataset_info || requestData.validation_result) {
+      // This is already a ValidationData object
+      validationData = requestData;
+      // Extract modelId from the request data or use a fallback
+      modelId = (requestData as any).modelId || (requestData as any).model_checkpoint_id;
+      console.log('Received ValidationData format');
+    } else {
+      // This is ValidationFormData, transform it
+      const formData: ValidationFormData = requestData;
+      console.log('ValidationName from form:', formData.validationName);
+      modelId = formData.modelId || '';
+      const { formDataToValidationData } = await import('$lib/utils/validation-transform');
+      validationData = formDataToValidationData(formData);
+      console.log('Transformed ValidationFormData to ValidationData');
+    }
+
+    if (!modelId) {
       console.error('Model ID is required');
       return json({ error: 'Model ID is required' }, { status: 400 });
     }
@@ -27,19 +46,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     // Get the model first to ensure it exists
     const model = await sql`
       SELECT * FROM model_checkpoints
-      WHERE checkpoint_id = ${formData.modelId}
+      WHERE checkpoint_id = ${modelId}
     `;
 
     if (model.length === 0) {
-      console.error('Model not found:', formData.modelId);
+      console.error('Model not found:', modelId);
       return json({ error: 'Model not found' }, { status: 404 });
     }
 
     console.log('Found model:', model[0]);
-
-    // Transform form data to validation data structure
-    const validationData = formDataToValidationData(formData);
-    console.log('Transformed validation data:', validationData);
+    console.log('Final validation data:', validationData);
 
     // Log file sizes to verify they're preserved
     if (validationData.dataset_info?.folderUpload?.fileDetails) {
@@ -62,7 +78,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         data
       ) VALUES (
         ${model[0].fair_model_id},
-        ${formData.modelId},
+        ${modelId},
         ${userId},
         ${'pending'},
         ${startTime},
@@ -87,7 +103,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     // Get updated validations for this model (excluding deleted ones)
     const validations = await sql`
       SELECT * FROM validations
-      WHERE model_checkpoint_id = ${formData.modelId}
+      WHERE model_checkpoint_id = ${modelId}
       AND deleted_at IS NULL
       ORDER BY start_datetime DESC
     `;

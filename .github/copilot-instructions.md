@@ -196,6 +196,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 ## Development Workflow
 
+The complete app runs on Docker containers, including the frontend, meaning that there is no reason to execute commands to run the app in development; it is always available at "http://localhost:5173/"
+
 ### Setup
 
 ```bash

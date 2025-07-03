@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import type { ValidationJob, ValidationFormData, DatasetFolderFiles } from '$lib/types/validation';
-import type { CSVValidationResponse, ModelValidationResponse } from '$lib/api/faivor-backend';
+import type { CSVValidationResponse, ModelValidationResponse, ComprehensiveMetricsResponse } from '$lib/api/faivor-backend';
 
 
 export type ValidationMode = 'create' | 'view' | 'edit';
@@ -103,6 +103,8 @@ interface ValidationFormState extends ValidationFormData {
   // Add validation results to the store
   validationResults?: ValidationResults;
   showValidationModal?: boolean;
+  // Add comprehensive metrics data
+  comprehensiveMetrics?: ComprehensiveMetricsResponse;
 }
 
 const formInitialState: ValidationFormState = {
@@ -241,6 +243,33 @@ function createValidationFormStore() {
         ...state,
         validationResults: { stage: 'none' },
         showValidationModal: false
+      }));
+    },
+
+    // Set comprehensive metrics data
+    setComprehensiveMetrics: (metrics: ComprehensiveMetricsResponse) => {
+      update(state => ({
+        ...state,
+        comprehensiveMetrics: metrics
+      }));
+    },
+
+    // Get comprehensive metrics data
+    getComprehensiveMetrics: (): ComprehensiveMetricsResponse | undefined => {
+      let currentState: ValidationFormState;
+      const unsubscribe = subscribe(state => {
+        currentState = state;
+      });
+      unsubscribe();
+
+      return currentState!.comprehensiveMetrics;
+    },
+
+    // Clear comprehensive metrics
+    clearComprehensiveMetrics: () => {
+      update(state => ({
+        ...state,
+        comprehensiveMetrics: undefined
       }));
     },
 

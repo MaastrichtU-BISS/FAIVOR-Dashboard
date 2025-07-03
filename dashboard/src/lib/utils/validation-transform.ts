@@ -14,7 +14,7 @@ import { getFileSizesFromStore, validationFormStore, type ValidationResults } fr
 /**
  * Transform form data to ValidationData structure - simplified using store
  */
-export function formDataToValidationData(formData: ValidationFormData): ValidationData {
+export function formDataToValidationData(formData: ValidationFormData, comprehensiveMetrics?: any): ValidationData {
   const fileSizes = getFileSizesFromStore();
   let validationResults: ValidationResults | undefined;
   const unsubscribe = validationFormStore.subscribe(state => {
@@ -68,8 +68,9 @@ export function formDataToValidationData(formData: ValidationFormData): Validati
       performance_description: formData.performanceMetrics || undefined,
       dataProvided: Boolean(formData.uploadedFile || formData.uploadedFolder?.data || formData.datasetName),
       dataCharacteristics: Boolean(formData.datasetDescription || formData.datasetCharacteristics),
-      metrics: Boolean(formData.metricsDescription),
-      validation_results: validationResults && validationResults.stage !== 'none' ? validationResults : undefined
+      metrics: Boolean(formData.metricsDescription || comprehensiveMetrics),
+      validation_results: validationResults && validationResults.stage !== 'none' ? validationResults : undefined,
+      comprehensive_metrics: comprehensiveMetrics || undefined
     }
   };
   return validationData;

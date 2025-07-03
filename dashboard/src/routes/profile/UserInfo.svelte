@@ -8,6 +8,14 @@
 	// TODO: Fix provider detection - session.provider doesn't exist in current Session type
 	// let isCredentialsProvider = $derived($page.data?.session?.provider === 'credentials');
 	let isCredentialsProvider = $derived(false); // Temporarily disabled until proper provider detection is implemented
+
+	function handleImageError(e: Event) {
+		if (e.target instanceof HTMLImageElement) {
+			console.error('Image failed to load:', e.target.src);
+			e.target.onerror = null; // Prevent infinite loop
+			e.target.src = '/images/profile.avif';
+		}
+	}
 </script>
 
 <div class="w-11/12">
@@ -18,13 +26,7 @@
 					class="!object-contain"
 					src={$page.data?.session?.user?.image ?? '/images/profile.avif'}
 					alt="username"
-					onerror={(e: Event) => {
-						if (e.target instanceof HTMLImageElement) {
-							console.error('Image failed to load:', e.target.src);
-							e.target.onerror = null; // Prevent infinite loop
-							e.target.src = '/images/profile.avif';
-						}
-					}}
+					onerror={handleImageError}
 				/>
 			</div>
 		</div>
@@ -50,7 +52,7 @@
 			{/if}
 		</div>
 	</div>
-	<div class="border-b border-base-300"></div>
+	<div class="border-base-300 border-b"></div>
 
 	<ChangePasswordModal bind:showModal={showPasswordModal} />
 </div>

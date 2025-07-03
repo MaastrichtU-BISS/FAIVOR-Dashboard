@@ -433,7 +433,7 @@
 		{/if}
 
 		{#if isRunningFullValidation}
-			<div class="text-warning flex items-center justify-center gap-2">
+			<div class=" flex items-center justify-center gap-2">
 				<span class="loading loading-spinner loading-sm"></span>
 				<span>Running full model validation (this may take a while)...</span>
 			</div>
@@ -451,9 +451,7 @@
 					{/if}
 
 					{#if isRunningFullValidation}
-						<div
-							class="text-warning bg-warning/10 flex items-center justify-center gap-2 rounded-lg p-4"
-						>
+						<div class=" bg-warning/10 flex items-center justify-center gap-2 rounded-lg p-4">
 							<span class="loading loading-spinner loading-sm"></span>
 							<span>Running full model validation (this may take a while)...</span>
 						</div>
@@ -600,7 +598,7 @@
 													d="M13 7l5 5m0 0l-5 5m5-5H6"
 												/>
 											</svg>
-											<span class="text-warning text-sm font-medium">{modelColumn}</span>
+											<span class=" text-sm font-medium">{modelColumn}</span>
 										</div>
 
 										<!-- Categorical Indicator -->
@@ -721,7 +719,7 @@
 								<div class="mt-2 flex items-center gap-2">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
-										class="text-warning h-4 w-4 shrink-0 stroke-current"
+										class=" h-4 w-4 shrink-0 stroke-current"
 										fill="none"
 										viewBox="0 0 24 24"
 									>
@@ -732,7 +730,7 @@
 											d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
 										/>
 									</svg>
-									<span class="text-warning text-sm">
+									<span class=" text-sm">
 										Column count mismatch: CSV has {csvDetails.csv_columns.length} columns, model expects
 										{csvDetails.model_input_columns.length} columns
 									</span>

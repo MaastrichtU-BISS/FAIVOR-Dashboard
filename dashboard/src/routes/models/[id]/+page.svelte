@@ -392,20 +392,6 @@
 		/>
 	{/if}
 
-	===
-	<pre
-		class="relative h-52 w-full overflow-scroll overscroll-contain rounded-lg bg-slate-100 p-1 text-left text-xs"
-		id="textToCopy"><button
-			class="btn btn-ghost btn-sm tooltip absolute right-0 top-0"
-			onclick={() => {
-				const el = document.getElementById('textToCopy');
-				if (el) {
-					navigator.clipboard.writeText(el.textContent || '');
-				}
-			}}>Copy</button>{JSON.stringify(modelData, null, 2)}</pre>
-	===
-
-	<!--
 	{#if showResultsModal && currentValidationJob}
 		<ResultsModal
 			validationJob={currentValidationJob}
@@ -413,18 +399,4 @@
 			on:close={() => (showResultsModal = false)}
 		/>
 	{/if}
--->
-
-	<!--
-	<pre
-		class="relative h-52 w-full overflow-scroll overscroll-contain rounded-lg bg-slate-100 p-1 text-left text-xs"
-		id="textToCopy"><button
-			class="btn btn-ghost btn-sm tooltip absolute right-0 top-0"
-			onclick={() => {
-				const el = document.getElementById('textToCopy');
-				if (el) {
-					navigator.clipboard.writeText(el.textContent || '');
-				}
-			}}>Copy</button>{JSON.stringify(modelData, null, 2)}</pre>
--->
 </div>

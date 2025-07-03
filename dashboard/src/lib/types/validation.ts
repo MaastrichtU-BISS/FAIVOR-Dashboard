@@ -85,6 +85,32 @@ export interface ValidationData {
       };
       stage: 'none' | 'csv' | 'model' | 'complete';
     };
+
+    // Comprehensive metrics data from step 3
+    comprehensive_metrics?: {
+      model_info: {
+        name: string;
+        type: string;
+      };
+      overall: Record<string, any>;
+      threshold_metrics?: {
+        probability_preprocessing: string;
+        roc_curve: {
+          fpr: number[];
+          tpr: number[];
+          thresholds: number[];
+          auc: number;
+        };
+        pr_curve: {
+          precision: number[];
+          recall: number[];
+          thresholds: number[];
+          average_precision: number;
+        };
+        threshold_metrics: Record<string, any>;
+      };
+      subgroups?: Record<string, any>;
+    };
   };
 
   // Configuration and parameters
