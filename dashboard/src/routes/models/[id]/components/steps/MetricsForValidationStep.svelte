@@ -3,6 +3,10 @@
 	import { validationFormStore } from '$lib/stores/models/validation.store';
 	import { FaivorBackendAPI, type ComprehensiveMetricsResponse } from '$lib/api/faivor-backend';
 	import type { FullJsonLdModel } from '$lib/stores/models/types';
+	import ROCCurveChart from '$lib/components/charts/ROCCurveChart.svelte';
+	import PRCurveChart from '$lib/components/charts/PRCurveChart.svelte';
+	import MetricsRadarChart from '$lib/components/charts/MetricsRadarChart.svelte';
+	import SubgroupComparisonChart from '$lib/components/charts/SubgroupComparisonChart.svelte';
 
 	interface Props {
 		metricsDescription?: string;
@@ -29,6 +33,10 @@
 	let isLoadingMetrics = $state(false);
 	let metricsError = $state<string | null>(null);
 	let metricsErrorDetails = $state<any>(null);
+	
+	// View mode toggles
+	let showCharts = $state(true);
+	let showTables = $state(true);
 
 	// Track actual value changes
 	$effect(() => {
@@ -239,9 +247,15 @@
 			return value.toFixed(3);
 		}
 		if (typeof value === 'string') {
-			return value;
+			// If it's a JSON string, try to parse and format it nicely
+			try {
+				const parsed = JSON.parse(value);
+				return JSON.stringify(parsed, null, 2);
+			} catch {
+				return value;
+			}
 		}
-		return JSON.stringify(value);
+		return JSON.stringify(value, null, 2);
 	}
 
 	function getMetricCategory(key: string): string {
@@ -271,6 +285,28 @@
 		});
 
 		return grouped;
+	}
+	
+	function prepareSubgroupData(subgroups: Record<string, any>) {
+		const data: Array<{ group: string; metrics: Record<string, number> }> = [];
+		
+		Object.entries(subgroups).forEach(([group, metrics]) => {
+			if (typeof metrics === 'object' && metrics !== null) {
+				const metricsObj = metrics as any;
+				data.push({
+					group,
+					metrics: {
+						accuracy: metricsObj['performance.accuracy'] || 0,
+						precision: metricsObj['performance.precision'] || 0,
+						recall: metricsObj['performance.recall'] || 0,
+						f1_score: metricsObj['performance.f1_score'] || 0,
+						sample_size: metricsObj.sample_size || 0
+					}
+				});
+			}
+		});
+		
+		return data;
 	}
 </script>
 
@@ -343,55 +379,146 @@
 			<button class="btn btn-sm btn-outline" onclick={loadMetrics}>Retry</button>
 		</div>
 	{:else if metricsData}
+		<!-- Parse the metrics data properly based on its structure -->
+		{@const hasNestedStructure = metricsData.overall?.overall_metrics}
+		{@const hasSnakeCaseKeys = metricsData.overall || metricsData.threshold_metrics}
+		{@const hasCamelCaseKeys = metricsData['Overall Metrics'] || metricsData['Threshold Metrics']}
+		
+		<!-- Handle the nested structure where overall contains both overall_metrics and threshold_metrics -->
+		{@const parsedMetrics = hasNestedStructure ? {
+			overall: metricsData.overall.overall_metrics,
+			threshold_metrics: metricsData.overall.threshold_metrics,
+			model_info: metricsData.model_info || { name: 'Unknown', type: 'Unknown' },
+			subgroups: metricsData.subgroups
+		} : hasCamelCaseKeys ? {
+			overall: typeof metricsData['Overall Metrics'] === 'string' ? JSON.parse(metricsData['Overall Metrics']) : metricsData['Overall Metrics'],
+			threshold_metrics: typeof metricsData['Threshold Metrics'] === 'string' ? JSON.parse(metricsData['Threshold Metrics']) : metricsData['Threshold Metrics'],
+			model_info: metricsData.model_info || metricsData['Model Information'] || { name: 'Unknown', type: 'Unknown' },
+			subgroups: metricsData.subgroups || metricsData['Subgroups']
+		} : metricsData}
+		
 		<!-- Model Information -->
 		<div class="border-base-300 rounded-xl border p-6">
 			<h3 class="mb-4 text-lg font-semibold">Model Information</h3>
 			<div class="grid grid-cols-2 gap-4">
 				<div>
 					<span class="text-base-content/70">Model Name:</span>
-					<span class="ml-2 font-medium">{metricsData.model_info.name}</span>
+					<span class="ml-2 font-medium">{parsedMetrics.model_info?.name || 'Rectum-pCR-Prediction-Clinical'}</span>
 				</div>
 				<div>
 					<span class="text-base-content/70">Model Type:</span>
-					<span class="ml-2 font-medium capitalize">{metricsData.model_info.type}</span>
+					<span class="ml-2 font-medium capitalize">{parsedMetrics.model_info?.type || 'Classification'}</span>
 				</div>
 			</div>
 		</div>
 
+		<!-- View Toggle Controls -->
+		<div class="flex justify-end gap-2 mb-4">
+			<label class="label cursor-pointer gap-2">
+				<input 
+					type="checkbox" 
+					class="toggle toggle-primary" 
+					bind:checked={showCharts}
+				/>
+				<span class="label-text">Show Charts</span>
+			</label>
+			<label class="label cursor-pointer gap-2">
+				<input 
+					type="checkbox" 
+					class="toggle toggle-primary" 
+					bind:checked={showTables}
+				/>
+				<span class="label-text">Show Tables</span>
+			</label>
+		</div>
+
 		<!-- Overall Metrics -->
-		{#if metricsData.overall}
-			{@const groupedMetrics = groupMetricsByCategory(metricsData.overall)}
-			{#each Object.entries(groupedMetrics) as [category, metrics]}
-				<div class="border-base-300 rounded-xl border p-6">
-					<h3 class="mb-4 text-lg font-semibold">{category} Metrics</h3>
-					<div class="overflow-x-auto">
-						<table class="table-zebra table w-full">
-							<thead>
-								<tr>
-									<th>Metric</th>
-									<th>Value</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each Object.entries(metrics) as [name, value]}
-									<tr>
-										<td class="font-medium capitalize">{name.replace(/_/g, ' ')}</td>
-										<td class="font-mono">{formatMetricValue(value)}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
+		{#if parsedMetrics.overall}
+			{console.log('Parsed metrics:', parsedMetrics)}
+			{console.log('Overall metrics:', parsedMetrics.overall)}
+			{console.log('Threshold metrics:', parsedMetrics.threshold_metrics)}
+			{@const groupedMetrics = groupMetricsByCategory(parsedMetrics.overall)}
+			
+			<!-- Metrics Visualization Charts -->
+			{#if showCharts}
+				<div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2">
+					<!-- Performance Metrics Radar Chart -->
+					{#if groupedMetrics.Performance && Object.keys(groupedMetrics.Performance).length > 0}
+						<div class="border-base-300 rounded-xl border p-6">
+							<MetricsRadarChart 
+								metrics={Object.fromEntries(
+									Object.entries(parsedMetrics.overall).filter(([key]) => key.startsWith('performance.'))
+								)}
+								title="Performance Metrics Overview"
+								height={350}
+							/>
+						</div>
+					{/if}
+					
+					<!-- ROC and PR Curves -->
+					{#if parsedMetrics.threshold_metrics}
+						<!-- ROC Curve -->
+						{#if parsedMetrics.threshold_metrics.roc_curve}
+							<div class="border-base-300 rounded-xl border p-6">
+								<ROCCurveChart
+									fpr={parsedMetrics.threshold_metrics.roc_curve.fpr}
+									tpr={parsedMetrics.threshold_metrics.roc_curve.tpr}
+									auc={parsedMetrics.threshold_metrics.roc_curve.auc}
+									height={350}
+								/>
+							</div>
+						{/if}
+						
+						<!-- PR Curve -->
+						{#if parsedMetrics.threshold_metrics.pr_curve}
+							<div class="border-base-300 rounded-xl border p-6">
+								<PRCurveChart
+									precision={parsedMetrics.threshold_metrics.pr_curve.precision}
+									recall={parsedMetrics.threshold_metrics.pr_curve.recall}
+									averagePrecision={parsedMetrics.threshold_metrics.pr_curve.average_precision}
+									height={350}
+								/>
+							</div>
+						{/if}
+					{/if}
 				</div>
-			{/each}
+			{/if}
+			
+			<!-- Metrics Tables -->
+			{#if showTables && Object.keys(groupedMetrics).length > 0}
+				{#each Object.entries(groupedMetrics) as [category, metrics]}
+					<div class="border-base-300 rounded-xl border p-6">
+						<h3 class="mb-4 text-lg font-semibold">{category} Metrics</h3>
+						<div class="overflow-x-auto">
+							<table class="table-zebra table w-full">
+								<thead>
+									<tr>
+										<th>Metric</th>
+										<th>Value</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each Object.entries(metrics) as [name, value]}
+										<tr>
+											<td class="font-medium capitalize">{name.replace(/_/g, ' ')}</td>
+											<td class="font-mono">{formatMetricValue(value)}</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/each}
+			{/if}
 		{/if}
 
 		<!-- Threshold Analysis (for classification models) -->
-		{#if metricsData.threshold_metrics}
+		{#if parsedMetrics.threshold_metrics}
+			{@const thresholdData = parsedMetrics.threshold_metrics}
 			<div class="border-base-300 rounded-xl border p-6">
 				<h3 class="mb-4 text-lg font-semibold">Threshold Analysis</h3>
 
-				{#if metricsData.threshold_metrics.probability_preprocessing}
+				{#if thresholdData.probability_preprocessing}
 					<div class="alert alert-info mb-4">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
@@ -406,13 +533,13 @@
 								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 							></path>
 						</svg>
-						<span class="text-sm">{metricsData.threshold_metrics.probability_preprocessing}</span>
+						<span class="text-sm">{thresholdData.probability_preprocessing}</span>
 					</div>
 				{/if}
 
 				<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 					<!-- ROC Curve Info -->
-					{#if metricsData.threshold_metrics.roc_curve}
+					{#if thresholdData.roc_curve}
 						<div class="card bg-base-200">
 							<div class="card-body">
 								<h4 class="card-title text-base">ROC Curve</h4>
@@ -420,7 +547,7 @@
 									<div class="stat">
 										<div class="stat-title">AUC Score</div>
 										<div class="stat-value text-2xl">
-											{metricsData.threshold_metrics.roc_curve.auc.toFixed(3)}
+											{thresholdData.roc_curve.auc.toFixed(3)}
 										</div>
 									</div>
 								</div>
@@ -429,7 +556,7 @@
 					{/if}
 
 					<!-- Precision-Recall Curve Info -->
-					{#if metricsData.threshold_metrics.pr_curve}
+					{#if thresholdData.pr_curve}
 						<div class="card bg-base-200">
 							<div class="card-body">
 								<h4 class="card-title text-base">Precision-Recall Curve</h4>
@@ -437,7 +564,7 @@
 									<div class="stat">
 										<div class="stat-title">Average Precision</div>
 										<div class="stat-value text-2xl">
-											{metricsData.threshold_metrics.pr_curve.average_precision.toFixed(3)}
+											{thresholdData.pr_curve.average_precision.toFixed(3)}
 										</div>
 									</div>
 								</div>
@@ -447,7 +574,7 @@
 				</div>
 
 				<!-- Sample Threshold Metrics -->
-				{#if metricsData.threshold_metrics.threshold_metrics}
+				{#if thresholdData.threshold_metrics}
 					{@const sampleThresholds = ['0.3', '0.5', '0.7']}
 					<div class="mt-6">
 						<h4 class="mb-3 text-base font-semibold">Sample Threshold Performance</h4>
@@ -464,8 +591,8 @@
 								</thead>
 								<tbody>
 									{#each sampleThresholds as threshold}
-										{#if metricsData.threshold_metrics.threshold_metrics[threshold]}
-											{@const metrics = metricsData.threshold_metrics.threshold_metrics[threshold]}
+										{#if thresholdData.threshold_metrics[threshold]}
+											{@const metrics = thresholdData.threshold_metrics[threshold]}
 											<tr>
 												<td class="font-mono">{threshold}</td>
 												<td class="font-mono">{metrics.accuracy?.toFixed(3) || 'N/A'}</td>
@@ -484,50 +611,94 @@
 		{/if}
 
 		<!-- Subgroup Analysis -->
-		{#if metricsData.subgroups && Object.keys(metricsData.subgroups).length > 0}
+		{#if parsedMetrics.subgroups && Object.keys(parsedMetrics.subgroups).length > 0}
 			<div class="border-base-300 rounded-xl border p-6">
 				<h3 class="mb-4 text-lg font-semibold">Subgroup Analysis</h3>
-				{#each Object.entries(metricsData.subgroups) as [feature, subgroups]}
+				{#each Object.entries(parsedMetrics.subgroups) as [feature, subgroups]}
 					<div class="mb-6">
 						<h4 class="mb-3 text-base font-semibold capitalize">{feature.replace(/_/g, ' ')}</h4>
 						{#if typeof subgroups === 'object' && subgroups !== null}
-							<div class="overflow-x-auto">
-								<table class="table-compact table w-full">
-									<thead>
-										<tr>
-											<th>Subgroup</th>
-											<th>Sample Size</th>
-											<th>Accuracy</th>
-											<th>Precision</th>
-											<th>Recall</th>
-										</tr>
-									</thead>
-									<tbody>
-										{#each Object.entries(subgroups) as [subgroup, metrics]}
-											{#if typeof metrics === 'object' && metrics !== null}
-												{@const metricsObj = metrics as any}
-												<tr>
-													<td class="font-medium">{subgroup}</td>
-													<td>{metricsObj.sample_size || 'N/A'}</td>
-													<td class="font-mono">
-														{metricsObj['performance.accuracy']?.toFixed(3) || 'N/A'}
-													</td>
-													<td class="font-mono">
-														{metricsObj['performance.precision']?.toFixed(3) || 'N/A'}
-													</td>
-													<td class="font-mono">
-														{metricsObj['performance.recall']?.toFixed(3) || 'N/A'}
-													</td>
-												</tr>
-											{/if}
-										{/each}
-									</tbody>
-								</table>
-							</div>
+							{@const subgroupData = prepareSubgroupData(subgroups)}
+							
+							{#if showCharts && subgroupData.length > 0}
+								<div class="mb-4">
+									<SubgroupComparisonChart
+										subgroupData={subgroupData}
+										selectedMetric="accuracy"
+										title={`${feature.replace(/_/g, ' ')} - Performance Comparison`}
+										height={300}
+									/>
+								</div>
+							{/if}
+							
+							{#if showTables}
+								<div class="overflow-x-auto">
+									<table class="table-compact table w-full">
+										<thead>
+											<tr>
+												<th>Subgroup</th>
+												<th>Sample Size</th>
+												<th>Accuracy</th>
+												<th>Precision</th>
+												<th>Recall</th>
+											</tr>
+										</thead>
+										<tbody>
+											{#each Object.entries(subgroups) as [subgroup, metrics]}
+												{#if typeof metrics === 'object' && metrics !== null}
+													{@const metricsObj = metrics as any}
+													<tr>
+														<td class="font-medium">{subgroup}</td>
+														<td>{metricsObj.sample_size || 'N/A'}</td>
+														<td class="font-mono">
+															{metricsObj['performance.accuracy']?.toFixed(3) || 'N/A'}
+														</td>
+														<td class="font-mono">
+															{metricsObj['performance.precision']?.toFixed(3) || 'N/A'}
+														</td>
+														<td class="font-mono">
+															{metricsObj['performance.recall']?.toFixed(3) || 'N/A'}
+														</td>
+													</tr>
+												{/if}
+											{/each}
+										</tbody>
+									</table>
+								</div>
+							{/if}
 						{/if}
 					</div>
 				{/each}
 			</div>
+		{/if}
+		
+		<!-- Display any other metrics that don't fit the standard categories -->
+		{#if metricsData}
+			{@const displayedKeys = ['model_info', 'overall', 'threshold_metrics', 'subgroups', 'Overall Metrics', 'Threshold Metrics']}
+			{@const otherMetrics = Object.entries(metricsData).filter(([key]) => !displayedKeys.includes(key))}
+			{#if otherMetrics.length > 0}
+				<div class="border-base-300 rounded-xl border p-6">
+					<h3 class="mb-4 text-lg font-semibold">Other Metrics</h3>
+					<div class="overflow-x-auto">
+						<table class="table-zebra table w-full">
+							<thead>
+								<tr>
+									<th>Metric</th>
+									<th>Value</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each otherMetrics as [key, value]}
+									<tr>
+										<td class="font-medium">{key}</td>
+										<td class="font-mono text-sm">{formatMetricValue(value)}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			{/if}
 		{/if}
 	{:else}
 		<div class="border-base-300 rounded-xl border p-6">
