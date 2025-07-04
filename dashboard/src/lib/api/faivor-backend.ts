@@ -154,12 +154,14 @@ export class FaivorBackendAPI {
   static async validateModel(
     modelMetadata: any,
     csvFile: File,
-    dataMetadata: Record<string, any> = {}
+    dataMetadata: Record<string, any> | null = null
   ): Promise<ModelValidationResponse> {
     const formData = new FormData();
     formData.append("model_metadata", JSON.stringify(modelMetadata));
     formData.append("csv_file", csvFile);
-    formData.append("data_metadata", JSON.stringify(dataMetadata));
+    if (dataMetadata !== null) {
+      formData.append("column_metadata", JSON.stringify(dataMetadata));
+    }
 
     try {
       const response = await fetch(`${this.BASE_URL}/validate-model`, {
@@ -261,7 +263,7 @@ export class FaivorBackendAPI {
   static async calculateMetrics(
     modelMetadata: any,
     csvFile: File,
-    columnMetadata: Record<string, any> = {}
+    columnMetadata: Record<string, any> | null = null
   ): Promise<ComprehensiveMetricsResponse> {
     // Use the existing validate-model endpoint to get basic metrics
     const basicMetrics = await this.validateModel(modelMetadata, csvFile, columnMetadata);

@@ -198,7 +198,7 @@
 			}
 
 			// Parse column metadata if available
-			let columnMetadata: any = {};
+			let columnMetadata: any = null;
 			if (uploadedFolder.columnMetadata) {
 				const columnMetadataText = await uploadedFolder.columnMetadata.text();
 				columnMetadata = JSON.parse(columnMetadataText);
