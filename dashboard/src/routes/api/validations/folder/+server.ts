@@ -5,6 +5,7 @@ import { sql } from '$lib/db';
 import type { ValidationFormData } from '$lib/types/validation';
 import { formDataToValidationData } from '$lib/utils/validation-transform';
 import { FolderValidationService } from '$lib/services/folder-validation-service';
+import { ValidationError, type StructuredValidationError } from '$lib/types/validation-errors';
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
@@ -271,14 +272,34 @@ export const POST: RequestHandler = async ({ request }) => {
     } catch (validationError: any) {
       console.error('FAIVOR validation failed:', validationError);
 
-      // Update validation record with failed status
+      // Extract structured error information
+      let structuredError: StructuredValidationError;
+      let httpStatus = 500;
+
+      if (validationError instanceof ValidationError) {
+        structuredError = validationError.toJSON();
+        httpStatus = validationError.httpStatus;
+      } else {
+        // Create a generic structured error for unknown errors
+        structuredError = {
+          timestamp: new Date().toISOString(),
+          errorType: 'validation',
+          errors: [{
+            code: 'UNKNOWN_ERROR',
+            message: validationError?.message || validationError?.toString() || 'Unknown validation error',
+            technicalDetails: validationError?.stack || undefined
+          }]
+        };
+      }
+
+      // Update validation record with detailed error information
       await sql`
         UPDATE validations
         SET
           validation_status = 'failed',
           end_datetime = ${new Date().toISOString()},
           data = data || ${sql.json({
-        error: validationError?.message || validationError?.toString() || 'FAIVOR validation failed',
+        error: structuredError,
         validation_result: null
       } as any)}
         WHERE val_id = ${result[0].val_id}
@@ -290,9 +311,9 @@ export const POST: RequestHandler = async ({ request }) => {
           ...result[0],
           validation_status: 'failed'
         },
-        error: `Validation failed: ${validationError?.message || validationError?.toString() || 'Unknown error'}`,
+        error: structuredError,
         message: 'Folder validation failed'
-      }, { status: 500 });
+      }, { status: httpStatus });
     }
 
   } catch (error) {

@@ -1,4 +1,6 @@
 // src/lib/api/faivor-backend.ts - FAIVOR Backend API client
+import { ValidationError, ValidationErrors, ValidationErrorCode } from '$lib/types/validation-errors';
+
 export interface CSVValidationResponse {
   valid: boolean;
   message?: string;
@@ -47,6 +49,56 @@ export class FaivorBackendAPI {
   private static readonly BASE_URL = "http://localhost:8000";
 
   /**
+   * Parse error response from FAIVOR backend
+   */
+  private static async parseErrorResponse(response: Response): Promise<ValidationError> {
+    let errorText = '';
+    let errorJson: any = null;
+    
+    try {
+      errorText = await response.text();
+      errorJson = JSON.parse(errorText);
+    } catch {
+      // If not JSON, use the text as-is
+    }
+
+    // Check for specific error patterns
+    if (errorJson?.detail) {
+      // FastAPI HTTPException format
+      const message = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      
+      // Detect error type based on message content
+      if (message.includes('Missing required columns')) {
+        const missingColumnsMatch = message.match(/Missing required columns: (.*)/);
+        const missingColumns = missingColumnsMatch ? 
+          missingColumnsMatch[1].split(',').map(col => col.trim()) : [];
+        return ValidationErrors.missingColumns(missingColumns, []);
+      }
+      
+      if (message.includes('container') || message.includes('Docker')) {
+        return ValidationErrors.containerStartFailed(message);
+      }
+      
+      if (message.includes('CSV') || message.includes('format')) {
+        return ValidationErrors.invalidCSVFormat(message);
+      }
+    }
+
+    // Handle connection errors
+    if (response.status === 0 || !response.ok && response.status >= 500) {
+      return ValidationErrors.serviceUnavailable('FAIVOR ML Validator', errorText || response.statusText);
+    }
+
+    // Default error
+    return new ValidationError({
+      code: ValidationErrorCode.VALIDATION_FAILED,
+      message: errorJson?.message || errorJson?.detail || errorText || response.statusText,
+      technicalDetails: errorText,
+      metadata: { status: response.status, statusText: response.statusText }
+    }, response.status);
+  }
+
+  /**
    * Health check endpoint
    */
   static async healthCheck(): Promise<HealthCheckResponse> {
@@ -54,12 +106,15 @@ export class FaivorBackendAPI {
       const response = await fetch(`${this.BASE_URL}/`);
 
       if (!response.ok) {
-        throw new Error(`Health check failed: ${response.statusText}`);
+        throw await this.parseErrorResponse(response);
       }
 
       return await response.json();
     } catch (error: any) {
-      throw new Error(`Failed to connect to FAIVOR backend: ${error?.message || error?.toString() || 'Unknown error'}`);
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw ValidationErrors.serviceUnavailable('FAIVOR ML Validator', error?.message || error?.toString() || 'Unknown error');
     }
   }
 
@@ -74,17 +129,23 @@ export class FaivorBackendAPI {
     formData.append("model_metadata", JSON.stringify(modelMetadata));
     formData.append("csv_file", csvFile);
 
-    const response = await fetch(`${this.BASE_URL}/validate-csv/`, {
-      method: "POST",
-      body: formData,
-    });
+    try {
+      const response = await fetch(`${this.BASE_URL}/validate-csv/`, {
+        method: "POST",
+        body: formData,
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`CSV validation failed: ${response.statusText} - ${errorText}`);
+      if (!response.ok) {
+        throw await this.parseErrorResponse(response);
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw ValidationErrors.serviceUnavailable('FAIVOR ML Validator', error?.message || 'CSV validation failed');
     }
-
-    return await response.json();
   }
 
   /**
@@ -100,17 +161,28 @@ export class FaivorBackendAPI {
     formData.append("csv_file", csvFile);
     formData.append("data_metadata", JSON.stringify(dataMetadata));
 
-    const response = await fetch(`${this.BASE_URL}/validate-model`, {
-      method: "POST",
-      body: formData,
-    });
+    try {
+      const response = await fetch(`${this.BASE_URL}/validate-model`, {
+        method: "POST",
+        body: formData,
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Model validation failed: ${response.statusText} - ${errorText}`);
+      if (!response.ok) {
+        throw await this.parseErrorResponse(response);
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      // Check for specific error patterns in the error message
+      const errorMessage = error?.message || error?.toString() || '';
+      if (errorMessage.includes('model') && errorMessage.includes('execution')) {
+        throw ValidationErrors.modelExecutionFailed(modelMetadata.name || 'Unknown Model', errorMessage);
+      }
+      throw ValidationErrors.serviceUnavailable('FAIVOR ML Validator', errorMessage || 'Model validation failed');
     }
-
-    return await response.json();
   }
 
   /**
@@ -125,86 +197,81 @@ export class FaivorBackendAPI {
     csvValidation: CSVValidationResponse;
     modelValidation: ModelValidationResponse;
   }> {
-    // First parse the metadata file
-    const metadataText = await metadataFile.text();
-    const parsedMetadata = JSON.parse(metadataText);
+    try {
+      // First parse the metadata file
+      const metadataText = await metadataFile.text();
+      const parsedMetadata = JSON.parse(metadataText);
 
-    // Parse column metadata if provided
-    let parsedColumnMetadata: any = {};
-    if (columnMetadataFile) {
-      const columnMetadataText = await columnMetadataFile.text();
-      parsedColumnMetadata = JSON.parse(columnMetadataText);
-    }
+      // Parse column metadata if provided
+      let parsedColumnMetadata: any = {};
+      if (columnMetadataFile) {
+        const columnMetadataText = await columnMetadataFile.text();
+        parsedColumnMetadata = JSON.parse(columnMetadataText);
+      }
 
-    // Step 1: Validate CSV format
-    const csvValidation = await this.validateCSV(parsedMetadata, dataFile);
+      // Step 1: Validate CSV format
+      const csvValidation = await this.validateCSV(parsedMetadata, dataFile);
 
-    // Handle missing columns case
-    if (!csvValidation.valid && csvValidation.message?.includes('Missing required columns')) {
-      // Extract the missing column names from the error message
-      const missingColumnsMatch = csvValidation.message.match(/Missing required columns: (.*)/);
-      const missingColumns = missingColumnsMatch ?
-        missingColumnsMatch[1].split(',').map(col => col.trim()) :
-        [];
+      // If CSV validation failed, throw the error - no mock data
+      if (!csvValidation.valid) {
+        throw new ValidationError({
+          code: ValidationErrorCode.INVALID_CSV_FORMAT,
+          message: csvValidation.message || 'CSV validation failed',
+          userGuidance: 'Please check your CSV file format and ensure all required columns are present.',
+          metadata: { csvValidation }
+        }, 400);
+      }
+
+      // Step 2: Perform full model validation
+      const modelValidation = await this.validateModel(
+        parsedMetadata,
+        dataFile,
+        parsedColumnMetadata
+      );
 
       return {
-        csvValidation: {
-          ...csvValidation,
-          warning: csvValidation.message,
-          mock_columns_added: missingColumns
-        },
-        modelValidation: {
-          model_name: parsedMetadata.model_name || parsedMetadata.name || 'Unknown Model',
-          metrics: {
-            validation_status: 0.0, // Indicate validation could not complete
-            missing_columns: missingColumns.length
-          }
-        }
+        csvValidation,
+        modelValidation
       };
+    } catch (error: any) {
+      // Re-throw ValidationError instances as-is
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      
+      // Handle JSON parsing errors
+      if (error instanceof SyntaxError) {
+        throw new ValidationError({
+          code: ValidationErrorCode.MODEL_METADATA_INVALID,
+          message: 'Invalid metadata file format',
+          technicalDetails: error.message,
+          userGuidance: 'Ensure metadata.json and column_metadata.json are valid JSON files.',
+          metadata: { parseError: error.message }
+        }, 400);
+      }
+      
+      // Default to service error
+      throw ValidationErrors.serviceUnavailable('FAIVOR ML Validator', error?.message || 'Validation failed');
     }
-
-    // Standard validation path for valid CSV
-    if (!csvValidation.valid) {
-      throw new Error(`CSV validation failed: ${csvValidation.message}`);
-    }
-
-    // Step 2: Perform full model validation
-    const modelValidation = await this.validateModel(
-      parsedMetadata,
-      dataFile,
-      parsedColumnMetadata
-    );
-
-    return {
-      csvValidation,
-      modelValidation
-    };
   }
 
   /**
    * Calculate comprehensive metrics for a model using existing validate-model endpoint
-   * This method calls the backend and handles any Docker execution errors gracefully
    */
   static async calculateMetrics(
     modelMetadata: any,
     csvFile: File,
     columnMetadata: Record<string, any> = {}
   ): Promise<ComprehensiveMetricsResponse> {
-    try {
-      // Use the existing validate-model endpoint to get basic metrics
-      const basicMetrics = await this.validateModel(modelMetadata, csvFile, columnMetadata);
+    // Use the existing validate-model endpoint to get basic metrics
+    const basicMetrics = await this.validateModel(modelMetadata, csvFile, columnMetadata);
 
-      // Convert basic metrics to comprehensive format
-      return this.convertToComprehensiveFormat(basicMetrics, modelMetadata);
-    } catch (error: any) {
-      // Re-throw the error to be handled by the UI
-      throw new Error(`Metrics calculation failed: ${error.message}`);
-    }
+    // Convert basic metrics to comprehensive format
+    return this.convertToComprehensiveFormat(basicMetrics, modelMetadata);
   }
 
   /**
    * Calculate comprehensive metrics when we only have column information
-   * This will attempt to call the backend but handle failures gracefully
    */
   static async calculateMetricsWithColumns(
     modelMetadata: any,
@@ -216,12 +283,7 @@ export class FaivorBackendAPI {
     const csvBlob = new Blob([csvContent], { type: 'text/csv' });
     const csvFile = new File([csvBlob], 'columns_only.csv', { type: 'text/csv' });
 
-    try {
-      return await this.calculateMetrics(modelMetadata, csvFile, columnMetadata);
-    } catch (error: any) {
-      // Re-throw the error to be handled by the UI
-      throw new Error(`Metrics calculation with columns failed: ${error.message}`);
-    }
+    return await this.calculateMetrics(modelMetadata, csvFile, columnMetadata);
   }
 
   /**

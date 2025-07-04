@@ -28,6 +28,7 @@
 	let metricsData = $state<ComprehensiveMetricsResponse | null>(null);
 	let isLoadingMetrics = $state(false);
 	let metricsError = $state<string | null>(null);
+	let metricsErrorDetails = $state<any>(null);
 
 	// Track actual value changes
 	$effect(() => {
@@ -72,6 +73,7 @@
 
 		isLoadingMetrics = true;
 		metricsError = null;
+		metricsErrorDetails = null;
 
 		try {
 			const formData = $validationFormStore;
@@ -183,55 +185,8 @@
 				modelMetadata = parsedMetadata;
 				console.log('🔧 Enhanced uploaded metadata with General Model Information section');
 			} else {
-				// Create basic mock metadata with required structure
-				console.warn('⚠️ No model metadata available - using mock metadata');
-				modelMetadata = {
-					'@context': {
-						rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
-						xsd: 'http://www.w3.org/2001/XMLSchema#',
-						'General Model Information':
-							'https://schema.metadatacenter.org/properties/61b8809b-12c4-44e8-8a51-cfcfd13fc87d'
-					},
-					'General Model Information': {
-						Title: {
-							'@value': 'Mock Model'
-						},
-						Description: {
-							'@value': 'Mock model for validation testing'
-						},
-						'Created by': {
-							'@value': 'FAIR Models Validator User'
-						},
-						'Creation date': {
-							'@value': new Date().toISOString().split('T')[0],
-							'@type': 'xsd:date'
-						}
-					},
-					'Input data1': [
-						{
-							'Input label': {
-								'@value': 'feature1'
-							},
-							'Type of input': {
-								'@value': 'n'
-							}
-						},
-						{
-							'Input label': {
-								'@value': 'feature2'
-							},
-							'Type of input': {
-								'@value': 'n'
-							}
-						}
-					],
-					'Outcome label': {
-						'@value': 'outcome'
-					},
-					'Outcome type': {
-						'@value': 'P'
-					}
-				};
+				// No metadata available - cannot proceed
+				throw new Error('No model metadata available. Please upload metadata.json or ensure the model has metadata configured.');
 			}
 
 			// Parse column metadata if available
@@ -241,27 +196,8 @@
 				columnMetadata = JSON.parse(columnMetadataText);
 			}
 
-			// Check if we have validation results with missing columns
-			const validationResults = formData.validationResults;
-			if (
-				validationResults?.csvValidation?.mock_columns_added ||
-				validationResults?.modelValidation?.mockColumns
-			) {
-				// Use columns-only approach for missing column cases
-				const columns = [
-					...(validationResults.csvValidation?.details?.csv_columns || []),
-					...(validationResults.csvValidation?.details?.model_input_columns || []),
-					...(validationResults.csvValidation?.mock_columns_added || []),
-					...(validationResults.modelValidation?.mockColumns || [])
-				].filter((col, index, arr) => arr.indexOf(col) === index); // Remove duplicates
-
-				console.log('📊 Calculating metrics with columns only:', columns);
-				metricsData = await FaivorBackendAPI.calculateMetricsWithColumns(
-					modelMetadata,
-					columns,
-					columnMetadata
-				);
-			} else if (uploadedFolder.data) {
+			// Validate that we have data to calculate metrics
+			if (uploadedFolder.data) {
 				// Use real data
 				console.log('📊 Calculating metrics with real data');
 				metricsData = await FaivorBackendAPI.calculateMetrics(
@@ -279,7 +215,20 @@
 			validationFormStore.setComprehensiveMetrics(metricsData);
 		} catch (error: any) {
 			console.error('❌ Failed to load metrics:', error);
-			metricsError = error.message || 'Failed to calculate metrics';
+			
+			// Check if this is a structured ValidationError
+			if (error.details) {
+				metricsError = error.details.message || error.message || 'Failed to calculate metrics';
+				metricsErrorDetails = {
+					code: error.details.code,
+					technicalDetails: error.details.technicalDetails,
+					userGuidance: error.details.userGuidance,
+					metadata: error.details.metadata
+				};
+			} else {
+				metricsError = error.message || 'Failed to calculate metrics';
+				metricsErrorDetails = null;
+			}
 		} finally {
 			isLoadingMetrics = false;
 		}
@@ -351,7 +300,32 @@
 			<div>
 				<h3 class="font-bold">Metrics Calculation Failed</h3>
 				<div class="mb-2 text-sm">{metricsError}</div>
-				{#if metricsError.includes('Docker') || metricsError.includes('Connection aborted') || metricsError.includes('FileNotFoundError')}
+				
+				{#if metricsErrorDetails}
+					{#if metricsErrorDetails.userGuidance}
+						<div class="alert alert-info mt-2">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+							</svg>
+							<span class="text-sm">{metricsErrorDetails.userGuidance}</span>
+						</div>
+					{/if}
+					
+					{#if metricsErrorDetails.technicalDetails}
+						<details class="collapse collapse-arrow bg-base-200 mt-2">
+							<summary class="collapse-title text-sm font-medium">Technical Details</summary>
+							<div class="collapse-content">
+								<pre class="text-xs whitespace-pre-wrap">{metricsErrorDetails.technicalDetails}</pre>
+							</div>
+						</details>
+					{/if}
+					
+					{#if metricsErrorDetails.code}
+						<div class="text-xs opacity-75 mt-2">
+							Error Code: <code class="font-mono">{metricsErrorDetails.code}</code>
+						</div>
+					{/if}
+				{:else if metricsError.includes('Docker') || metricsError.includes('Connection aborted') || metricsError.includes('FileNotFoundError')}
 					<div class="text-xs opacity-75">
 						<p><strong>This error indicates:</strong></p>
 						<ul class="mt-1 list-inside list-disc space-y-1">
