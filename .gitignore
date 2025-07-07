@@ -62,7 +62,7 @@ out/
 *.o
 *.obj
 *.so
-
+.claude
 # Dependency directories
 vendor/
 cline_docs
