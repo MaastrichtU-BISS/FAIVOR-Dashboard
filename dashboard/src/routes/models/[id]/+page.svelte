@@ -19,6 +19,7 @@
 	import toast from 'svelte-french-toast';
 	import MaterialSymbolsSettingsSuggestRounded from '~icons/material-symbols/settings-suggest-rounded';
 	import MaterialSymbolsAutoGraphRounded from '~icons/material-symbols/auto-graph-rounded';
+	import MaterialSymbolsVisibilityOutline from '~icons/material-symbols/visibility-outline';
 	import { onMount, onDestroy } from 'svelte';
 
 	interface Props {
@@ -383,7 +384,7 @@
 							</td>
 							<td onclick={() => openValidation(job)}>
 								<button class="btn">
-									<MaterialSymbolsSettingsSuggestRounded /> Edit
+									<MaterialSymbolsVisibilityOutline /> View
 								</button>
 							</td>
 							<td>

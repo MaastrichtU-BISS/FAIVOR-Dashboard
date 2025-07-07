@@ -504,14 +504,6 @@
 		</div>
 
 		<div class="modal-action mt-8">
-			{#if $validationStore.mode === 'view'}
-				<button class="btn btn-outline" onclick={() => validationStore.setMode('edit')}>
-					Edit
-				</button>
-			{/if}
-			{#if $validationStore.currentValidation && $validationStore.mode === 'edit'}
-				<button class="btn btn-primary" onclick={handleResubmit}>Resubmit Validation</button>
-			{/if}
 			<div class="flex-1"></div>
 			<button class="btn" onclick={closeModal}>Close</button>
 			{#if currentStep > 0}
