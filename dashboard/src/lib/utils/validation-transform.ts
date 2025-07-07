@@ -194,9 +194,8 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
       message: job.metrics ? 'Metrics available' : 'Metrics not fully available',
     }
   };
-  if (job.validation_status !== 'unknown') {
-    validationFormStore.setValidationResults(reconstructedResults);
-  }
+  // Removed setValidationResults call to prevent infinite loop
+  // The calling code should handle setting validation results if needed
 
   return {
     validationName: validationName,

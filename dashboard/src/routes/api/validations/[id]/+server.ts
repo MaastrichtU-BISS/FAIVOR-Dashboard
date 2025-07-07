@@ -8,10 +8,22 @@ export const PUT: RequestHandler = async ({ request, params }) => {
   try {
     const formData: ValidationFormData = await request.json();
 
+    // Extract numeric ID from either format: "4" or "local-eval-4"
+    let validationId = params.id;
+    if (validationId.startsWith('local-eval-')) {
+      validationId = validationId.replace('local-eval-', '');
+    }
+    
+    // Ensure it's a valid number
+    const numericId = parseInt(validationId, 10);
+    if (isNaN(numericId)) {
+      return json({ error: 'Invalid validation ID format' }, { status: 400 });
+    }
+
     // Get existing validation to merge with updates
     const existing = await sql`
       SELECT data FROM validations
-      WHERE val_id = ${params.id}
+      WHERE val_id = ${numericId}
     `;
 
     if (existing.length === 0) {
@@ -28,7 +40,7 @@ export const PUT: RequestHandler = async ({ request, params }) => {
       SET
         data = ${sql.json(mergedData as any)},
         updated_at = CURRENT_TIMESTAMP
-      WHERE val_id = ${params.id}
+      WHERE val_id = ${numericId}
       RETURNING *
     `;
 

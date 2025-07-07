@@ -3,7 +3,8 @@
 	import {
 		validationStore,
 		type ValidationJob, // This might be an old type, review if UiValidationJob should be used from store
-		type ValidationMode
+		type ValidationMode,
+		type ValidationResults
 	} from '$lib/stores/models/validation.store';
 	import { validationFormStore } from '$lib/stores/models/validation.store';
 	import type { ValidationFormData } from '$lib/types/validation';
@@ -32,8 +33,6 @@
 
 	let currentStep = $state(0);
 	let isSubmitting = $state(false);
-	let autoSaveTimeout: ReturnType<typeof setTimeout> | null = $state(null);
-	let isSaving = $state(false);
 	let initialFormData = $state<ValidationFormData>({
 		validationName: '',
 		userName: '',
@@ -68,6 +67,24 @@
 				validationJobToFormData(currentValidation as any).then(formData => {
 					validationFormStore.loadFormData({ ...formData, modelId: modelId });
 					initialFormData = { ...formData, modelId: modelId };
+					
+					// Set validation results after form data is loaded (moved from validationJobToFormData)
+					if (currentValidation.validation_status !== 'unknown') {
+						const reconstructedResults = {
+							stage: currentValidation.validation_status === 'completed' ? 'complete' : 
+							       currentValidation.validation_status === 'pending' ? 'none' : 'model',
+							csvValidation: {
+								success: currentValidation.dataProvided || false,
+								message: currentValidation.dataProvided ? 'Dataset provided (details from evaluation)' : 'Dataset details not fully available',
+							},
+							modelValidation: {
+								success: currentValidation.metrics || false,
+								message: currentValidation.metrics ? 'Metrics available' : 'Metrics not fully available',
+							}
+						};
+						validationFormStore.setValidationResults(reconstructedResults);
+					}
+					
 				}).catch(error => {
 					console.error('Failed to load validation form data:', error);
 					// Fall back to empty form if restoration fails
@@ -99,6 +116,7 @@
 				modelId: modelId
 			};
 			initialFormData = emptyFormData;
+			
 		}
 	});
 
@@ -144,75 +162,7 @@
 		}
 	}
 
-	async function autoSave() {
-		if (
-			$validationStore.mode !== 'edit' ||
-			!$validationStore.currentValidation ||
-			isSaving
-		) {
-			return;
-		}
-		
-		// Get val_id from either UiValidationJob or ValidationJob
-		const valId = 'val_id' in $validationStore.currentValidation 
-			? $validationStore.currentValidation.val_id 
-			: ($validationStore.currentValidation as any).val_id;
-			
-		if (!valId) {
-			console.error('No validation ID found for auto-save');
-			return;
-		}
-		
-		isSaving = true;
-		try {
-			const formData = validationFormStore.getFormData();
-			const response = await fetch(
-				`/api/validations/${valId}`,
-				{
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(formData)
-				}
-			);
-			const result = await response.json();
-			if (!result.success) {
-				console.error('Auto-save failed:', result.error);
-			} else {
-				dispatch('validationChange');
-			}
-		} catch (error) {
-			console.error('Auto-save error:', error);
-		} finally {
-			isSaving = false;
-		}
-	}
 
-	function debouncedAutoSave() {
-		if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
-		autoSaveTimeout = setTimeout(() => autoSave(), 500);
-	}
-
-	const scheduleAutoSave = debouncedAutoSave;
-
-	$effect(() => {
-		if ($validationStore.mode === 'edit' && $validationStore.currentValidation) {
-			// Check for val_id in either format
-			const valId = 'val_id' in $validationStore.currentValidation 
-				? $validationStore.currentValidation.val_id 
-				: ($validationStore.currentValidation as any).val_id;
-				
-			if (valId) {
-				const formState = $validationFormStore; // Reactive dependency
-				debouncedAutoSave();
-			}
-		}
-	});
-
-	$effect(() => {
-		return () => {
-			if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
-		};
-	});
 
 	async function closeModal() {
 		validationStore.closeModal();
@@ -460,12 +410,6 @@
 	class:modal-open={$validationStore.isOpen}
 >
 	<div class="modal-box bg-base-100 h-[90vh] max-h-none w-full !max-w-full p-8">
-		{#if $validationStore.mode === 'edit' && isSaving}
-			<div class="text-base-content/70 mb-4 flex items-center gap-2 text-sm">
-				<span class="loading loading-spinner loading-xs"></span>
-				<span>Auto-saving...</span>
-			</div>
-		{/if}
 
 		<ul class="steps mb-8 w-full">
 			{#each steps as step, i}
@@ -550,7 +494,6 @@
 			{#if currentStep === 0}
 				<DatasetStep
 					readonly={$validationStore.mode === 'view'}
-					onFieldChange={scheduleAutoSave}
 					{model}
 				/>
 			{:else if currentStep === 1}
