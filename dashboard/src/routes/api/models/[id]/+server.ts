@@ -41,10 +41,11 @@ export const GET: RequestHandler = async ({ params }) => {
     const localValidationsRows: {
       val_id: number;
       start_datetime: string;
+      validation_status: string;
       data: ValidationData;
       fair_eval_id: string | null;
     }[] = await sql`
-      SELECT val_id, start_datetime, data, data->>'fair_eval_id' AS fair_eval_id
+      SELECT val_id, start_datetime, validation_status, data, data->>'fair_eval_id' AS fair_eval_id
       FROM validations
       WHERE model_checkpoint_id = ${checkpointId} AND deleted_at IS NULL
       ORDER BY start_datetime DESC
@@ -70,11 +71,16 @@ export const GET: RequestHandler = async ({ params }) => {
         }
       }
 
-      // Dataset characteristics: For now, this will be an empty array.
-      // The frontend expects specific keys like 'The number of subject for evaluation' or 'Volume'.
-      // These are not directly available in `ValidationData` in a structured way that maps to JSON-LD.
-      // This might affect how 'hasDatasetChars' is determined on the frontend, potentially impacting status display.
+      // Dataset characteristics: Check if we have dataset_info to populate this
       const datasetCharacteristics: JsonLdDatasetCharacteristicItem[] = [];
+      
+      // If we have dataset_info, create basic dataset characteristics
+      if (validationData.dataset_info) {
+        datasetCharacteristics.push({
+          'The number of subject for evaluation': { '@value': '1' }, // Default value
+          Volume: { '@value': validationData.dataset_info.folderUpload?.totalSize?.toString() || '0' }
+        });
+      }
 
       return {
         '@id': row.fair_eval_id || `local-eval-${String(row.val_id)}`,
@@ -87,6 +93,10 @@ export const GET: RequestHandler = async ({ params }) => {
         // Pass dataset_info directly as the frontend page expects to find it here
         // for constructing UiValidationJob
         dataset_info: validationData.dataset_info,
+        // Pass validation_status for UI to show proper status
+        validation_status: row.validation_status,
+        // Pass the entire validation data for ResultsModal to access
+        data: validationData,
         // Include other fields if the frontend's UiValidationJob mapping relies on them
         // from the original JsonLdEvaluationResultItem structure.
       } as JsonLdEvaluationResultItem; // Cast to ensure type alignment

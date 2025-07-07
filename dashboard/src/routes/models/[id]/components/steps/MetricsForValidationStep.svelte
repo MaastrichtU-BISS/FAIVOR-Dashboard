@@ -3,10 +3,6 @@
 	import { validationFormStore } from '$lib/stores/models/validation.store';
 	import { FaivorBackendAPI, type ComprehensiveMetricsResponse } from '$lib/api/faivor-backend';
 	import type { FullJsonLdModel } from '$lib/stores/models/types';
-	import ROCCurveChart from '$lib/components/charts/ROCCurveChart.svelte';
-	import PRCurveChart from '$lib/components/charts/PRCurveChart.svelte';
-	import MetricsRadarChart from '$lib/components/charts/MetricsRadarChart.svelte';
-	import SubgroupComparisonChart from '$lib/components/charts/SubgroupComparisonChart.svelte';
 
 	interface Props {
 		metricsDescription?: string;
@@ -28,15 +24,15 @@
 	let initialMetrics = $state(metricsDescription || '');
 	let initialPerformance = $state(performanceMetrics || '');
 
-	// Metrics state
-	let metricsData = $state<ComprehensiveMetricsResponse | null>(null);
+	// Metrics state - updated to handle metric definitions
+	let metricsData = $state<
+		| ComprehensiveMetricsResponse
+		| { metric_definitions: Array<{ name: string; description: string; type: string }> }
+		| null
+	>(null);
 	let isLoadingMetrics = $state(false);
 	let metricsError = $state<string | null>(null);
 	let metricsErrorDetails = $state<any>(null);
-	
-	// View mode toggles
-	let showCharts = $state(true);
-	let showTables = $state(true);
 
 	// Track actual value changes
 	$effect(() => {
@@ -194,7 +190,9 @@
 				console.log('🔧 Enhanced uploaded metadata with General Model Information section');
 			} else {
 				// No metadata available - cannot proceed
-				throw new Error('No model metadata available. Please upload metadata.json or ensure the model has metadata configured.');
+				throw new Error(
+					'No model metadata available. Please upload metadata.json or ensure the model has metadata configured.'
+				);
 			}
 
 			// Parse column metadata if available
@@ -206,24 +204,34 @@
 
 			// Validate that we have data to calculate metrics
 			if (uploadedFolder.data) {
-				// Use real data
-				console.log('📊 Calculating metrics with real data');
-				metricsData = await FaivorBackendAPI.calculateMetrics(
+				// Use retrieveMetricDefinitions to get available metrics
+				console.log('📊 Retrieving available metric definitions');
+				const metricDefinitions = await FaivorBackendAPI.retrieveMetricDefinitions(
 					modelMetadata,
 					uploadedFolder.data,
 					columnMetadata
 				);
+
+				// Store the metric definitions in a format that the UI can display
+				metricsData = {
+					model_info: {
+						name: modelMetadata['General Model Information']?.Title?.['@value'] || 'Unknown Model',
+						type: 'classification'
+					},
+					metric_definitions: metricDefinitions,
+					overall: {}
+				} as any;
 			} else {
 				throw new Error('No data available for metrics calculation');
 			}
 
-			console.log('✅ Metrics loaded successfully:', metricsData);
+			console.log('✅ Metric definitions loaded successfully:', metricsData);
 
-			// Save metrics to validation form store
-			validationFormStore.setComprehensiveMetrics(metricsData);
+			// Don't save metric definitions to validation form store as they are just for preview
+			// validationFormStore.setComprehensiveMetrics(metricsData);
 		} catch (error: any) {
 			console.error('❌ Failed to load metrics:', error);
-			
+
 			// Check if this is a structured ValidationError
 			if (error.details) {
 				metricsError = error.details.message || error.message || 'Failed to calculate metrics';
@@ -240,73 +248,6 @@
 		} finally {
 			isLoadingMetrics = false;
 		}
-	}
-
-	function formatMetricValue(value: any): string {
-		if (typeof value === 'number') {
-			return value.toFixed(3);
-		}
-		if (typeof value === 'string') {
-			// If it's a JSON string, try to parse and format it nicely
-			try {
-				const parsed = JSON.parse(value);
-				return JSON.stringify(parsed, null, 2);
-			} catch {
-				return value;
-			}
-		}
-		return JSON.stringify(value, null, 2);
-	}
-
-	function getMetricCategory(key: string): string {
-		if (key.startsWith('performance.')) return 'Performance';
-		if (key.startsWith('fairness.')) return 'Fairness';
-		if (key.startsWith('explainability.')) return 'Explainability';
-		return 'Other';
-	}
-
-	function getMetricName(key: string): string {
-		return key.split('.').pop() || key;
-	}
-
-	function groupMetricsByCategory(
-		metrics: Record<string, any>
-	): Record<string, Record<string, any>> {
-		const grouped: Record<string, Record<string, any>> = {};
-
-		Object.entries(metrics).forEach(([key, value]) => {
-			const category = getMetricCategory(key);
-			const name = getMetricName(key);
-
-			if (!grouped[category]) {
-				grouped[category] = {};
-			}
-			grouped[category][name] = value;
-		});
-
-		return grouped;
-	}
-	
-	function prepareSubgroupData(subgroups: Record<string, any>) {
-		const data: Array<{ group: string; metrics: Record<string, number> }> = [];
-		
-		Object.entries(subgroups).forEach(([group, metrics]) => {
-			if (typeof metrics === 'object' && metrics !== null) {
-				const metricsObj = metrics as any;
-				data.push({
-					group,
-					metrics: {
-						accuracy: metricsObj['performance.accuracy'] || 0,
-						precision: metricsObj['performance.precision'] || 0,
-						recall: metricsObj['performance.recall'] || 0,
-						f1_score: metricsObj['performance.f1_score'] || 0,
-						sample_size: metricsObj.sample_size || 0
-					}
-				});
-			}
-		});
-		
-		return data;
 	}
 </script>
 
@@ -336,28 +277,39 @@
 			<div>
 				<h3 class="font-bold">Metrics Calculation Failed</h3>
 				<div class="mb-2 text-sm">{metricsError}</div>
-				
+
 				{#if metricsErrorDetails}
 					{#if metricsErrorDetails.userGuidance}
 						<div class="alert alert-info mt-2">
-							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+								class="h-6 w-6 shrink-0 stroke-current"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+								></path>
 							</svg>
 							<span class="text-sm">{metricsErrorDetails.userGuidance}</span>
 						</div>
 					{/if}
-					
+
 					{#if metricsErrorDetails.technicalDetails}
-						<details class="collapse collapse-arrow bg-base-200 mt-2">
+						<details class="collapse-arrow bg-base-200 collapse mt-2">
 							<summary class="collapse-title text-sm font-medium">Technical Details</summary>
 							<div class="collapse-content">
-								<pre class="text-xs whitespace-pre-wrap">{metricsErrorDetails.technicalDetails}</pre>
+								<pre
+									class="whitespace-pre-wrap text-xs">{metricsErrorDetails.technicalDetails}</pre>
 							</div>
 						</details>
 					{/if}
-					
+
 					{#if metricsErrorDetails.code}
-						<div class="text-xs opacity-75 mt-2">
+						<div class="mt-2 text-xs opacity-75">
 							Error Code: <code class="font-mono">{metricsErrorDetails.code}</code>
 						</div>
 					{/if}
@@ -371,7 +323,7 @@
 						</ul>
 						<p class="mt-2">
 							<strong>To resolve:</strong>
-							 Contact your administrator to enable Docker execution for full metrics calculation.
+							Contact your administrator to enable Docker execution for full metrics calculation.
 						</p>
 					</div>
 				{/if}
@@ -379,326 +331,62 @@
 			<button class="btn btn-sm btn-outline" onclick={loadMetrics}>Retry</button>
 		</div>
 	{:else if metricsData}
-		<!-- Parse the metrics data properly based on its structure -->
-		{@const hasNestedStructure = metricsData.overall?.overall_metrics}
-		{@const hasSnakeCaseKeys = metricsData.overall || metricsData.threshold_metrics}
-		{@const hasCamelCaseKeys = metricsData['Overall Metrics'] || metricsData['Threshold Metrics']}
-		
-		<!-- Handle the nested structure where overall contains both overall_metrics and threshold_metrics -->
-		{@const parsedMetrics = hasNestedStructure ? {
-			overall: metricsData.overall.overall_metrics,
-			threshold_metrics: metricsData.overall.threshold_metrics,
-			model_info: metricsData.model_info || { name: 'Unknown', type: 'Unknown' },
-			subgroups: metricsData.subgroups
-		} : hasCamelCaseKeys ? {
-			overall: typeof metricsData['Overall Metrics'] === 'string' ? JSON.parse(metricsData['Overall Metrics']) : metricsData['Overall Metrics'],
-			threshold_metrics: typeof metricsData['Threshold Metrics'] === 'string' ? JSON.parse(metricsData['Threshold Metrics']) : metricsData['Threshold Metrics'],
-			model_info: metricsData.model_info || metricsData['Model Information'] || { name: 'Unknown', type: 'Unknown' },
-			subgroups: metricsData.subgroups || metricsData['Subgroups']
-		} : metricsData}
-		
-		<!-- Model Information -->
-		<div class="border-base-300 rounded-xl border p-6">
-			<h3 class="mb-4 text-lg font-semibold">Model Information</h3>
-			<div class="grid grid-cols-2 gap-4">
-				<div>
-					<span class="text-base-content/70">Model Name:</span>
-					<span class="ml-2 font-medium">{parsedMetrics.model_info?.name || 'Rectum-pCR-Prediction-Clinical'}</span>
-				</div>
-				<div>
-					<span class="text-base-content/70">Model Type:</span>
-					<span class="ml-2 font-medium capitalize">{parsedMetrics.model_info?.type || 'Classification'}</span>
-				</div>
-			</div>
-		</div>
-
-		<!-- View Toggle Controls -->
-		<div class="flex justify-end gap-2 mb-4">
-			<label class="label cursor-pointer gap-2">
-				<input 
-					type="checkbox" 
-					class="toggle toggle-primary" 
-					bind:checked={showCharts}
-				/>
-				<span class="label-text">Show Charts</span>
-			</label>
-			<label class="label cursor-pointer gap-2">
-				<input 
-					type="checkbox" 
-					class="toggle toggle-primary" 
-					bind:checked={showTables}
-				/>
-				<span class="label-text">Show Tables</span>
-			</label>
-		</div>
-
-		<!-- Overall Metrics -->
-		{#if parsedMetrics.overall}
-			{console.log('Parsed metrics:', parsedMetrics)}
-			{console.log('Overall metrics:', parsedMetrics.overall)}
-			{console.log('Threshold metrics:', parsedMetrics.threshold_metrics)}
-			{@const groupedMetrics = groupMetricsByCategory(parsedMetrics.overall)}
-			
-			<!-- Metrics Visualization Charts -->
-			{#if showCharts}
-				<div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2">
-					<!-- Performance Metrics Radar Chart -->
-					{#if groupedMetrics.Performance && Object.keys(groupedMetrics.Performance).length > 0}
-						<div class="border-base-300 rounded-xl border p-6">
-							<MetricsRadarChart 
-								metrics={Object.fromEntries(
-									Object.entries(parsedMetrics.overall).filter(([key]) => key.startsWith('performance.'))
-								)}
-								title="Performance Metrics Overview"
-								height={350}
-							/>
-						</div>
-					{/if}
-					
-					<!-- ROC and PR Curves -->
-					{#if parsedMetrics.threshold_metrics}
-						<!-- ROC Curve -->
-						{#if parsedMetrics.threshold_metrics.roc_curve}
-							<div class="border-base-300 rounded-xl border p-6">
-								<ROCCurveChart
-									fpr={parsedMetrics.threshold_metrics.roc_curve.fpr}
-									tpr={parsedMetrics.threshold_metrics.roc_curve.tpr}
-									auc={parsedMetrics.threshold_metrics.roc_curve.auc}
-									height={350}
-								/>
-							</div>
-						{/if}
-						
-						<!-- PR Curve -->
-						{#if parsedMetrics.threshold_metrics.pr_curve}
-							<div class="border-base-300 rounded-xl border p-6">
-								<PRCurveChart
-									precision={parsedMetrics.threshold_metrics.pr_curve.precision}
-									recall={parsedMetrics.threshold_metrics.pr_curve.recall}
-									averagePrecision={parsedMetrics.threshold_metrics.pr_curve.average_precision}
-									height={350}
-								/>
-							</div>
-						{/if}
-					{/if}
-				</div>
-			{/if}
-			
-			<!-- Metrics Tables -->
-			{#if showTables && Object.keys(groupedMetrics).length > 0}
-				{#each Object.entries(groupedMetrics) as [category, metrics]}
-					<div class="border-base-300 rounded-xl border p-6">
-						<h3 class="mb-4 text-lg font-semibold">{category} Metrics</h3>
-						<div class="overflow-x-auto">
-							<table class="table-zebra table w-full">
-								<thead>
-									<tr>
-										<th>Metric</th>
-										<th>Value</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each Object.entries(metrics) as [name, value]}
-										<tr>
-											<td class="font-medium capitalize">{name.replace(/_/g, ' ')}</td>
-											<td class="font-mono">{formatMetricValue(value)}</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
-					</div>
-				{/each}
-			{/if}
-		{/if}
-
-		<!-- Threshold Analysis (for classification models) -->
-		{#if parsedMetrics.threshold_metrics}
-			{@const thresholdData = parsedMetrics.threshold_metrics}
+		<!-- Check if we have metric definitions from /retrieve-metrics -->
+		{#if 'metric_definitions' in metricsData && metricsData.metric_definitions}
+			<!-- Display metric definitions returned by /retrieve-metrics -->
 			<div class="border-base-300 rounded-xl border p-6">
-				<h3 class="mb-4 text-lg font-semibold">Threshold Analysis</h3>
+				<h3 class="mb-4 text-lg font-semibold">Available Metrics for Validation</h3>
+				<p class="text-base-content/70 mb-4 text-sm">
+					The following metrics will be calculated when you submit the validation:
+				</p>
 
-				{#if thresholdData.probability_preprocessing}
-					<div class="alert alert-info mb-4">
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							fill="none"
-							viewBox="0 0 24 24"
-							class="h-6 w-6 shrink-0 stroke-current"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							></path>
-						</svg>
-						<span class="text-sm">{thresholdData.probability_preprocessing}</span>
-					</div>
-				{/if}
+				<!-- Display as JSON -->
+				<!-- <div class="bg-base-200 rounded-lg p-4 overflow-auto max-h-96">
+					<pre class="text-sm"><code>{JSON.stringify(metricsData.metric_definitions, null, 2)}</code></pre>
+				</div> -->
 
-				<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-					<!-- ROC Curve Info -->
-					{#if thresholdData.roc_curve}
-						<div class="card bg-base-200">
-							<div class="card-body">
-								<h4 class="card-title text-base">ROC Curve</h4>
-								<div class="stats stats-vertical">
-									<div class="stat">
-										<div class="stat-title">AUC Score</div>
-										<div class="stat-value text-2xl">
-											{thresholdData.roc_curve.auc.toFixed(3)}
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					{/if}
-
-					<!-- Precision-Recall Curve Info -->
-					{#if thresholdData.pr_curve}
-						<div class="card bg-base-200">
-							<div class="card-body">
-								<h4 class="card-title text-base">Precision-Recall Curve</h4>
-								<div class="stats stats-vertical">
-									<div class="stat">
-										<div class="stat-title">Average Precision</div>
-										<div class="stat-value text-2xl">
-											{thresholdData.pr_curve.average_precision.toFixed(3)}
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					{/if}
-				</div>
-
-				<!-- Sample Threshold Metrics -->
-				{#if thresholdData.threshold_metrics}
-					{@const sampleThresholds = ['0.3', '0.5', '0.7']}
-					<div class="mt-6">
-						<h4 class="mb-3 text-base font-semibold">Sample Threshold Performance</h4>
-						<div class="overflow-x-auto">
-							<table class="table-compact table w-full">
-								<thead>
-									<tr>
-										<th>Threshold</th>
-										<th>Accuracy</th>
-										<th>Precision</th>
-										<th>Recall</th>
-										<th>F1 Score</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each sampleThresholds as threshold}
-										{#if thresholdData.threshold_metrics[threshold]}
-											{@const metrics = thresholdData.threshold_metrics[threshold]}
-											<tr>
-												<td class="font-mono">{threshold}</td>
-												<td class="font-mono">{metrics.accuracy?.toFixed(3) || 'N/A'}</td>
-												<td class="font-mono">{metrics.precision?.toFixed(3) || 'N/A'}</td>
-												<td class="font-mono">{metrics.recall?.toFixed(3) || 'N/A'}</td>
-												<td class="font-mono">{metrics.f1_score?.toFixed(3) || 'N/A'}</td>
-											</tr>
-										{/if}
-									{/each}
-								</tbody>
-							</table>
-						</div>
-					</div>
-				{/if}
-			</div>
-		{/if}
-
-		<!-- Subgroup Analysis -->
-		{#if parsedMetrics.subgroups && Object.keys(parsedMetrics.subgroups).length > 0}
-			<div class="border-base-300 rounded-xl border p-6">
-				<h3 class="mb-4 text-lg font-semibold">Subgroup Analysis</h3>
-				{#each Object.entries(parsedMetrics.subgroups) as [feature, subgroups]}
-					<div class="mb-6">
-						<h4 class="mb-3 text-base font-semibold capitalize">{feature.replace(/_/g, ' ')}</h4>
-						{#if typeof subgroups === 'object' && subgroups !== null}
-							{@const subgroupData = prepareSubgroupData(subgroups)}
-							
-							{#if showCharts && subgroupData.length > 0}
-								<div class="mb-4">
-									<SubgroupComparisonChart
-										subgroupData={subgroupData}
-										selectedMetric="accuracy"
-										title={`${feature.replace(/_/g, ' ')} - Performance Comparison`}
-										height={300}
-									/>
-								</div>
-							{/if}
-							
-							{#if showTables}
-								<div class="overflow-x-auto">
-									<table class="table-compact table w-full">
-										<thead>
-											<tr>
-												<th>Subgroup</th>
-												<th>Sample Size</th>
-												<th>Accuracy</th>
-												<th>Precision</th>
-												<th>Recall</th>
-											</tr>
-										</thead>
-										<tbody>
-											{#each Object.entries(subgroups) as [subgroup, metrics]}
-												{#if typeof metrics === 'object' && metrics !== null}
-													{@const metricsObj = metrics as any}
-													<tr>
-														<td class="font-medium">{subgroup}</td>
-														<td>{metricsObj.sample_size || 'N/A'}</td>
-														<td class="font-mono">
-															{metricsObj['performance.accuracy']?.toFixed(3) || 'N/A'}
-														</td>
-														<td class="font-mono">
-															{metricsObj['performance.precision']?.toFixed(3) || 'N/A'}
-														</td>
-														<td class="font-mono">
-															{metricsObj['performance.recall']?.toFixed(3) || 'N/A'}
-														</td>
-													</tr>
-												{/if}
-											{/each}
-										</tbody>
-									</table>
-								</div>
-							{/if}
-						{/if}
-					</div>
-				{/each}
-			</div>
-		{/if}
-		
-		<!-- Display any other metrics that don't fit the standard categories -->
-		{#if metricsData}
-			{@const displayedKeys = ['model_info', 'overall', 'threshold_metrics', 'subgroups', 'Overall Metrics', 'Threshold Metrics']}
-			{@const otherMetrics = Object.entries(metricsData).filter(([key]) => !displayedKeys.includes(key))}
-			{#if otherMetrics.length > 0}
-				<div class="border-base-300 rounded-xl border p-6">
-					<h3 class="mb-4 text-lg font-semibold">Other Metrics</h3>
+				<!-- Alternative: Display as a table -->
+				<div class="mt-6">
+					<h4 class="mb-3 text-base font-semibold">Metrics Summary</h4>
 					<div class="overflow-x-auto">
 						<table class="table-zebra table w-full">
 							<thead>
 								<tr>
-									<th>Metric</th>
-									<th>Value</th>
+									<th>Metric Name</th>
+									<th>Description</th>
+									<th>Type</th>
 								</tr>
 							</thead>
 							<tbody>
-								{#each otherMetrics as [key, value]}
+								{#each metricsData.metric_definitions as metric}
 									<tr>
-										<td class="font-medium">{key}</td>
-										<td class="font-mono text-sm">{formatMetricValue(value)}</td>
+										<td class="font-medium">{metric.name}</td>
+										<td class="text-sm">{metric.description}</td>
+										<td class="capitalize">{metric.type}</td>
 									</tr>
 								{/each}
 							</tbody>
 						</table>
 					</div>
 				</div>
-			{/if}
+			</div>
+		{:else}
+			<!-- Legacy display for comprehensive metrics (shouldn't happen in step 3 anymore) -->
+			<div class="border-base-300 rounded-xl border p-6">
+				<h3 class="mb-4 text-lg font-semibold">Model Information</h3>
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<span class="text-base-content/70">Model Name:</span>
+						<span class="ml-2 font-medium">{metricsData.model_info?.name || 'Unknown Model'}</span>
+					</div>
+					<div>
+						<span class="text-base-content/70">Model Type:</span>
+						<span class="ml-2 font-medium capitalize">
+							{metricsData.model_info?.type || 'Classification'}
+						</span>
+					</div>
+				</div>
+			</div>
 		{/if}
 	{:else}
 		<div class="border-base-300 rounded-xl border p-6">

@@ -48,10 +48,22 @@ export const PUT: RequestHandler = async ({ request, params }) => {
 
 export const DELETE: RequestHandler = async ({ params }) => {
   try {
+    // Extract numeric ID from either format: "4" or "local-eval-4"
+    let validationId = params.id;
+    if (validationId.startsWith('local-eval-')) {
+      validationId = validationId.replace('local-eval-', '');
+    }
+    
+    // Ensure it's a valid number
+    const numericId = parseInt(validationId, 10);
+    if (isNaN(numericId)) {
+      return json({ error: 'Invalid validation ID format' }, { status: 400 });
+    }
+
     const result = await sql`
       UPDATE validations
       SET deleted_at = CURRENT_TIMESTAMP
-      WHERE val_id = ${params.id}
+      WHERE val_id = ${numericId}
       RETURNING *
     `;
 

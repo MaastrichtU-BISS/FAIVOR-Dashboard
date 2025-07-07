@@ -105,7 +105,7 @@ export function validationRowToJob(row: ValidationRow): any {
 /**
  * Transform UiValidationJob (derived from JSON-LD) to form data for editing.
  */
-export function validationJobToFormData(job: UiValidationJob): ValidationFormData {
+export async function validationJobToFormData(job: UiValidationJob): Promise<ValidationFormData> {
   const evalData = job.originalEvaluationData;
 
   let reconstructedFolderFiles: Partial<DatasetFolderFiles> | undefined = undefined;
@@ -115,28 +115,47 @@ export function validationJobToFormData(job: UiValidationJob): ValidationFormDat
 
   if (folderUploadInfo) {
     folderName = folderUploadInfo.folderName;
-    reconstructedFolderFiles = {}; // Initialize as an empty object
-
-    // Helper to create a mock File-like object for display purposes
-    const createFileLikeObject = (detail: { name?: string; size?: number; lastModified?: number } | undefined, defaultName: string) => {
-      if (!detail) return undefined;
-      return {
-        name: detail.name || defaultName,
-        size: detail.size || 0,
-        lastModified: detail.lastModified || Date.now(),
-        // Add other properties if FolderUpload.svelte or other components expect them,
-        // but keep it minimal for display.
-      } as File; // Cast to File for structural compatibility with FolderUpload's props
-    };
-
-    if (folderUploadInfo.hasMetadata && folderUploadInfo.fileDetails?.metadata) {
-      reconstructedFolderFiles.metadata = createFileLikeObject(folderUploadInfo.fileDetails.metadata, 'metadata.json');
+    
+    // Try to restore files from IndexedDB if we have an ID
+    if (folderUploadInfo.indexedDbId) {
+      try {
+        const { datasetStorage } = await import('$lib/utils/indexeddb-storage');
+        const dataset = await datasetStorage.getDataset(folderUploadInfo.indexedDbId);
+        
+        if (dataset?.files) {
+          reconstructedFolderFiles = dataset.files;
+          console.log('✅ Restored files from IndexedDB:', folderUploadInfo.indexedDbId);
+        }
+      } catch (error) {
+        console.error('Failed to restore files from IndexedDB:', error);
+      }
     }
-    if (folderUploadInfo.hasData && folderUploadInfo.fileDetails?.data) {
-      reconstructedFolderFiles.data = createFileLikeObject(folderUploadInfo.fileDetails.data, 'data.csv');
-    }
-    if (folderUploadInfo.hasColumnMetadata && folderUploadInfo.fileDetails?.columnMetadata) {
-      reconstructedFolderFiles.columnMetadata = createFileLikeObject(folderUploadInfo.fileDetails.columnMetadata, 'column_metadata.json');
+    
+    // If we couldn't restore from IndexedDB, create mock File objects for display
+    if (!reconstructedFolderFiles || Object.keys(reconstructedFolderFiles).length === 0) {
+      reconstructedFolderFiles = {}; // Initialize as an empty object
+
+      // Helper to create a mock File-like object for display purposes
+      const createFileLikeObject = (detail: { name?: string; size?: number; lastModified?: number } | undefined, defaultName: string) => {
+        if (!detail) return undefined;
+        return {
+          name: detail.name || defaultName,
+          size: detail.size || 0,
+          lastModified: detail.lastModified || Date.now(),
+          // Add other properties if FolderUpload.svelte or other components expect them,
+          // but keep it minimal for display.
+        } as File; // Cast to File for structural compatibility with FolderUpload's props
+      };
+
+      if (folderUploadInfo.hasMetadata && folderUploadInfo.fileDetails?.metadata) {
+        reconstructedFolderFiles.metadata = createFileLikeObject(folderUploadInfo.fileDetails.metadata, 'metadata.json');
+      }
+      if (folderUploadInfo.hasData && folderUploadInfo.fileDetails?.data) {
+        reconstructedFolderFiles.data = createFileLikeObject(folderUploadInfo.fileDetails.data, 'data.csv');
+      }
+      if (folderUploadInfo.hasColumnMetadata && folderUploadInfo.fileDetails?.columnMetadata) {
+        reconstructedFolderFiles.columnMetadata = createFileLikeObject(folderUploadInfo.fileDetails.columnMetadata, 'column_metadata.json');
+      }
     }
   }
 

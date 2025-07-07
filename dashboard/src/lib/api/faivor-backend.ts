@@ -71,7 +71,7 @@ export class FaivorBackendAPI {
       if (message.includes('Missing required columns')) {
         const missingColumnsMatch = message.match(/Missing required columns: (.*)/);
         const missingColumns = missingColumnsMatch ? 
-          missingColumnsMatch[1].split(',').map(col => col.trim()) : [];
+          missingColumnsMatch[1].split(',').map((col: string) => col.trim()) : [];
         return ValidationErrors.missingColumns(missingColumns, []);
       }
       
@@ -89,12 +89,20 @@ export class FaivorBackendAPI {
       return ValidationErrors.serviceUnavailable('FAIVOR ML Validator', errorText || response.statusText);
     }
 
+    // Log the full error for debugging
+    console.error('API Error Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorJson,
+      errorText
+    });
+
     // Default error
     return new ValidationError({
       code: ValidationErrorCode.VALIDATION_FAILED,
       message: errorJson?.message || errorJson?.detail || errorText || response.statusText,
       technicalDetails: errorText,
-      metadata: { status: response.status, statusText: response.statusText }
+      metadata: { status: response.status, statusText: response.statusText, errorJson }
     }, response.status);
   }
 
@@ -289,10 +297,66 @@ export class FaivorBackendAPI {
   }
 
   /**
+   * Retrieve available metrics definitions for a model
+   * This calls the /retrieve-metrics endpoint which returns available metric definitions
+   */
+  static async retrieveMetricDefinitions(
+    modelMetadata: any,
+    csvFile: File,
+    columnMetadata: Record<string, any> | null = null
+  ): Promise<Array<{name: string, description: string, type: string}>> {
+    const formData = new FormData();
+    formData.append("model_metadata", JSON.stringify(modelMetadata));
+    formData.append("csv_file", csvFile);
+    if (columnMetadata !== null) {
+      formData.append("column_metadata", JSON.stringify(columnMetadata));
+    }
+
+    try {
+      const response = await fetch(`${this.BASE_URL}/retrieve-metrics`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw await this.parseErrorResponse(response);
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw ValidationErrors.serviceUnavailable('FAIVOR ML Validator', error?.message || 'Failed to retrieve metrics');
+    }
+  }
+
+  /**
+   * Keep the old method for backward compatibility but use the new one internally
+   */
+  static async receiveMetrics(
+    modelMetadata: any,
+    csvFile: File,
+    columnMetadata: Record<string, any> | null = null
+  ): Promise<ComprehensiveMetricsResponse> {
+    // This method is kept for compatibility but now returns empty metrics
+    // The actual metric definitions are retrieved via retrieveMetricDefinitions
+    return {
+      model_info: {
+        name: modelMetadata.name || 'Unknown Model',
+        type: modelMetadata.model_type || 'classification'
+      },
+      overall: {},
+      threshold_metrics: undefined,
+      subgroups: undefined
+    };
+  }
+
+  /**
    * Convert basic metrics response to comprehensive format
    * This only uses data that comes from the backend, no mock data generation
    */
-  private static convertToComprehensiveFormat(
+  static convertToComprehensiveFormat(
     basicMetrics: ModelValidationResponse,
     modelMetadata: any
   ): ComprehensiveMetricsResponse {

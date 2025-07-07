@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import type { ValidationJob, ValidationFormData, DatasetFolderFiles } from '$lib/types/validation';
+import type { UiValidationJob } from '../types';
 import type { CSVValidationResponse, ModelValidationResponse, ComprehensiveMetricsResponse } from '$lib/api/faivor-backend';
 
 
@@ -9,7 +10,7 @@ export type ValidationMode = 'create' | 'view' | 'edit';
 export type { ValidationJob };
 
 interface ValidationStoreState {
-  currentValidation: ValidationJob | null;
+  currentValidation: UiValidationJob | ValidationJob | null;
   mode: ValidationMode;
   isOpen: boolean;
 }
@@ -26,7 +27,7 @@ function createValidationStore() {
   return {
     subscribe,
 
-    openModal: (validation?: ValidationJob, mode: ValidationMode = 'create') => {
+    openModal: (validation?: UiValidationJob | ValidationJob, mode: ValidationMode = 'create') => {
       update(state => ({
         ...state,
         currentValidation: validation || null,
@@ -49,12 +50,12 @@ function createValidationStore() {
       }));
     },
 
-    updateValidation: (updatedValidation: Partial<ValidationJob>) => {
+    updateValidation: (updatedValidation: Partial<UiValidationJob | ValidationJob>) => {
       update(state => {
         if (!state.currentValidation) {
           return {
             ...state,
-            currentValidation: updatedValidation as ValidationJob
+            currentValidation: updatedValidation as UiValidationJob | ValidationJob
           };
         }
 

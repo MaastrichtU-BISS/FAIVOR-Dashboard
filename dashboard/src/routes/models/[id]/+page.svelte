@@ -19,6 +19,7 @@
 	import toast from 'svelte-french-toast';
 	import MaterialSymbolsSettingsSuggestRounded from '~icons/material-symbols/settings-suggest-rounded';
 	import MaterialSymbolsAutoGraphRounded from '~icons/material-symbols/auto-graph-rounded';
+	import { onMount, onDestroy } from 'svelte';
 
 	interface Props {
 		data: PageData; // PageData likely contains the initial model data
@@ -31,6 +32,29 @@
 	let showValidationModal = $state(false);
 	let selectedValidation: UiValidationJob | null = $state(null);
 	let currentValidationJob: UiValidationJob | null = $state(null);
+	let refreshInterval: number | null = null;
+
+	// Auto-refresh validations while any are running
+	$effect(() => {
+		const hasRunningValidations = validationJobs.some((job) => job.validation_status === 'running');
+
+		if (hasRunningValidations && !refreshInterval) {
+			// Refresh every 3 seconds while validations are running
+			refreshInterval = window.setInterval(() => {
+				refreshModelData();
+			}, 3000);
+		} else if (!hasRunningValidations && refreshInterval) {
+			// Stop refreshing when no validations are running
+			window.clearInterval(refreshInterval);
+			refreshInterval = null;
+		}
+	});
+
+	onDestroy(() => {
+		if (refreshInterval) {
+			window.clearInterval(refreshInterval);
+		}
+	});
 
 	const handleGoBack = () => {
 		goto('/models');
@@ -49,7 +73,11 @@
 						const name = evalItem['User Note']?.['@value'] || `Evaluation ${val_id.slice(-6)}`;
 						const startDate = evalItem['pav:createdOn'] || new Date().toISOString();
 
-						let status: UiValidationJob['validation_status'] = 'unknown';
+						// Use validation_status from backend if available, otherwise infer from data
+						let status: UiValidationJob['validation_status'] =
+							(evalItem as any).validation_status || 'unknown';
+
+						// Check for performance metrics and dataset characteristics
 						const hasPerformanceMetrics =
 							evalItem['Performance metric'] &&
 							evalItem['Performance metric'].length > 0 &&
@@ -65,12 +93,15 @@
 									dc.Volume?.['@value'] !== null
 							);
 
-						if (hasPerformanceMetrics && hasDatasetChars) {
-							status = 'completed';
-						} else if (hasDatasetChars) {
-							status = 'running'; // Or some other intermediate state like 'data_uploaded'
-						} else {
-							status = 'pending';
+						// If no explicit status, infer from data (for backward compatibility)
+						if (status === 'unknown') {
+							if (hasPerformanceMetrics && hasDatasetChars) {
+								status = 'completed';
+							} else if (hasDatasetChars) {
+								status = 'running'; // Or some other intermediate state like 'data_uploaded'
+							} else {
+								status = 'pending';
+							}
 						}
 
 						const deleted_at = (evalItem as any).deleted_at || null;
@@ -112,7 +143,7 @@
 
 	function openValidation(validation: UiValidationJob) {
 		selectedValidation = validation;
-		validationStore.openModal(validation.originalEvaluationData as any, 'view'); // Cast as any for now if store expects old type
+		validationStore.openModal(validation as any, 'view'); // Pass entire UiValidationJob
 		showValidationModal = true;
 	}
 
@@ -148,7 +179,7 @@
 			if (responseData.success && responseData.model) {
 				modelData = responseData.model as FullJsonLdModel;
 				console.log('Updated model data:', modelData);
-				toast.success('Model data refreshed!');
+				// toast.success('Model data refreshed!');
 			} else {
 				console.error('Invalid response format or error in fetching model:', responseData);
 				toast.error('Error in fetched model data.');
@@ -283,15 +314,14 @@
 					<th>Last modified</th>
 					<th>Data provided</th>
 					<th>Data characteristics</th>
-					<th>Metrics</th>
-					<th>Published</th>
+					<th>Validation status</th>
 					<th></th>
 				</tr>
 			</thead>
 			<tbody>
 				{#if validationJobs.length === 0}
 					<tr>
-						<td colspan="7" class="text-base-content/70 text-center">
+						<td colspan="6" class="text-base-content/70 text-center">
 							No validations yet. Click the button below to start a new validation.
 						</td>
 					</tr>
@@ -322,31 +352,50 @@
 									{/if}
 								</div>
 							</td>
-							<td onclick={() => openValidation(job)}>
-								<div class="w-8">
-									{#if job.metrics}
-										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
-									{:else}
-										<MaterialSymbolsClose class="text-error h-6 w-6" />
-									{/if}
-								</div>
-							</td>
-							<td onclick={() => openValidation(job)}>
-								<div class="w-8">
-									{#if job.published}
-										<MaterialSymbolsCheckCircleOutline class="text-success h-6 w-6" />
-									{:else}
-										<MaterialSymbolsClose class="text-error h-6 w-6" />
-									{/if}
-								</div>
+							<td>
+								{#if job.validation_status === 'running'}
+									<div class="flex items-center gap-2">
+										<span class="loading loading-spinner loading-sm"></span>
+										<span class="text-sm">Processing...</span>
+									</div>
+								{:else if job.validation_status === 'failed'}
+									<div class="badge badge-error gap-2">
+										<MaterialSymbolsClose class="h-4 w-4" />
+										Failed
+									</div>
+								{:else if job.validation_status === 'completed'}
+									<div class="badge badge-success gap-2">
+										<MaterialSymbolsCheckCircleOutline class="h-4 w-4" />
+										100%
+									</div>
+								{:else if job.metrics}
+									<div class="badge badge-success gap-2">
+										<MaterialSymbolsCheckCircleOutline class="h-4 w-4" />
+										100%
+									</div>
+								{:else if job.dataCharacteristics}
+									<div class="badge badge-warning gap-2">66%</div>
+								{:else if job.dataProvided}
+									<div class="badge badge-warning gap-2">33%</div>
+								{:else}
+									<div class="badge badge-ghost gap-2">0%</div>
+								{/if}
 							</td>
 							<td onclick={() => openValidation(job)}>
 								<button class="btn">
 									<MaterialSymbolsSettingsSuggestRounded /> Edit
 								</button>
 							</td>
-							<td onclick={() => openResults(job)}>
-								<button class="btn"><MaterialSymbolsAutoGraphRounded /> Results</button>
+							<td>
+								<button
+									class="btn"
+									onclick={() => openResults(job)}
+									disabled={job.validation_status === 'running' ||
+										job.validation_status === 'pending' ||
+										(!job.metrics && job.validation_status !== 'completed')}
+								>
+									<MaterialSymbolsAutoGraphRounded /> Results
+								</button>
 							</td>
 							<td>
 								<div class="dropdown dropdown-end">
@@ -396,6 +445,7 @@
 		<ResultsModal
 			validationJob={currentValidationJob}
 			isOpen={showResultsModal}
+			model={modelData}
 			on:close={() => (showResultsModal = false)}
 		/>
 	{/if}

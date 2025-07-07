@@ -16,6 +16,7 @@
 	import DatasetCharacteristicsStep from './steps/DatasetCharacteristicsStep.svelte';
 	import MetricsForValidationStep from './steps/MetricsForValidationStep.svelte';
 	// import PerformanceMetricsStep from './steps/PerformanceMetricsStep.svelte'; // Not used in current step logic
+	import { FaivorBackendAPI } from '$lib/api/faivor-backend';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -58,10 +59,28 @@
 		const { currentValidation, mode } = $validationStore;
 
 		if (currentValidation) {
-			// validationJobToFormData likely needs to be updated to handle JsonLdEvaluationResultItem or UiValidationJob
-			const formData = validationJobToFormData(currentValidation as any); // Cast as any for now
-			validationFormStore.loadFormData({ ...formData, modelId: modelId });
-			initialFormData = { ...formData, modelId: modelId };
+			// Check if this is a UiValidationJob (has val_id, originalEvaluationData, etc.)
+			// or a regular ValidationJob
+			const isUiValidationJob = 'originalEvaluationData' in currentValidation;
+			
+			if (isUiValidationJob) {
+				// For UiValidationJob, pass it directly to validationJobToFormData
+				validationJobToFormData(currentValidation as any).then(formData => {
+					validationFormStore.loadFormData({ ...formData, modelId: modelId });
+					initialFormData = { ...formData, modelId: modelId };
+				}).catch(error => {
+					console.error('Failed to load validation form data:', error);
+					// Fall back to empty form if restoration fails
+					validationFormStore.reset();
+					validationFormStore.updateField('modelId', modelId);
+				});
+			} else {
+				// For regular ValidationJob, handle it differently if needed
+				// This is for backwards compatibility
+				console.warn('Received legacy ValidationJob format, conversion may be limited');
+				validationFormStore.reset();
+				validationFormStore.updateField('modelId', modelId);
+			}
 		} else {
 			validationFormStore.reset();
 			validationFormStore.updateField('modelId', modelId);
@@ -128,16 +147,27 @@
 	async function autoSave() {
 		if (
 			$validationStore.mode !== 'edit' ||
-			!$validationStore.currentValidation?.val_id || // val_id might change based on new validation structure
+			!$validationStore.currentValidation ||
 			isSaving
 		) {
 			return;
 		}
+		
+		// Get val_id from either UiValidationJob or ValidationJob
+		const valId = 'val_id' in $validationStore.currentValidation 
+			? $validationStore.currentValidation.val_id 
+			: ($validationStore.currentValidation as any).val_id;
+			
+		if (!valId) {
+			console.error('No validation ID found for auto-save');
+			return;
+		}
+		
 		isSaving = true;
 		try {
 			const formData = validationFormStore.getFormData();
 			const response = await fetch(
-				`/api/validations/${$validationStore.currentValidation.val_id}`, // Ensure val_id is correct for new structure
+				`/api/validations/${valId}`,
 				{
 					method: 'PUT',
 					headers: { 'Content-Type': 'application/json' },
@@ -165,10 +195,16 @@
 	const scheduleAutoSave = debouncedAutoSave;
 
 	$effect(() => {
-		if ($validationStore.mode === 'edit' && $validationStore.currentValidation?.val_id) {
-			// val_id check
-			const formState = $validationFormStore; // Reactive dependency
-			debouncedAutoSave();
+		if ($validationStore.mode === 'edit' && $validationStore.currentValidation) {
+			// Check for val_id in either format
+			const valId = 'val_id' in $validationStore.currentValidation 
+				? $validationStore.currentValidation.val_id 
+				: ($validationStore.currentValidation as any).val_id;
+				
+			if (valId) {
+				const formState = $validationFormStore; // Reactive dependency
+				debouncedAutoSave();
+			}
 		}
 	});
 
@@ -181,6 +217,72 @@
 	async function closeModal() {
 		validationStore.closeModal();
 		dispatch('close');
+	}
+
+	async function triggerBackgroundValidation(validationId: string, metadata: any, uploadedFolder: any) {
+		if (!uploadedFolder?.data) {
+			console.error('No data file available for background validation');
+			return;
+		}
+
+		try {
+			// Update validation status to "running"
+			await fetch(`/api/validations/${validationId}/status`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ status: 'running' })
+			});
+
+			// Parse column metadata if available
+			let columnMetadata: any = null;
+			if (uploadedFolder.columnMetadata) {
+				const columnMetadataText = await uploadedFolder.columnMetadata.text();
+				columnMetadata = JSON.parse(columnMetadataText);
+			}
+
+			// Call validate-model endpoint for full validation
+			console.log('📊 Running full model validation in background');
+			const validationResult = await FaivorBackendAPI.validateModel(
+				metadata,
+				uploadedFolder.data,
+				columnMetadata
+			);
+			
+			console.log('📊 Validation result from backend:', validationResult);
+
+			// Convert to comprehensive metrics format
+			const comprehensiveMetrics = await FaivorBackendAPI.convertToComprehensiveFormat(validationResult, metadata);
+			console.log('📊 Comprehensive metrics to store:', comprehensiveMetrics);
+
+			// Update validation with results
+			const completeResponse = await fetch(`/api/validations/${validationId}/complete`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					status: 'completed',
+					metrics: comprehensiveMetrics
+				})
+			});
+			
+			if (!completeResponse.ok) {
+				throw new Error(`Failed to update validation: ${completeResponse.statusText}`);
+			}
+
+			console.log('✅ Background validation completed successfully');
+			dispatch('validationChange');
+		} catch (error) {
+			console.error('❌ Background validation failed:', error);
+			// Update validation status to failed
+			await fetch(`/api/validations/${validationId}/status`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ 
+					status: 'failed',
+					error: error instanceof Error ? error.message : 'Unknown error'
+				})
+			});
+			dispatch('validationChange');
+		}
 	}
 
 	async function handleSubmit() {
@@ -199,169 +301,98 @@
 			const comprehensiveMetrics = validationFormStore.getComprehensiveMetrics();
 			console.log('📊 Including comprehensive metrics in submission:', comprehensiveMetrics);
 
-			if ($validationStore.mode === 'create' && formData.uploadedFolder) {
-				console.log('🔍 Performing full model validation before submission...');
-				try {
-					let metadata: any;
-					let usingMockMetadata = false;
-
-					if (model) {
-						// model is FullJsonLdModel
-						const { DatasetStepService } = await import('$lib/services/dataset-step-service');
-						// DatasetStepService.transformModelMetadataToFAIR needs to handle FullJsonLdModel
-						metadata = DatasetStepService.transformModelMetadataToFAIR(model as any); // Temporary cast
-						console.log('Using metadata from the current model (prop).');
-					} else if (formData.uploadedFolder.metadata) {
-						// This path should ideally not be taken if we always want to use current model's metadata.
-						// Kept as a fallback with a warning if 'model' prop is somehow not available.
-						console.warn(
-							'Current model metadata (prop) not available. Attempting to use metadata from uploaded folder.'
-						);
-						const metadataText = await formData.uploadedFolder.metadata.text();
-						metadata = JSON.parse(metadataText);
-					} else {
-						console.warn(
-							'⚠️ No metadata available for validation - using mock metadata to proceed'
-						);
-						usingMockMetadata = true;
-						// Simplified mock metadata for brevity
-						metadata = {
-							'@context': {},
-							'General Model Information': { Title: { '@value': 'Mock Model' } }
-						};
-					}
-
-					const { DatasetStepService } = await import('$lib/services/dataset-step-service');
-					const validationResult = await DatasetStepService.performFullModelValidation(
-						formData.uploadedFolder,
-						metadata
-					);
-					validationFormStore.setValidationResults(validationResult.validationResults);
-
-					if (!validationResult.success && !usingMockMetadata) {
-						const isMissingMetadataError =
-							validationResult.error?.includes('No metadata available');
-						const isMissingColumnsError = validationResult.error?.includes(
-							'Missing required columns'
-						);
-						const isConnectionError =
-							validationResult.error?.includes('Connection aborted') ||
-							validationResult.error?.includes('No such file or directory') ||
-							validationResult.error?.includes('Internal Server Error');
-
-						if (isConnectionError) {
-							console.warn(
-								'⚠️ FAIVOR-ML-Validator connection failed, proceeding with mock validation'
-							);
-							// Allow submission to proceed with mock data when external validator is unavailable
-							validationFormStore.setValidationResults({
-								modelValidation: {
-									success: true,
-									message: 'Validation completed with mock data (external validator unavailable)',
-									warning:
-										'FAIVOR-ML-Validator service is currently unavailable. Using mock validation data.',
-									mockColumns: []
-								},
-								stage: 'model'
-							});
-							validationFormStore.setShowValidationModal(true);
-						} else if (!isMissingMetadataError && !isMissingColumnsError) {
-							validationFormStore.setShowValidationModal(true);
-							console.error('❌ Model validation failed:', validationResult.error);
-							isSubmitting = false;
-							return;
-						} else {
-							// Handle warnings for missing metadata/columns but allow submission
-							validationFormStore.setValidationResults({
-								modelValidation: {
-									success: true, // Mark as success to allow submission
-									message: validationResult.error || 'Proceeding with mock data/metadata.',
-									warning: validationResult.error || 'Proceeding with mock data/metadata.',
-									mockColumns:
-										validationResult.error
-											?.match(/Missing required columns: (.*)/)?.[1]
-											.split(',')
-											.map((s) => s.trim()) || []
-								},
-								stage: 'model'
-							});
-							validationFormStore.setShowValidationModal(true);
-						}
-					} else {
-						console.log('✅ Model validation completed successfully (or with mock data).');
-					}
-				} catch (validationError: any) {
-					console.error('❌ Model validation error:', validationError);
-					const isMissingMetadataError = validationError.message?.includes('No metadata available');
-					const isMissingColumnsError = validationError.message?.includes(
-						'Missing required columns'
-					);
-					const isConnectionError =
-						validationError.message?.includes('Connection aborted') ||
-						validationError.message?.includes('No such file or directory') ||
-						validationError.message?.includes('Internal Server Error') ||
-						validationError.message?.includes('Failed to connect');
-
-					if (isConnectionError) {
-						console.warn(
-							'⚠️ FAIVOR-ML-Validator connection failed, proceeding with mock validation'
-						);
-						// Allow submission to proceed with mock data when external validator is unavailable
-						validationFormStore.setValidationResults({
-							modelValidation: {
-								success: true,
-								message: 'Validation completed with mock data (external validator unavailable)',
-								warning:
-									'FAIVOR-ML-Validator service is currently unavailable. Using mock validation data.',
-								mockColumns: []
-							},
-							stage: 'model'
-						});
-						validationFormStore.setShowValidationModal(true);
-					} else if (!isMissingMetadataError && !isMissingColumnsError) {
-						validationFormStore.setValidationResults({
-							modelValidation: {
-								success: false,
-								message: validationError.message || 'Unknown error'
-							},
-							stage: 'model'
-						});
-						validationFormStore.setShowValidationModal(true);
-						isSubmitting = false;
-						return;
-					} else {
-						// Allow submission for missing metadata/columns with warning
-						validationFormStore.setValidationResults({
-							modelValidation: {
-								success: true,
-								message: validationError.message,
-								warning: validationError.message,
-								mockColumns:
-									validationError.message
-										?.match(/Missing required columns: (.*)/)?.[1]
-										.split(',')
-										.map((s: string) => s.trim()) || []
-							},
-							stage: 'model'
-						});
-						validationFormStore.setShowValidationModal(true);
+			// Save files to IndexedDB if we have uploaded files
+			let indexedDbId: string | undefined;
+			if (formData.uploadedFolder && (formData.uploadedFolder.data || formData.uploadedFolder.metadata || formData.uploadedFolder.columnMetadata)) {
+				const { datasetStorage, generateDatasetId, parseJSONFile } = await import('$lib/utils/indexeddb-storage');
+				
+				// For edit mode, check if we already have an IndexedDB ID from the existing validation
+				if ($validationStore.mode === 'edit' && $validationStore.currentValidation) {
+					// Check both possible locations for dataset_info
+					const currentVal = $validationStore.currentValidation as any;
+					const datasetInfo = currentVal.dataset_info || currentVal.originalEvaluationData?.dataset_info;
+					const existingFolderUpload = datasetInfo?.folderUpload;
+					
+					if (existingFolderUpload?.indexedDbId) {
+						indexedDbId = existingFolderUpload.indexedDbId;
+						console.log('Using existing IndexedDB ID:', indexedDbId);
 					}
 				}
+				
+				// Generate new ID if we don't have one
+				if (!indexedDbId) {
+					indexedDbId = generateDatasetId();
+				}
+				
+				const datasetFolder = {
+					id: indexedDbId,
+					name: formData.folderName || formData.datasetName || 'Validation Dataset',
+					uploadDate: new Date().toISOString(),
+					files: {
+						metadata: formData.uploadedFolder.metadata,
+						data: formData.uploadedFolder.data,
+						columnMetadata: formData.uploadedFolder.columnMetadata
+					},
+					parsed: {
+						metadata: formData.uploadedFolder.metadata ? await parseJSONFile(formData.uploadedFolder.metadata) : undefined,
+						columnMetadata: formData.uploadedFolder.columnMetadata ? await parseJSONFile(formData.uploadedFolder.columnMetadata) : undefined
+					}
+				};
+				
+				await datasetStorage.saveDataset(datasetFolder);
+				console.log('✅ Saved dataset to IndexedDB with ID:', indexedDbId);
+			}
+
+			// Prepare metadata for background validation
+			let modelMetadata: any;
+			if (model) {
+				const { DatasetStepService } = await import('$lib/services/dataset-step-service');
+				modelMetadata = DatasetStepService.transformModelMetadataToFAIR(model as any);
+				console.log('Using metadata from the current model for background validation.');
+			} else if (formData.uploadedFolder?.metadata) {
+				const metadataText = await formData.uploadedFolder.metadata.text();
+				modelMetadata = JSON.parse(metadataText);
+				console.log('Using uploaded metadata for background validation.');
+			} else {
+				console.warn('⚠️ No metadata available - will use minimal metadata for background validation');
+				modelMetadata = {
+					'@context': {},
+					'General Model Information': { Title: { '@value': 'Model' } }
+				};
 			}
 
 			// Transform form data to ValidationData structure with comprehensive metrics
 			const validationData = formDataToValidationData(formData, comprehensiveMetrics);
+			
+			// Add IndexedDB ID to the validation data
+			if (indexedDbId && validationData.dataset_info?.folderUpload) {
+				validationData.dataset_info.folderUpload.indexedDbId = indexedDbId;
+			}
 
+			// Get val_id for edit mode
+			let valId: string | undefined;
+			if ($validationStore.mode === 'edit' && $validationStore.currentValidation) {
+				valId = 'val_id' in $validationStore.currentValidation 
+					? $validationStore.currentValidation.val_id 
+					: ($validationStore.currentValidation as any).val_id;
+			}
+			
 			const endpoint =
 				$validationStore.mode === 'create'
 					? '/api/validations'
-					: `/api/validations/${$validationStore.currentValidation!.val_id}`;
+					: `/api/validations/${valId}`;
 			const method = $validationStore.mode === 'create' ? 'POST' : 'PUT';
+
+			// Include modelId in the request payload
+			const payload = {
+				...validationData,
+				modelId: modelId
+			};
 
 			const response = await fetch(endpoint, {
 				method: method,
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(validationData)
+				body: JSON.stringify(payload)
 			});
 			const result = await response.json();
 			console.log(`Validation ${$validationStore.mode} response:`, result);
@@ -369,8 +400,21 @@
 			if (!result.success) {
 				throw new Error(result.error || `Failed to ${$validationStore.mode} validation`);
 			}
-			dispatch('validationChange');
+			
+			// Close modal first to show user the submission is complete
 			closeModal();
+			dispatch('validationChange');
+			
+			// If creating new validation, trigger background validation with /validate-model
+			if ($validationStore.mode === 'create' && result.validation) {
+				const validationId = result.validation.val_id || result.validation.id;
+				console.log('🚀 Triggering background validation for:', validationId);
+				console.log('Result validation object:', result.validation);
+				// Start background validation process - don't await, let it run in background
+				triggerBackgroundValidation(validationId, modelMetadata, formData.uploadedFolder).catch(error => {
+					console.error('Background validation error:', error);
+				});
+			}
 		} catch (error) {
 			console.error('Error submitting validation:', error);
 			// TODO: Show error toast more visibly
@@ -380,13 +424,20 @@
 	}
 
 	async function handleResubmit() {
-		if (!$validationStore.currentValidation?.val_id) return; // val_id check
+		if (!$validationStore.currentValidation) return;
+		
+		// Get val_id from either format
+		const valId = 'val_id' in $validationStore.currentValidation 
+			? $validationStore.currentValidation.val_id 
+			: ($validationStore.currentValidation as any).val_id;
+			
+		if (!valId) return;
+		
 		const confirmed = confirm('Are you sure you want to resubmit this validation?');
 		if (!confirmed) return;
 
 		try {
-			await fetch(`/api/validations/${$validationStore.currentValidation.val_id}/resubmit`, {
-				// val_id usage
+			await fetch(`/api/validations/${valId}/resubmit`, {
 				method: 'POST'
 			});
 			dispatch('validationChange');
