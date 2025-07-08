@@ -67,6 +67,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       });
     }
 
+    // Log column pairing data to verify it's being saved
+    if (validationData.dataset_info?.columnPairing) {
+      console.log('📊 Column pairing data being stored in database:', {
+        csv_columns: validationData.dataset_info.columnPairing.csv_columns?.length || 0,
+        model_columns: validationData.dataset_info.columnPairing.model_input_columns?.length || 0,
+        has_mapping: Boolean(validationData.dataset_info.columnPairing.column_mapping),
+        mock_columns: validationData.dataset_info.columnPairing.mock_columns_added?.length || 0
+      });
+    }
+
     // Create new validation record with consolidated data structure
     const result = await sql`
       INSERT INTO validations (
@@ -97,6 +107,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         data: result[0].data.dataset_info.folderUpload.fileDetails.data?.size,
         columnMetadata: result[0].data.dataset_info.folderUpload.fileDetails.columnMetadata?.size,
         totalSize: result[0].data.dataset_info.folderUpload.totalSize
+      });
+    }
+
+    // Verify column pairing data in saved result
+    if (result[0].data?.dataset_info?.columnPairing) {
+      console.log('✅ Verified column pairing data in saved validation:', {
+        csv_columns: result[0].data.dataset_info.columnPairing.csv_columns?.length || 0,
+        model_columns: result[0].data.dataset_info.columnPairing.model_input_columns?.length || 0,
+        has_mapping: Boolean(result[0].data.dataset_info.columnPairing.column_mapping)
       });
     }
 

@@ -24,6 +24,20 @@ export function formDataToValidationData(formData: ValidationFormData, comprehen
 
   console.log('🔍 formDataToValidationData - validation results to save:', validationResults);
 
+  // Extract column pairing data from validation results
+  let columnPairingData: any = undefined;
+  if (validationResults?.csvValidation?.details) {
+    const csvDetails = validationResults.csvValidation.details;
+    columnPairingData = {
+      csv_columns: csvDetails.csv_columns,
+      model_input_columns: csvDetails.model_input_columns,
+      column_mapping: csvDetails.column_mapping,
+      // Include any mock columns that were added
+      mock_columns_added: (csvDetails as any).mock_columns_added
+    };
+    console.log('📊 Extracted column pairing data:', columnPairingData);
+  }
+
   const validationData: ValidationData = {
     validation_name: formData.validationName || undefined,
     dataset_info: {
@@ -61,7 +75,9 @@ export function formDataToValidationData(formData: ValidationFormData, comprehen
             lastModified: formData.uploadedFolder.columnMetadata.lastModified || Date.now()
           } : undefined
         }
-      } : undefined
+      } : undefined,
+      // Add column pairing data to dataset_info
+      columnPairing: columnPairingData
     },
     validation_result: {
       metrics_description: formData.metricsDescription || undefined,
@@ -193,6 +209,16 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
     }
   }
 
+  // Check if we have column pairing data stored
+  let columnPairingData: any = undefined;
+  if ('data' in job && job.data && typeof job.data === 'object' && 'dataset_info' in job.data) {
+    const datasetInfo = (job.data as any).dataset_info;
+    if (datasetInfo?.columnPairing) {
+      columnPairingData = datasetInfo.columnPairing;
+      console.log('📊 Restored column pairing data from storage:', columnPairingData);
+    }
+  }
+
   // Use stored validation results if available, otherwise reconstruct
   const reconstructedResults: ValidationResults = storedValidationResults || {
     stage: job.validation_status === 'completed' ? 'complete' : job.validation_status === 'pending' ? 'none' : 'model',
@@ -205,6 +231,17 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
       message: job.metrics ? 'Metrics available' : 'Metrics not fully available',
     }
   };
+  
+  // If we have column pairing data, add it to the validation results
+  if (columnPairingData && reconstructedResults.csvValidation) {
+    reconstructedResults.csvValidation.details = {
+      valid: true,
+      csv_columns: columnPairingData.csv_columns || [],
+      model_input_columns: columnPairingData.model_input_columns || [],
+      column_mapping: columnPairingData.column_mapping || {},
+      mock_columns_added: columnPairingData.mock_columns_added
+    } as CSVValidationResponse;
+  }
   
   // If we have stored results but they're missing details, try to enhance them
   if (reconstructedResults.csvValidation && !reconstructedResults.csvValidation.details && job.dataProvided) {

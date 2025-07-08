@@ -5,9 +5,10 @@
 	import ValidationErrorModal from '$lib/components/ui/ValidationErrorModal.svelte';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
 	import type { FullJsonLdModel } from '$lib/stores/models/types'; // Changed Model to FullJsonLdModel
-	import { validationFormStore } from '$lib/stores/models/validation.store';
+	import { validationFormStore, validationStore } from '$lib/stores/models/validation.store';
 	import { DatasetStepService, type DatasetStepState } from '$lib/services/dataset-step-service';
 	import type { ValidationResults } from '$lib/stores/models/validation.store';
+	import { page } from '$app/stores';
 
 	interface Props {
 		readonly?: boolean;
@@ -361,6 +362,33 @@
 			isCheckingDataset = false;
 		}
 	}
+
+	function getSavedColumnPairing(): any {
+		// Try to get column pairing data from the validation store
+		const currentValidation = $validationStore?.currentValidation;
+
+		if (!currentValidation) return null;
+
+		// Check if we have saved column pairing data
+		if ('data' in currentValidation && currentValidation.data?.dataset_info?.columnPairing) {
+			console.log(
+				'📊 Found saved column pairing data:',
+				currentValidation.data.dataset_info.columnPairing
+			);
+			return currentValidation.data.dataset_info.columnPairing;
+		}
+
+		// Also check in dataset_info directly (for backwards compatibility)
+		if ('dataset_info' in currentValidation && currentValidation.dataset_info?.columnPairing) {
+			console.log(
+				'📊 Found saved column pairing data in dataset_info:',
+				currentValidation.dataset_info.columnPairing
+			);
+			return currentValidation.dataset_info.columnPairing;
+		}
+
+		return null;
+	}
 </script>
 
 <!--
@@ -490,6 +518,13 @@
 				{@const hasUploadedData = !!formData.uploadedFolder?.data}
 				{@const fallbackColumns = generateFallbackColumns()}
 
+				<!-- Check if we have column pairing data from saved validation -->
+				{@const savedColumnPairing =
+					!hasCsvDetails && validationResults.stage === 'complete' ? getSavedColumnPairing() : null}
+
+				<!-- Define columnData at the card level so it's available throughout -->
+				{@const columnData = hasCsvDetails ? csvDetails : savedColumnPairing}
+
 				<div class="card-body">
 					<h3 class="card-title flex items-center gap-2 text-lg">
 						<SolarCalculatorMinimalisticLinear class="h-5 w-5" />
@@ -509,11 +544,11 @@
 
 					<!-- Column Mapping Rows -->
 					<div class="max-h-96 space-y-1 overflow-y-auto">
-						{#if hasCsvDetails}
+						{#if columnData}
 							{@const columnMappings = createColumnMapping(
-								csvDetails.csv_columns,
-								csvDetails.model_input_columns,
-								csvDetails
+								columnData.csv_columns || [],
+								columnData.model_input_columns || [],
+								columnData
 							)}
 							{#each columnMappings as mapping, index}
 								<div
@@ -569,8 +604,8 @@
 							{/each}
 
 							<!-- Show extra model columns that don't have CSV mappings -->
-							{@const unmappedModelColumns = csvDetails.model_input_columns.slice(
-								csvDetails.csv_columns.length
+							{@const unmappedModelColumns = (columnData?.model_input_columns || []).slice(
+								(columnData?.csv_columns || []).length
 							)}
 							{#if unmappedModelColumns.length > 0}
 								{#each unmappedModelColumns as modelColumn, index}
@@ -715,7 +750,7 @@
 							>
 								{validationResults.csvValidation.message}
 							</p>
-							{#if hasCsvDetails && csvDetails.csv_columns.length !== csvDetails.model_input_columns.length}
+							{#if columnData && columnData.csv_columns && columnData.model_input_columns && columnData.csv_columns.length !== columnData.model_input_columns.length}
 								<div class="mt-2 flex items-center gap-2">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -731,8 +766,8 @@
 										/>
 									</svg>
 									<span class=" text-sm">
-										Column count mismatch: CSV has {csvDetails.csv_columns.length} columns, model expects
-										{csvDetails.model_input_columns.length} columns
+										Column count mismatch: CSV has {columnData.csv_columns.length} columns, model expects
+										{columnData.model_input_columns.length} columns
 									</span>
 								</div>
 							{/if}
@@ -754,7 +789,7 @@
 		</div>
 
 		<!-- Additional Validation Results -->
-		{#if validationResults.modelValidation}
+		<!-- {#if validationResults.modelValidation}
 			<div class="card bg-base-100 shadow-xl">
 				<div class="card-body">
 					<h3 class="card-title text-lg">Model Validation Results</h3>
@@ -788,7 +823,7 @@
 					</div>
 				</div>
 			</div>
-		{/if}
+		{/if} -->
 	</div>
 </div>
 
