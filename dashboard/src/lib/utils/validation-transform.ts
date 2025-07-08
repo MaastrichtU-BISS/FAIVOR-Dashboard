@@ -17,12 +17,15 @@ import { getFileSizesFromStore, validationFormStore, type ValidationResults } fr
 export function formDataToValidationData(formData: ValidationFormData, comprehensiveMetrics?: any): ValidationData {
   const fileSizes = getFileSizesFromStore();
   let validationResults: ValidationResults | undefined;
+  let datasetAnalysis: any = undefined;
   const unsubscribe = validationFormStore.subscribe(state => {
     validationResults = state.validationResults;
+    datasetAnalysis = state.datasetAnalysis;
   });
   unsubscribe();
 
   console.log('🔍 formDataToValidationData - validation results to save:', validationResults);
+  console.log('📊 formDataToValidationData - dataset analysis to save:', datasetAnalysis);
 
   // Extract column pairing data from validation results
   let columnPairingData: any = undefined;
@@ -77,7 +80,9 @@ export function formDataToValidationData(formData: ValidationFormData, comprehen
         }
       } : undefined,
       // Add column pairing data to dataset_info
-      columnPairing: columnPairingData
+      columnPairing: columnPairingData,
+      // Add dataset analysis data
+      datasetAnalysis: datasetAnalysis || undefined
     },
     validation_result: {
       metrics_description: formData.metricsDescription || undefined,
@@ -121,7 +126,7 @@ export function validationRowToJob(row: ValidationRow): any {
 /**
  * Transform UiValidationJob (derived from JSON-LD) to form data for editing.
  */
-export async function validationJobToFormData(job: UiValidationJob): Promise<ValidationFormData & { validationResults?: ValidationResults }> {
+export async function validationJobToFormData(job: UiValidationJob): Promise<ValidationFormData & { validationResults?: ValidationResults; datasetAnalysis?: any }> {
   const evalData = job.originalEvaluationData;
 
   let reconstructedFolderFiles: Partial<DatasetFolderFiles> | undefined = undefined;
@@ -211,11 +216,16 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
 
   // Check if we have column pairing data stored
   let columnPairingData: any = undefined;
+  let datasetAnalysis: any = undefined;
   if ('data' in job && job.data && typeof job.data === 'object' && 'dataset_info' in job.data) {
     const datasetInfo = (job.data as any).dataset_info;
     if (datasetInfo?.columnPairing) {
       columnPairingData = datasetInfo.columnPairing;
       console.log('📊 Restored column pairing data from storage:', columnPairingData);
+    }
+    if (datasetInfo?.datasetAnalysis) {
+      datasetAnalysis = datasetInfo.datasetAnalysis;
+      console.log('📊 Restored dataset analysis from storage:', datasetAnalysis);
     }
   }
 
@@ -263,7 +273,8 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
     metricsDescription: metricsDescription,
     performanceMetrics: performanceMetricsSummary,
     modelId: '', // This should be set from the page context (e.g., modelData['@id'] or checkpoint_id)
-    validationResults: reconstructedResults // Include the validation results
+    validationResults: reconstructedResults, // Include the validation results
+    datasetAnalysis: datasetAnalysis // Include the dataset analysis
   };
 }
 

@@ -65,8 +65,8 @@
 			if (isUiValidationJob) {
 				// For UiValidationJob, pass it directly to validationJobToFormData
 				validationJobToFormData(currentValidation as any).then(formDataWithResults => {
-					// Extract validation results if present
-					const { validationResults, ...formData } = formDataWithResults;
+					// Extract validation results and dataset analysis if present
+					const { validationResults, datasetAnalysis, ...formData } = formDataWithResults;
 					
 					validationFormStore.loadFormData({ ...formData, modelId: modelId });
 					initialFormData = { ...formData, modelId: modelId };
@@ -77,6 +77,14 @@
 						validationFormStore.setValidationResults(validationResults);
 					} else {
 						console.log('⚠️ No validation results found in loaded data');
+					}
+					
+					// Set dataset analysis if it was included
+					if (datasetAnalysis) {
+						console.log('📊 Setting dataset analysis in modal:', datasetAnalysis);
+						validationFormStore.setDatasetAnalysis(datasetAnalysis);
+					} else {
+						console.log('⚠️ No dataset analysis found in loaded data');
 					}
 					
 				}).catch(error => {

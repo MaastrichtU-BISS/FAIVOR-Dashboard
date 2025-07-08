@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import type { ValidationJob, ValidationFormData, DatasetFolderFiles } from '$lib/types/validation';
 import type { UiValidationJob } from '../types';
 import type { CSVValidationResponse, ModelValidationResponse, ComprehensiveMetricsResponse } from '$lib/api/faivor-backend';
+import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
 
 
 export type ValidationMode = 'create' | 'view' | 'edit';
@@ -106,6 +107,8 @@ interface ValidationFormState extends ValidationFormData {
   showValidationModal?: boolean;
   // Add comprehensive metrics data
   comprehensiveMetrics?: ComprehensiveMetricsResponse;
+  // Add dataset analysis data
+  datasetAnalysis?: DatasetAnalysis;
 }
 
 const formInitialState: ValidationFormState = {
@@ -271,6 +274,33 @@ function createValidationFormStore() {
       update(state => ({
         ...state,
         comprehensiveMetrics: undefined
+      }));
+    },
+
+    // Set dataset analysis data
+    setDatasetAnalysis: (analysis: DatasetAnalysis) => {
+      update(state => ({
+        ...state,
+        datasetAnalysis: analysis
+      }));
+    },
+
+    // Get dataset analysis data
+    getDatasetAnalysis: (): DatasetAnalysis | undefined => {
+      let currentState: ValidationFormState;
+      const unsubscribe = subscribe(state => {
+        currentState = state;
+      });
+      unsubscribe();
+
+      return currentState!.datasetAnalysis;
+    },
+
+    // Clear dataset analysis
+    clearDatasetAnalysis: () => {
+      update(state => ({
+        ...state,
+        datasetAnalysis: undefined
       }));
     },
 

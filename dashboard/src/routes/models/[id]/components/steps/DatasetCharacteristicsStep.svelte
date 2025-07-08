@@ -4,6 +4,7 @@
 	import { validationFormStore } from '$lib/stores/models/validation.store';
 	import { DatasetStepService } from '$lib/services/dataset-step-service'; // For calculateSummary
 	import DatasetVisualization from '$lib/components/validation/DatasetVisualization.svelte';
+	import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
 
 	interface Props {
 		readonly?: boolean;
@@ -25,6 +26,18 @@
 
 	// Check if we have uploaded data - analysis will show automatically
 	let hasUploadedData = $derived(!!(formData.uploadedFolder?.data && formData.folderName));
+	
+	// Get existing dataset analysis from the store
+	let existingAnalysis = $derived(formData.datasetAnalysis);
+	
+	// Handle analysis completion
+	function handleAnalysisComplete(analysis: DatasetAnalysis) {
+		console.log('📊 Dataset analysis completed:', analysis);
+		validationFormStore.setDatasetAnalysis(analysis);
+		if (onFieldChange) {
+			onFieldChange();
+		}
+	}
 
 	// Store initial values to track actual changes
 	// We don't have a specific service for this step, so we manage initial values locally
@@ -153,6 +166,8 @@
 				<DatasetVisualization
 					folderFiles={formData.uploadedFolder}
 					folderName={formData.folderName || 'Dataset'}
+					onAnalysisComplete={handleAnalysisComplete}
+					existingAnalysis={existingAnalysis}
 				/>
 			</div>
 		</div>

@@ -10,18 +10,23 @@
 	interface Props {
 		folderFiles: DatasetFolderFiles;
 		folderName: string;
+		onAnalysisComplete?: (analysis: DatasetAnalysis) => void;
+		existingAnalysis?: DatasetAnalysis;
 	}
 
-	let { folderFiles, folderName }: Props = $props();
+	let { folderFiles, folderName, onAnalysisComplete, existingAnalysis }: Props = $props();
 
-	let datasetAnalysis = $state<DatasetAnalysis | null>(null);
-	let isAnalyzing = $state(true);
+	let datasetAnalysis = $state<DatasetAnalysis | null>(existingAnalysis || null);
+	let isAnalyzing = $state(!existingAnalysis);
 	let analysisError = $state<string | null>(null);
 	let gridColumns = $state(3);
 
-	// Reactive analysis when folderFiles.data changes
+	// Use existing analysis if available, otherwise analyze the dataset
 	$effect(() => {
-		if (folderFiles.data) {
+		if (existingAnalysis) {
+			datasetAnalysis = existingAnalysis;
+			isAnalyzing = false;
+		} else if (folderFiles.data) {
 			analyzeDataset(folderFiles.data);
 		}
 	});
@@ -33,6 +38,11 @@
 
 			const analysis = await CSVAnalysisService.analyzeCSV(csvFile);
 			datasetAnalysis = analysis;
+			
+			// Emit the analysis results
+			if (onAnalysisComplete) {
+				onAnalysisComplete(analysis);
+			}
 		} catch (error) {
 			console.error('Dataset analysis failed:', error);
 			analysisError = error instanceof Error ? error.message : 'Failed to analyze dataset';
@@ -40,13 +50,6 @@
 			isAnalyzing = false;
 		}
 	}
-
-	// Re-analyze when the CSV file changes
-	$effect(() => {
-		if (folderFiles.data) {
-			analyzeDataset(folderFiles.data);
-		}
-	});
 </script>
 
 <div class="space-y-6">

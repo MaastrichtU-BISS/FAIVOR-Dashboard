@@ -19,6 +19,37 @@ export interface ValidationData {
     datasetName?: string;
     description?: string;
     characteristics?: string;
+    
+    // Auto-generated dataset analysis from CSV
+    datasetAnalysis?: {
+      totalRows: number;
+      totalColumns: number;
+      columns: Array<{
+        name: string;
+        type: 'categorical' | 'numerical';
+        count: number;
+        uniqueValues: number;
+        nullValues: number;
+        values?: string[];
+        mostCommon?: { value: string; count: number };
+        min?: number;
+        max?: number;
+        mean?: number;
+        median?: number;
+        std?: number;
+        quartiles?: {
+          q1: number;
+          q2: number;
+          q3: number;
+        };
+        distribution?: { value: string | number; count: number }[];
+        distributionObject?: Record<string, number>;
+      }>;
+      completeness: number;
+      fileName: string;
+      fileSize: number;
+    };
+    
     uploadedFile?: {
       name: string;
       size?: number;
