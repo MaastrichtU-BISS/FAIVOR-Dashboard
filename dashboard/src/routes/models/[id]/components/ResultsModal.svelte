@@ -20,15 +20,29 @@
 
 	let { validationJob, isOpen, model }: Props = $props();
 
+	// Modal ref
+	let dialogElement: HTMLDialogElement;
+
 	// Metrics state
 	let metricsData = $state<ComprehensiveMetricsResponse | null>(null);
 	let isLoadingMetrics = $state(false);
 	let metricsError = $state<string | null>(null);
 	let metricsErrorDetails = $state<any>(null);
-	
+
 	// View mode toggles
 	let showCharts = $state(true);
 	let showTables = $state(true);
+
+	// Open/close modal based on isOpen prop
+	$effect(() => {
+		if (dialogElement) {
+			if (isOpen) {
+				dialogElement.showModal();
+			} else {
+				dialogElement.close();
+			}
+		}
+	});
 
 	// Load metrics when modal opens
 	$effect(() => {
@@ -46,17 +60,17 @@
 			// Debug: Log the entire validation job structure
 			console.log('ResultsModal - Full validationJob:', validationJob);
 			console.log('ResultsModal - originalEvaluationData:', validationJob.originalEvaluationData);
-			
+
 			// Check multiple possible locations for comprehensive metrics
 			const evalData = validationJob.originalEvaluationData as any;
-			
+
 			// Try different paths where metrics might be stored
-			const possibleMetrics = 
+			const possibleMetrics =
 				evalData?.validation_result?.comprehensive_metrics ||
 				evalData?.metrics ||
 				evalData?.data?.validation_result?.comprehensive_metrics ||
 				evalData?.data?.metrics;
-			
+
 			if (possibleMetrics) {
 				console.log('Found stored comprehensive metrics:', possibleMetrics);
 				metricsData = possibleMetrics;
@@ -66,12 +80,12 @@
 			// If validation is completed but no comprehensive metrics, check for basic metrics
 			if (validationJob.validation_status === 'completed' && evalData?.data?.validation_result) {
 				const validationResult = evalData.data.validation_result;
-				
+
 				// Try to reconstruct comprehensive metrics from stored data
 				if (validationResult.validation_results?.modelValidation?.details?.metrics) {
 					const metrics = validationResult.validation_results.modelValidation.details.metrics;
 					console.log('Reconstructing metrics from validation results:', metrics);
-					
+
 					// Convert to comprehensive format
 					const overall: Record<string, any> = {};
 					Object.entries(metrics).forEach(([key, value]) => {
@@ -100,10 +114,12 @@
 				console.log('Using legacy Performance metric format');
 				const perfMetrics: Record<string, any> = {};
 				for (const metric of evalData['Performance metric']) {
-					const label = metric['Metric Label']?.['rdfs:label'] || metric['Metric Label']?.['@id'] || 'Unknown';
+					const label =
+						metric['Metric Label']?.['rdfs:label'] || metric['Metric Label']?.['@id'] || 'Unknown';
 					const value = metric['Measured metric (mean value)']?.['@value'];
 					if (value !== null && value !== undefined) {
-						perfMetrics[`performance.${label.toLowerCase().replace(/\s+/g, '_')}`] = parseFloat(value);
+						perfMetrics[`performance.${label.toLowerCase().replace(/\s+/g, '_')}`] =
+							parseFloat(value);
 					}
 				}
 
@@ -169,10 +185,10 @@
 
 		return grouped;
 	}
-	
+
 	function prepareSubgroupData(subgroups: Record<string, any>) {
 		const data: Array<{ group: string; metrics: Record<string, number> }> = [];
-		
+
 		Object.entries(subgroups).forEach(([group, metrics]) => {
 			if (typeof metrics === 'object' && metrics !== null) {
 				const metricsObj = metrics as any;
@@ -188,7 +204,7 @@
 				});
 			}
 		});
-		
+
 		return data;
 	}
 
@@ -196,57 +212,34 @@
 		dispatch('close');
 	}
 
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			closeModal();
-		}
+	// Handle dialog close event (ESC key, backdrop click)
+	function handleDialogClose() {
+		closeModal();
 	}
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
-<dialog
-	id="results_modal"
-	class="modal modal-bottom sm:modal-middle z-[10000] !mt-0 h-full w-full"
-	class:modal-open={isOpen}
->
-	<div class="modal-box bg-base-100 h-[90vh] max-h-none w-full !max-w-full p-8">
-		<div class="mb-6 flex items-center justify-between">
-			<h2 class="text-2xl font-bold">Validation Results</h2>
-			<button class="btn btn-circle btn-ghost btn-sm" onclick={closeModal}>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					class="h-6 w-6"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M6 18L18 6M6 6l12 12"
-					/>
-				</svg>
-			</button>
-		</div>
+<dialog bind:this={dialogElement} class="modal grid-w" onclose={handleDialogClose}>
+	<div class="modal-box max-w-full">
+		<form method="dialog">
+			<button class="btn btn-circle btn-ghost btn-sm absolute right-2 top-2">✕</button>
+		</form>
+		<h2 class="mb-6 text-2xl font-bold">Validation Results</h2>
 
 		<div class="mb-4">
-			<h3 class="text-lg font-semibold">Validation Information</h3>
-			<div class="mt-2 grid grid-cols-2 gap-4">
-				<div>
+			<div class="grid grid-cols-3 gap-4">
+				<!-- <div>
 					<span class="text-base-content/70">Validation Name:</span>
 					<span class="ml-2 font-medium">{validationJob.validation_name || 'Unknown'}</span>
-				</div>
-				<div>
-					<span class="text-base-content/70">Status:</span>
-					<span class="ml-2 font-medium capitalize">{validationJob.validation_status}</span>
-				</div>
+				</div> -->
 				<div>
 					<span class="text-base-content/70">Created:</span>
 					<span class="ml-2 font-medium">
 						{new Date(validationJob.start_datetime).toLocaleString()}
 					</span>
+				</div>
+				<div>
+					<span class="text-base-content/70">Status:</span>
+					<span class="ml-2 font-medium capitalize">{validationJob.validation_status}</span>
 				</div>
 				{#if (validationJob as any).end_datetime}
 					<div>
@@ -256,10 +249,21 @@
 						</span>
 					</div>
 				{/if}
+				<!-- View Toggle Controls -->
+				<div class=" flex justify-end gap-2">
+					<label class="label cursor-pointer gap-2">
+						<input type="checkbox" class="toggle toggle-primary" bind:checked={showCharts} />
+						<span class="label-text">Show Charts</span>
+					</label>
+					<label class="label cursor-pointer gap-2">
+						<input type="checkbox" class="toggle toggle-primary" bind:checked={showTables} />
+						<span class="label-text">Show Tables</span>
+					</label>
+				</div>
 			</div>
 		</div>
 
-		<div class="h-[calc(100%-12rem)] w-full overflow-y-auto">
+		<div class="max-h-[70vh] overflow-y-auto">
 			{#if isLoadingMetrics}
 				<div class="border-base-300 rounded-xl border p-6">
 					<div class="flex items-center justify-center gap-4">
@@ -291,21 +295,33 @@
 				<!-- Parse the metrics data properly based on its structure -->
 				{@const hasNestedStructure = metricsData.overall?.overall_metrics}
 				{@const hasSnakeCaseKeys = metricsData.overall || metricsData.threshold_metrics}
-				{@const hasCamelCaseKeys = metricsData['Overall Metrics'] || metricsData['Threshold Metrics']}
-				
+				{@const hasCamelCaseKeys =
+					metricsData['Overall Metrics'] || metricsData['Threshold Metrics']}
+
 				<!-- Handle the nested structure where overall contains both overall_metrics and threshold_metrics -->
-				{@const parsedMetrics = hasNestedStructure ? {
-					overall: metricsData.overall.overall_metrics,
-					threshold_metrics: metricsData.overall.threshold_metrics,
-					model_info: metricsData.model_info || { name: 'Unknown', type: 'Unknown' },
-					subgroups: metricsData.subgroups
-				} : hasCamelCaseKeys ? {
-					overall: typeof metricsData['Overall Metrics'] === 'string' ? JSON.parse(metricsData['Overall Metrics']) : metricsData['Overall Metrics'],
-					threshold_metrics: typeof metricsData['Threshold Metrics'] === 'string' ? JSON.parse(metricsData['Threshold Metrics']) : metricsData['Threshold Metrics'],
-					model_info: metricsData.model_info || metricsData['Model Information'] || { name: 'Unknown', type: 'Unknown' },
-					subgroups: metricsData.subgroups || metricsData['Subgroups']
-				} : metricsData}
-				
+				{@const parsedMetrics = hasNestedStructure
+					? {
+							overall: metricsData.overall.overall_metrics,
+							threshold_metrics: metricsData.overall.threshold_metrics,
+							model_info: metricsData.model_info || { name: 'Unknown', type: 'Unknown' },
+							subgroups: metricsData.subgroups
+						}
+					: hasCamelCaseKeys
+						? {
+								overall:
+									typeof metricsData['Overall Metrics'] === 'string'
+										? JSON.parse(metricsData['Overall Metrics'])
+										: metricsData['Overall Metrics'],
+								threshold_metrics:
+									typeof metricsData['Threshold Metrics'] === 'string'
+										? JSON.parse(metricsData['Threshold Metrics'])
+										: metricsData['Threshold Metrics'],
+								model_info: metricsData.model_info ||
+									metricsData['Model Information'] || { name: 'Unknown', type: 'Unknown' },
+								subgroups: metricsData.subgroups || metricsData['Subgroups']
+							}
+						: metricsData}
+
 				<div class="grid grid-cols-1 gap-8">
 					<!-- Model Information -->
 					<div class="border-base-300 rounded-xl border p-6">
@@ -313,55 +329,41 @@
 						<div class="grid grid-cols-2 gap-4">
 							<div>
 								<span class="text-base-content/70">Model Name:</span>
-								<span class="ml-2 font-medium">{parsedMetrics.model_info?.name || 'Rectum-pCR-Prediction-Clinical'}</span>
+								<span class="ml-2 font-medium">
+									{parsedMetrics.model_info?.name || 'Rectum-pCR-Prediction-Clinical'}
+								</span>
 							</div>
 							<div>
 								<span class="text-base-content/70">Model Type:</span>
-								<span class="ml-2 font-medium capitalize">{parsedMetrics.model_info?.type || 'Classification'}</span>
+								<span class="ml-2 font-medium capitalize">
+									{parsedMetrics.model_info?.type || 'Classification'}
+								</span>
 							</div>
 						</div>
-					</div>
-
-					<!-- View Toggle Controls -->
-					<div class="flex justify-end gap-2 mb-4">
-						<label class="label cursor-pointer gap-2">
-							<input 
-								type="checkbox" 
-								class="toggle toggle-primary" 
-								bind:checked={showCharts}
-							/>
-							<span class="label-text">Show Charts</span>
-						</label>
-						<label class="label cursor-pointer gap-2">
-							<input 
-								type="checkbox" 
-								class="toggle toggle-primary" 
-								bind:checked={showTables}
-							/>
-							<span class="label-text">Show Tables</span>
-						</label>
 					</div>
 
 					<!-- Overall Metrics -->
 					{#if parsedMetrics.overall}
 						{@const groupedMetrics = groupMetricsByCategory(parsedMetrics.overall)}
-						
+
 						<!-- Metrics Visualization Charts -->
 						{#if showCharts}
-							<div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2">
+							<div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
 								<!-- Performance Metrics Radar Chart -->
 								{#if groupedMetrics.Performance && Object.keys(groupedMetrics.Performance).length > 0}
 									<div class="border-base-300 rounded-xl border p-6">
-										<MetricsRadarChart 
+										<MetricsRadarChart
 											metrics={Object.fromEntries(
-												Object.entries(parsedMetrics.overall).filter(([key]) => key.startsWith('performance.'))
+												Object.entries(parsedMetrics.overall).filter(([key]) =>
+													key.startsWith('performance.')
+												)
 											)}
 											title="Performance Metrics Overview"
 											height={350}
 										/>
 									</div>
 								{/if}
-								
+
 								<!-- ROC and PR Curves -->
 								{#if parsedMetrics.threshold_metrics}
 									<!-- ROC Curve -->
@@ -375,14 +377,15 @@
 											/>
 										</div>
 									{/if}
-									
+
 									<!-- PR Curve -->
 									{#if parsedMetrics.threshold_metrics.pr_curve}
 										<div class="border-base-300 rounded-xl border p-6">
 											<PRCurveChart
 												precision={parsedMetrics.threshold_metrics.pr_curve.precision}
 												recall={parsedMetrics.threshold_metrics.pr_curve.recall}
-												averagePrecision={parsedMetrics.threshold_metrics.pr_curve.average_precision}
+												averagePrecision={parsedMetrics.threshold_metrics.pr_curve
+													.average_precision}
 												height={350}
 											/>
 										</div>
@@ -390,7 +393,7 @@
 								{/if}
 							</div>
 						{/if}
-						
+
 						<!-- Metrics Tables -->
 						{#if showTables && Object.keys(groupedMetrics).length > 0}
 							{#each Object.entries(groupedMetrics) as [category, metrics]}
@@ -523,21 +526,23 @@
 							<h3 class="mb-4 text-lg font-semibold">Subgroup Analysis</h3>
 							{#each Object.entries(parsedMetrics.subgroups) as [feature, subgroups]}
 								<div class="mb-6">
-									<h4 class="mb-3 text-base font-semibold capitalize">{feature.replace(/_/g, ' ')}</h4>
+									<h4 class="mb-3 text-base font-semibold capitalize">
+										{feature.replace(/_/g, ' ')}
+									</h4>
 									{#if typeof subgroups === 'object' && subgroups !== null}
 										{@const subgroupData = prepareSubgroupData(subgroups)}
-										
+
 										{#if showCharts && subgroupData.length > 0}
 											<div class="mb-4">
 												<SubgroupComparisonChart
-													subgroupData={subgroupData}
+													{subgroupData}
 													selectedMetric="accuracy"
 													title={`${feature.replace(/_/g, ' ')} - Performance Comparison`}
 													height={300}
 												/>
 											</div>
 										{/if}
-										
+
 										{#if showTables}
 											<div class="overflow-x-auto">
 												<table class="table-compact table w-full">
@@ -578,11 +583,20 @@
 							{/each}
 						</div>
 					{/if}
-					
+
 					<!-- Display any other metrics that don't fit the standard categories -->
 					{#if metricsData}
-						{@const displayedKeys = ['model_info', 'overall', 'threshold_metrics', 'subgroups', 'Overall Metrics', 'Threshold Metrics']}
-						{@const otherMetrics = Object.entries(metricsData).filter(([key]) => !displayedKeys.includes(key))}
+						{@const displayedKeys = [
+							'model_info',
+							'overall',
+							'threshold_metrics',
+							'subgroups',
+							'Overall Metrics',
+							'Threshold Metrics'
+						]}
+						{@const otherMetrics = Object.entries(metricsData).filter(
+							([key]) => !displayedKeys.includes(key)
+						)}
 						{#if otherMetrics.length > 0}
 							<div class="border-base-300 rounded-xl border p-6">
 								<h3 class="mb-4 text-lg font-semibold">Other Metrics</h3>
@@ -686,11 +700,12 @@
 		</div>
 
 		<div class="modal-action mt-8">
-			<button class="btn btn-primary" onclick={closeModal}>Close</button>
+			<form method="dialog">
+				<button class="btn btn-primary">Close</button>
+			</form>
 		</div>
 	</div>
-
-	<div class="modal-backdrop" onclick={closeModal}>
+	<form method="dialog" class="modal-backdrop">
 		<button>close</button>
-	</div>
+	</form>
 </dialog>
