@@ -64,25 +64,19 @@
 			
 			if (isUiValidationJob) {
 				// For UiValidationJob, pass it directly to validationJobToFormData
-				validationJobToFormData(currentValidation as any).then(formData => {
+				validationJobToFormData(currentValidation as any).then(formDataWithResults => {
+					// Extract validation results if present
+					const { validationResults, ...formData } = formDataWithResults;
+					
 					validationFormStore.loadFormData({ ...formData, modelId: modelId });
 					initialFormData = { ...formData, modelId: modelId };
 					
-					// Set validation results after form data is loaded (moved from validationJobToFormData)
-					if (currentValidation.validation_status !== 'unknown') {
-						const reconstructedResults = {
-							stage: currentValidation.validation_status === 'completed' ? 'complete' : 
-							       currentValidation.validation_status === 'pending' ? 'none' : 'model',
-							csvValidation: {
-								success: currentValidation.dataProvided || false,
-								message: currentValidation.dataProvided ? 'Dataset provided (details from evaluation)' : 'Dataset details not fully available',
-							},
-							modelValidation: {
-								success: currentValidation.metrics || false,
-								message: currentValidation.metrics ? 'Metrics available' : 'Metrics not fully available',
-							}
-						};
-						validationFormStore.setValidationResults(reconstructedResults);
+					// Set validation results if they were included
+					if (validationResults) {
+						console.log('📊 Setting validation results in modal:', validationResults);
+						validationFormStore.setValidationResults(validationResults);
+					} else {
+						console.log('⚠️ No validation results found in loaded data');
 					}
 					
 				}).catch(error => {

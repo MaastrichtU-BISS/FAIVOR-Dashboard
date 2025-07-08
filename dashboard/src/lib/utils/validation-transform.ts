@@ -22,7 +22,7 @@ export function formDataToValidationData(formData: ValidationFormData, comprehen
   });
   unsubscribe();
 
-  // console.log('🔍 formDataToValidationData called with store-based sizes:', { /* ... logging data ... */ });
+  console.log('🔍 formDataToValidationData - validation results to save:', validationResults);
 
   const validationData: ValidationData = {
     validation_name: formData.validationName || undefined,
@@ -105,7 +105,7 @@ export function validationRowToJob(row: ValidationRow): any {
 /**
  * Transform UiValidationJob (derived from JSON-LD) to form data for editing.
  */
-export async function validationJobToFormData(job: UiValidationJob): Promise<ValidationFormData> {
+export async function validationJobToFormData(job: UiValidationJob): Promise<ValidationFormData & { validationResults?: ValidationResults }> {
   const evalData = job.originalEvaluationData;
 
   let reconstructedFolderFiles: Partial<DatasetFolderFiles> | undefined = undefined;
@@ -183,7 +183,18 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
       .join('; ');
   }
 
-  const reconstructedResults: ValidationResults = {
+  // Check if we have stored validation results in the data
+  let storedValidationResults: ValidationResults | undefined;
+  if ('data' in job && job.data && typeof job.data === 'object' && 'validation_result' in job.data) {
+    const validationResult = (job.data as any).validation_result;
+    if (validationResult?.validation_results) {
+      storedValidationResults = validationResult.validation_results;
+      console.log('📊 Restored validation results from storage:', storedValidationResults);
+    }
+  }
+
+  // Use stored validation results if available, otherwise reconstruct
+  const reconstructedResults: ValidationResults = storedValidationResults || {
     stage: job.validation_status === 'completed' ? 'complete' : job.validation_status === 'pending' ? 'none' : 'model',
     csvValidation: {
       success: job.dataProvided || false,
@@ -194,6 +205,11 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
       message: job.metrics ? 'Metrics available' : 'Metrics not fully available',
     }
   };
+  
+  // If we have stored results but they're missing details, try to enhance them
+  if (reconstructedResults.csvValidation && !reconstructedResults.csvValidation.details && job.dataProvided) {
+    console.log('⚠️ CSV validation results missing details, validation might have been done with older version');
+  }
   // Removed setValidationResults call to prevent infinite loop
   // The calling code should handle setting validation results if needed
 
@@ -210,6 +226,7 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
     metricsDescription: metricsDescription,
     performanceMetrics: performanceMetricsSummary,
     modelId: '', // This should be set from the page context (e.g., modelData['@id'] or checkpoint_id)
+    validationResults: reconstructedResults // Include the validation results
   };
 }
 
