@@ -55,10 +55,7 @@ services:
     ports:
       - "5173:5173"
     env_file:
-      - dashboard/.env
-    environment:
-      - NODE_ENV=development
-      - DB_HOST=postgres
+      - .env-test
     command: sh -c "bun install && bun run dev"
     # command: sh -c "bun install && bun run dev"
     restart: unless-stopped
