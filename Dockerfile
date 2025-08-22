@@ -1,7 +1,7 @@
 # Dockerfile for FAIVOR Dashboard (SvelteKit + Bun)
 # FROM oven/bun:1
 
-FROM --platform=$BUILDPLATFORM node:lts-slim AS base
+FROM node:24-bookworm
 
 WORKDIR /app
 COPY dashboard .
