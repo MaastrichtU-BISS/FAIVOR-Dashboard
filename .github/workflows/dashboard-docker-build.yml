@@ -1,0 +1,23 @@
+name: Build Dashboard Docker Image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build dashboard Docker image
+        run: |
+          docker build -t ghcr.io/$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')/$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')-dashboard:latest -f dashboard/Dockerfile .
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          OWNER_NAME: ${{ github.repository_owner }}
