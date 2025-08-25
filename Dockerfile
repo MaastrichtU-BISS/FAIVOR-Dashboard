@@ -3,6 +3,9 @@
 
 FROM node:24-bookworm
 
+RUN apt update && apt upgrade -y
+RUN apt install -y libpq-dev
+
 WORKDIR /app
 COPY dashboard .
 
