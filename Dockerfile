@@ -10,7 +10,8 @@ WORKDIR /app
 COPY dashboard .
 
 # update npm to latest version
-RUN npm install -g npm@latest && npm rebuild
+RUN npm install -g npm@latest
+RUN npm rebuild
 
 RUN npm i -g bun
 RUN bun install
