@@ -8,28 +8,20 @@ Architecture
 Database schema
 ![database](./docs/db-schema.drawio.png)
 
-## Quick Start
+## Running with Docker
 
-1. Copy `.env.example` to `.env` and fill in the required variables
-
-## Runnin with Docker
-
-It will run the database, migrations and dashboard services.
+To run all required services, please execute the [docker-compose.yml](docker-compose.yml) file in the root of this repository.
 
 ```bash
 docker compose up
 ```
 
-```bash
-bun install
-bun dev
-```
-
-Visit [http://localhost:5173](http://localhost:5173) to open the application.
+Visit [http://localhost:3000](http://localhost:3000) to open the application.
 
 ### Production Considerations
 
-The application requires HTTPS in production for authentication to work properly.
+- The application requires HTTPS in production for authentication to work properly.
+- update .env-test, especially the `AUTH_SECRET` variable to make sure all passwords have a unique hash, not similar to this demo environment variable.
 
 ## Features
 
