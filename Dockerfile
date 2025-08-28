@@ -4,7 +4,7 @@
 FROM node:24-bookworm
 
 RUN apt update && apt upgrade -y
-RUN apt install -y libpq-dev
+RUN apt install -y python3 python-is-python3 libpq-dev
 
 WORKDIR /app
 COPY dashboard .
