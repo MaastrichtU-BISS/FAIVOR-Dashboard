@@ -4,13 +4,12 @@
 FROM node:24-bookworm
 
 RUN apt update && apt upgrade -y
-RUN apt install -y python3 python-is-python3 libpq-dev
+# RUN apt install -y python3 python-is-python3 libpq-dev
 
 WORKDIR /app
 COPY dashboard .
 
 # update npm to latest version
-RUN rm package-lock.json
 RUN npm install -g npm@latest
 RUN npm rebuild
 
