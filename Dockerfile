@@ -4,18 +4,17 @@ FROM oven/bun:1
 # FROM node:24-bookworm
 
 RUN apt update && apt upgrade -y
-# RUN apt install -y python3 python-is-python3 libpq-dev build-essential
+
 
 WORKDIR /app
 COPY dashboard .
 
-# update npm to latest version
-# RUN npm install -g npm@latest
-# RUN npm rebuild
+RUN cp _example.env .env
 
-# RUN npm i -g bun
-# second time it should work?
+# second time it should work? based on https://github.com/oven-sh/bun/issues/7947
 RUN bun install || true && bun install
 
+RUN bun build
+
 EXPOSE 5173
-CMD ["bun", "run", "dev"]
+CMD ["bun", "./build/index.js"]
