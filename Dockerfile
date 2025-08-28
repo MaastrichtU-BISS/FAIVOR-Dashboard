@@ -10,6 +10,7 @@ WORKDIR /app
 COPY dashboard .
 
 # update npm to latest version
+RUN rm package-lock.json
 RUN npm install -g npm@latest
 RUN npm rebuild
 
