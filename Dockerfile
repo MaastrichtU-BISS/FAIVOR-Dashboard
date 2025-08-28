@@ -14,7 +14,8 @@ COPY dashboard .
 # RUN npm rebuild
 
 # RUN npm i -g bun
-RUN bun install
+# second time it should work?
+RUN bun install || true && bun install
 
 EXPOSE 5173
 CMD ["bun", "run", "dev"]
