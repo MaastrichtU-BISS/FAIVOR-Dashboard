@@ -79,13 +79,6 @@ const handleProtectedRoutes: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-// Sequence of middleware to run
-// 1. handleAuth - Handles authentication from @auth
-// 2. handleProtectedRoutes - Redirects to home if not logged in
-// 3. protectRoute - Our gatekeeper for RBAC (no role required by default)
-// 4. handleCORS - Set CORS headers for API routes (should be last)
-export const handle = sequence(handleAuth, handleProtectedRoutes, protectRoute(), handleCORS);
-
 // --- CORS middleware for API routes ---
 import { PUBLIC_DASHBOARD_ORIGIN } from '$env/static/public';
 const handleCORS: Handle = async ({ event, resolve }) => {
@@ -120,3 +113,10 @@ const handleCORS: Handle = async ({ event, resolve }) => {
 
   return response;
 };
+
+// Sequence of middleware to run
+// 1. handleAuth - Handles authentication from @auth
+// 2. handleProtectedRoutes - Redirects to home if not logged in
+// 3. protectRoute - Our gatekeeper for RBAC (no role required by default)
+// 4. handleCORS - Set CORS headers for API routes (should be last)
+export const handle = sequence(handleAuth, handleProtectedRoutes, protectRoute(), handleCORS);
