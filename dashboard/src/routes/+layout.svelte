@@ -26,9 +26,11 @@
 >
 	<Header />
 	<SideMenu />
-	{#if children}{@render children()}{:else}
-		<!-- Content here -->
-	{/if}
+	<div class="overflow-y-auto">
+		{#if children}{@render children()}{:else}
+			<!-- Content here -->
+		{/if}
+	</div>
 	<!-- <FooterMain /> -->
 	{#if env.PUBLIC_LOCALHOST}
 		<div class="bg-warning text-warning-content fixed bottom-0 left-0 w-full pl-4 text-xs">
