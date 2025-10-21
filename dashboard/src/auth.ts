@@ -6,23 +6,33 @@ import { pool } from "$lib/db";
 import type { CustomSession } from "./app";
 import bcrypt from 'bcryptjs';
 import Resend from "@auth/sveltekit/providers/resend";
+import { env } from "$env/dynamic/private";
 
 export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth({
   trustHost: true,
   adapter: PostgresAdapter(pool),
-  secret: process.env.AUTH_SECRET,
+  secret: env.AUTH_SECRET,
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   cookies: {
     sessionToken: {
-      name: `__Secure-next-auth.session-token`,
+      name: `next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production'
+        secure: env.NODE_ENV === 'production'
+      }
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: env.NODE_ENV === 'production'
       }
     }
   },

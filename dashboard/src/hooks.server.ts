@@ -28,7 +28,7 @@ const handleCORS: Handle = async ({ event, resolve }) => {
     return new Response(null, {
       headers: {
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Cookie',
         'Access-Control-Allow-Origin': origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0] || '*',
         'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Max-Age': '86400',
@@ -36,14 +36,21 @@ const handleCORS: Handle = async ({ event, resolve }) => {
     });
   }
 
-  const response = await resolve(event);
+  // Resolve the request and add CORS headers to response
+  const response = await resolve(event, {
+    filterSerializedResponseHeaders: (name) => {
+      // Allow these headers to be sent to the client
+      return name === 'content-type' || name === 'set-cookie';
+    }
+  });
 
-  // Add CORS headers to all responses
+  // Add CORS headers to all responses (including errors and redirects)
   if (origin && (allowedOrigins.includes(origin) || allowedOrigins.includes('*'))) {
     response.headers.set('Access-Control-Allow-Origin', origin);
     response.headers.set('Access-Control-Allow-Credentials', 'true');
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Cookie');
+    response.headers.set('Vary', 'Origin');
   }
 
   return response;
