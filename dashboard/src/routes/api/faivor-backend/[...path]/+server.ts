@@ -29,6 +29,9 @@ async function proxyRequest(path: string, url: URL, request: Request): Promise<R
     // Construct backend URL with path and query params
     const backendUrl = `${BACKEND_URL}/${path}${url.search}`;
     
+    console.log(`[Proxy] ${request.method} ${backendUrl}`);
+    console.log(`[Proxy] Content-Type: ${request.headers.get('content-type')}`);
+    
     // Build headers to forward (exclude host and other problematic headers)
     const headersToForward = new Headers();
     for (const [key, value] of request.headers.entries()) {
@@ -38,15 +41,24 @@ async function proxyRequest(path: string, url: URL, request: Request): Promise<R
       }
     }
     
+    // Get the request body (using arrayBuffer to preserve binary data)
+    let body = undefined;
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      body = await request.arrayBuffer();
+      console.log(`[Proxy] Body size: ${body.byteLength} bytes`);
+    }
+    
     // Forward the request to the backend
     const response = await fetch(backendUrl, {
       method: request.method,
       headers: headersToForward,
-      body: request.method !== 'GET' && request.method !== 'HEAD' ? await request.blob() : undefined,
+      body: body,
     });
 
+    console.log(`[Proxy] Response status: ${response.status}`);
+    
     // Get response body
-    const responseBody = await response.blob();
+    const responseBody = await response.arrayBuffer();
     
     // Forward response headers
     const responseHeaders = new Headers();
