@@ -17,6 +17,26 @@ export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth(async (even
       strategy: "jwt",
       maxAge: 30 * 24 * 60 * 60, // 30 days
     },
+    cookies: {
+      sessionToken: {
+        name: `authjs.session-token`,
+        options: {
+          httpOnly: true,
+          sameSite: 'lax',
+          path: '/',
+          secure: env.NODE_ENV === 'production'
+        }
+      },
+      csrfToken: {
+        name: `authjs.csrf-token`,
+        options: {
+          httpOnly: true,
+          sameSite: 'lax',
+          path: '/',
+          secure: env.NODE_ENV === 'production'
+        }
+      }
+    },
   providers: [
     Resend({
       from: "top-sveltekit@ctwhome.com",

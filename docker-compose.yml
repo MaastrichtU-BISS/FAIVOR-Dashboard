@@ -49,11 +49,11 @@ services:
       - .env-test
     environment:
       # Critical: SvelteKit needs these for CSRF protection behind reverse proxy
-      - ORIGIN=https://your-domain.com
+      - ORIGIN=https://faivor.fairmodels.org
       - PROTOCOL_HEADER=x-forwarded-proto
       - HOST_HEADER=x-forwarded-host
       # Auth.js URL for proper callback redirects
-      - AUTH_URL=https://your-domain.com
+      - AUTH_URL=https://faivor.fairmodels.org
       # Backend ML Validator URL (for server-side proxy)
       - FAIVOR_BACKEND_URL=http://faivor-backend:8000
     restart: unless-stopped
