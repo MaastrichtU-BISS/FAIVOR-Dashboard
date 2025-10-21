@@ -1,5 +1,6 @@
 // src/lib/api/faivor-backend.ts - FAIVOR Backend API client
 import { ValidationError, ValidationErrors, ValidationErrorCode } from '$lib/types/validation-errors';
+import { PUBLIC_FAIVOR_BACKEND_URL } from '$lib/config';
 
 export interface CSVValidationResponse {
   valid: boolean;
@@ -45,8 +46,8 @@ export interface HealthCheckResponse {
 }
 
 export class FaivorBackendAPI {
-  // Direct connection to FAIVOR backend with CORS enabled
-  private static readonly BASE_URL = "http://localhost:8000";
+  // Backend URL configured via environment variable for reverse proxy support
+  private static readonly BASE_URL = PUBLIC_FAIVOR_BACKEND_URL;
 
   /**
    * Parse error response from FAIVOR backend

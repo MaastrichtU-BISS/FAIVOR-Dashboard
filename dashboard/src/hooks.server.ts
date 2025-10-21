@@ -5,6 +5,7 @@ import { handleAuth } from "./auth";
 import { redirect } from '@sveltejs/kit';
 import { Role } from '$lib/types';
 import { error } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 
 
 // Function to check if user has required role
@@ -15,6 +16,38 @@ function hasRequiredRole(userRole: string, requiredRole: Role): boolean {
   }
   return userRole === requiredRole;
 }
+
+// CORS handler for reverse proxy deployments
+const handleCORS: Handle = async ({ event, resolve }) => {
+  // Get allowed origins from environment variable
+  const allowedOrigins = env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
+  const origin = event.request.headers.get('origin');
+
+  // Handle preflight requests
+  if (event.request.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+        'Access-Control-Allow-Origin': origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0] || '*',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Max-Age': '86400',
+      }
+    });
+  }
+
+  const response = await resolve(event);
+
+  // Add CORS headers to all responses
+  if (origin && (allowedOrigins.includes(origin) || allowedOrigins.includes('*'))) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  }
+
+  return response;
+};
 
 // Middleware to protect routes based on role
 export const protectRoute = (requiredRole?: Role): Handle => {
@@ -80,7 +113,8 @@ const handleProtectedRoutes: Handle = async ({ event, resolve }) => {
 };
 
 // Sequence of middleware to run
-// 1. handleAuth - Handles authentication from @auth
-// 2. handleProtectedRoutes - Redirects to home if not logged in
-// 3. protectRoute - Our gatekeeper for RBAC (no role required by default)
-export const handle = sequence(handleAuth, handleProtectedRoutes, protectRoute());
+// 1. handleCORS - Handle CORS headers for reverse proxy deployments
+// 2. handleAuth - Handles authentication from @auth
+// 3. handleProtectedRoutes - Redirects to home if not logged in
+// 4. protectRoute - Our gatekeeper for RBAC (no role required by default)
+export const handle = sequence(handleCORS, handleAuth, handleProtectedRoutes, protectRoute());
