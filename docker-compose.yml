@@ -4,8 +4,8 @@ services:
   faivor-backend:
     image: ghcr.io/maastrichtu-biss/faivor-ml-validator
     restart: always
-    ports:
-      - "8000:8000"
+    # ports:
+      # - "8000:8000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -31,7 +31,8 @@ services:
     restart: unless-stopped
 
   migrate:
-    image: ghcr.io/maastrichtu-biss/faivor-dashboard:build_image_dashboard
+    # image: ghcr.io/maastrichtu-biss/faivor-dashboard:build_image_dashboard
+    build: .
     env_file:
       - .env-test
     command: sh -c "sleep 5 && DATABASE_URL='postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:${DB_PORT:-5432}/${DB_NAME:-faivor}' bunx node-pg-migrate up"
@@ -42,18 +43,19 @@ services:
         condition: service_started
 
   dashboard:
-    image: ghcr.io/maastrichtu-biss/faivor-dashboard:build_image_dashboard
+    # image: ghcr.io/maastrichtu-biss/faivor-dashboard:build_image_dashboard
+    build: .
     ports:
       - "3000:3000"
     env_file:
       - .env-test
     environment:
       # Critical: SvelteKit needs these for CSRF protection behind reverse proxy
-      - ORIGIN=https://faivor.fairmodels.org
+      - ORIGIN=${ORIGIN:-http://localhost:3000}
       - PROTOCOL_HEADER=x-forwarded-proto
       - HOST_HEADER=x-forwarded-host
       # Auth.js URL for proper callback redirects
-      - AUTH_URL=https://faivor.fairmodels.org
+      - AUTH_URL=${AUTH_URL:-http://localhost:3000}
       # Backend ML Validator URL (for server-side proxy)
       - FAIVOR_BACKEND_URL=http://faivor-backend:8000
     restart: unless-stopped

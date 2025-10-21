@@ -25,20 +25,32 @@ Visit [http://localhost:3000](http://localhost:3000) to open the application.
 
 #### Reverse Proxy / CORS Configuration
 
-When deploying behind a reverse proxy (Nginx, Traefik, etc.), you need to configure CORS properly:
+When deploying behind a reverse proxy (Nginx, Traefik, etc.), proper configuration is essential for authentication redirects to work correctly.
 
-1. Set `PUBLIC_FAIVOR_BACKEND_URL` to your backend URL
-2. Set `ALLOWED_ORIGINS` to your frontend domain(s)
+📚 **See detailed deployment guide:** [DEPLOYMENT_REVERSE_PROXY.md](./DEPLOYMENT_REVERSE_PROXY.md)
 
-Example for production:
-```env
-PUBLIC_FAIVOR_BACKEND_URL="https://api.yourdomain.com"
-ALLOWED_ORIGINS="https://app.yourdomain.com"
-```
+**Quick setup:**
 
-📚 **See detailed guides:**
-- [Quick Start: Reverse Proxy Setup](./docs/REVERSE-PROXY-SETUP.md)
-- [Complete CORS Configuration Guide](./docs/CORS-CONFIGURATION.md)
+1. Copy the production environment template:
+   ```bash
+   cp .env.production.example .env.production
+   ```
+
+2. Update critical settings in `.env.production`:
+   ```env
+   AUTH_URL="https://yourdomain.com"
+   ORIGIN="https://yourdomain.com"
+   ALLOWED_ORIGINS="https://yourdomain.com"
+   ```
+
+3. Ensure your reverse proxy forwards these headers:
+   - `X-Forwarded-Proto`
+   - `X-Forwarded-Host`
+
+4. Deploy with production environment:
+   ```bash
+   docker compose --env-file .env.production up -d
+   ```
 
 ## Features
 
