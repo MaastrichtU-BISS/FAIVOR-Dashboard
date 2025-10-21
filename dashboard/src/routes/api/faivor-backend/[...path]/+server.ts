@@ -29,25 +29,36 @@ async function proxyRequest(path: string, url: URL, request: Request): Promise<R
     // Construct backend URL with path and query params
     const backendUrl = `${BACKEND_URL}/${path}${url.search}`;
     
+    // Build headers to forward (exclude host and other problematic headers)
+    const headersToForward = new Headers();
+    for (const [key, value] of request.headers.entries()) {
+      // Skip headers that shouldn't be forwarded
+      if (!['host', 'connection', 'origin', 'referer'].includes(key.toLowerCase())) {
+        headersToForward.set(key, value);
+      }
+    }
+    
     // Forward the request to the backend
     const response = await fetch(backendUrl, {
       method: request.method,
-      headers: {
-        'Content-Type': request.headers.get('Content-Type') || 'application/json',
-      },
+      headers: headersToForward,
       body: request.method !== 'GET' && request.method !== 'HEAD' ? await request.blob() : undefined,
     });
 
     // Get response body
     const responseBody = await response.blob();
     
+    // Forward response headers
+    const responseHeaders = new Headers();
+    for (const [key, value] of response.headers.entries()) {
+      responseHeaders.set(key, value);
+    }
+    
     // Return response with same status and headers
     return new Response(responseBody, {
       status: response.status,
       statusText: response.statusText,
-      headers: {
-        'Content-Type': response.headers.get('Content-Type') || 'application/json',
-      },
+      headers: responseHeaders,
     });
   } catch (err) {
     console.error('Backend proxy error:', err);
