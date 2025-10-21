@@ -9,7 +9,7 @@ import Resend from "@auth/sveltekit/providers/resend";
 import { env } from "$env/dynamic/private";
 
 export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth(async (event) => {
-  return {
+  const authConfig: any = {
     trustHost: true,
     adapter: PostgresAdapter(pool),
     secret: env.AUTH_SECRET,
@@ -37,57 +37,65 @@ export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth(async (even
         }
       }
     },
-  providers: [
-    Resend({
-      from: "top-sveltekit@ctwhome.com",
-      name: "Chat Diamond",
-    }),
-    Google,
-    Credentials({
-      name: 'Credentials',
-      async authorize(credentials) {
-        const { email, password } = credentials as { email: string; password: string };
-        if (!email || !password) return null;
+    providers: [
+      Resend({
+        from: "top-sveltekit@ctwhome.com",
+        name: "Chat Diamond",
+      }),
+      Google,
+      Credentials({
+        name: 'Credentials',
+        async authorize(credentials) {
+          const { email, password } = credentials as { email: string; password: string };
+          if (!email || !password) return null;
 
-        const user = (await pool.query('SELECT * FROM users WHERE email = $1', [email])).rows[0];
-        if (!user || !await bcrypt.compare(password, user.password)) return null;
+          const user = (await pool.query('SELECT * FROM users WHERE email = $1', [email])).rows[0];
+          if (!user || !await bcrypt.compare(password, user.password)) return null;
+
+          return {
+            id: user.id.toString(),
+            email: user.email,
+            name: user.name || null,
+            image: user.image || null
+          };
+        }
+      })
+    ],
+    callbacks: {
+      async jwt({ token, user, account }) {
+        if (user) {
+          // Get user data including role on initial sign in
+          const userData = (await pool.query('SELECT id, role, name FROM users WHERE id = $1', [user.id])).rows[0];
+          token.id = userData.id;
+          token.role = userData.role || 'user';
+          token.name = userData.name;
+          // Store the provider in the token
+          token.provider = account?.provider || 'credentials';
+        }
+        return token;
+      },
+      async session({ session, token }) {
+        if (!session?.user || !token) return session;
 
         return {
-          id: user.id.toString(),
-          email: user.email,
-          name: user.name || null,
-          image: user.image || null
-        };
+          ...session,
+          provider: token.provider as string,
+          user: {
+            ...session.user,
+            id: token.id as string,
+            name: token.name as string,
+            roles: [token.role as string] // Use role from JWT token
+          }
+        } as CustomSession;
       }
-    })
-  ],
-  callbacks: {
-    async jwt({ token, user, account }) {
-      if (user) {
-        // Get user data including role on initial sign in
-        const userData = (await pool.query('SELECT id, role, name FROM users WHERE id = $1', [user.id])).rows[0];
-        token.id = userData.id;
-        token.role = userData.role || 'user';
-        token.name = userData.name;
-        // Store the provider in the token
-        token.provider = account?.provider || 'credentials';
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (!session?.user || !token) return session;
-
-      return {
-        ...session,
-        provider: token.provider as string,
-        user: {
-          ...session.user,
-          id: token.id as string,
-          name: token.name as string,
-          roles: [token.role as string] // Use role from JWT token
-        }
-      } as CustomSession;
     }
-  }
   };
+  
+  // Use AUTH_URL from environment if set, otherwise trust the host header
+  if (env.AUTH_URL) {
+    authConfig.basePath = '/auth';
+    // Don't set a fixed baseUrl when trustHost is true - let it be derived from the request
+  }
+  
+  return authConfig;
 });
