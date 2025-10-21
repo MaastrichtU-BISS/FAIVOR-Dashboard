@@ -52,6 +52,8 @@ services:
       - ORIGIN=https://faivor.fairmodels.org
       - PROTOCOL_HEADER=x-forwarded-proto
       - HOST_HEADER=x-forwarded-host
+      # Auth.js URL for proper callback redirects
+      - AUTH_URL=https://faivor.fairmodels.org
     restart: unless-stopped
 
   seed:

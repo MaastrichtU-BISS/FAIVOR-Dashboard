@@ -9,17 +9,10 @@ import Resend from "@auth/sveltekit/providers/resend";
 import { env } from "$env/dynamic/private";
 
 export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth(async (event) => {
-  // Get the actual host from the request headers (respects X-Forwarded-Host)
-  const authUrl = event.request.headers.get('x-forwarded-proto') 
-    ? `${event.request.headers.get('x-forwarded-proto')}://${event.request.headers.get('x-forwarded-host') || event.request.headers.get('host')}`
-    : undefined;
-
   return {
     trustHost: true,
     adapter: PostgresAdapter(pool),
     secret: env.AUTH_SECRET,
-    // Explicitly set the URL if we're behind a proxy
-    ...(authUrl && { url: authUrl }),
     session: {
       strategy: "jwt",
       maxAge: 30 * 24 * 60 * 60, // 30 days
