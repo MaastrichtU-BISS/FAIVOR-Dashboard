@@ -17,6 +17,19 @@ function hasRequiredRole(userRole: string, requiredRole: Role): boolean {
   return userRole === requiredRole;
 }
 
+// Fix headers for reverse proxy before CSRF check
+const handleProxyHeaders: Handle = async ({ event, resolve }) => {
+  const proto = event.request.headers.get('x-forwarded-proto');
+  const host = event.request.headers.get('x-forwarded-host');
+  
+  // Log for debugging
+  if (proto && host) {
+    console.log(`[Proxy] X-Forwarded-Proto: ${proto}, X-Forwarded-Host: ${host}`);
+  }
+  
+  return resolve(event);
+};
+
 // CORS handler for reverse proxy deployments
 const handleCORS: Handle = async ({ event, resolve }) => {
   // Get allowed origins from environment variable
@@ -121,8 +134,9 @@ const handleProtectedRoutes: Handle = async ({ event, resolve }) => {
 };
 
 // Sequence of middleware to run
-// 1. handleCORS - Handle CORS headers for reverse proxy deployments
-// 2. handleAuth - Handles authentication from @auth
-// 3. handleProtectedRoutes - Redirects to home if not logged in
-// 4. protectRoute - Our gatekeeper for RBAC (no role required by default)
-export const handle = sequence(handleCORS, handleAuth, handleProtectedRoutes, protectRoute());
+// 1. handleProxyHeaders - Log and verify proxy headers
+// 2. handleCORS - Handle CORS headers for reverse proxy deployments
+// 3. handleAuth - Handles authentication from @auth
+// 4. handleProtectedRoutes - Redirects to home if not logged in
+// 5. protectRoute - Our gatekeeper for RBAC (no role required by default)
+export const handle = sequence(handleProxyHeaders, handleCORS, handleAuth, handleProtectedRoutes, protectRoute());

@@ -29,6 +29,11 @@ const config = {
 				files: ['html', 'js', 'json', 'css', 'svg', 'xml', 'wasm']
 			}
 		}),
+		
+		// CSRF configuration for reverse proxy
+		csrf: {
+			checkOrigin: true,
+		},
 
 		alias: {
 			// these are the aliases and paths to them
