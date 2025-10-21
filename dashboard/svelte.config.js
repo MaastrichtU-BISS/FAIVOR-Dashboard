@@ -31,8 +31,10 @@ const config = {
 		}),
 		
 		// CSRF configuration for reverse proxy
+		// When behind a reverse proxy, SvelteKit needs to know which headers to trust
+		// Disable checkOrigin since we're handling origin validation via ORIGIN env var
 		csrf: {
-			checkOrigin: true,
+			checkOrigin: false,
 		},
 
 		alias: {

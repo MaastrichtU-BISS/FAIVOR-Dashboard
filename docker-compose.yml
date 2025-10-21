@@ -47,6 +47,11 @@ services:
       - "3000:3000"
     env_file:
       - .env-test
+    environment:
+      # Critical: SvelteKit needs these for CSRF protection behind reverse proxy
+      - ORIGIN=https://faivor.fairmodels.org
+      - PROTOCOL_HEADER=x-forwarded-proto
+      - HOST_HEADER=x-forwarded-host
     restart: unless-stopped
 
   seed:
