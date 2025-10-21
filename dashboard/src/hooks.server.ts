@@ -25,6 +25,13 @@ const handleProxyHeaders: Handle = async ({ event, resolve }) => {
   // Log for debugging
   if (proto && host) {
     console.log(`[Proxy] X-Forwarded-Proto: ${proto}, X-Forwarded-Host: ${host}`);
+    console.log(`[Proxy] Event URL before: ${event.url.toString()}`);
+    
+    // Override the URL with the correct public-facing URL
+    const publicUrl = new URL(event.url.pathname + event.url.search, `${proto}://${host}`);
+    event.url = publicUrl;
+    
+    console.log(`[Proxy] Event URL after: ${event.url.toString()}`);
   }
   
   return resolve(event);
