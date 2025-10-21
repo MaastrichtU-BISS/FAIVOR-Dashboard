@@ -89,6 +89,7 @@ const handleProtectedRoutes: Handle = async ({ event, resolve }) => {
   // Allow access to public routes and assets
   if (
     path === '/' ||
+    path.startsWith('/auth') ||  // Auth.js authentication routes
     path.startsWith('/login') ||
     path.startsWith('/api/register') ||
     path.startsWith('/api/models') ||  // Allow model API access
