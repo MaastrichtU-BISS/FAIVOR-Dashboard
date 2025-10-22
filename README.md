@@ -8,26 +8,57 @@ Architecture
 Database schema
 ![database](./docs/db-schema.drawio.png)
 
-## Running with Docker
+## Deployment
 
-To run all required services, please execute the [docker-compose.yml](docker-compose.yml) file in the root of this repository.
+The FAIVOR Dashboard supports three deployment scenarios:
 
+### 🖥️ **Quick Start - Local Development**
+
+**One-command setup** (downloads files and starts the application):
+
+**Linux/macOS:**
 ```bash
-docker compose up
+curl -fsSL https://raw.githubusercontent.com/MaastrichtU-BISS/FAIVOR-Dashboard/main/setup-local.sh | bash
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to open the application.
+**Windows (PowerShell as Administrator):**
+```powershell
+irm https://raw.githubusercontent.com/MaastrichtU-BISS/FAIVOR-Dashboard/main/setup-local.ps1 | iex
+```
 
-### Production Considerations
+**Manual setup**:
 
-- The application requires HTTPS in production for authentication to work properly.
-- update .env-test, especially the `AUTH_SECRET` variable to make sure all passwords have a unique hash, not similar to this demo environment variable.
+```bash
+cp .env.local.example .env.local
+docker compose -f docker-compose.local.yml up
+```
 
-#### Reverse Proxy / CORS Configuration
+Visit [http://localhost:3000](http://localhost:3000)
 
-When deploying behind a reverse proxy (Nginx, Traefik, etc.), proper configuration is essential for authentication redirects to work correctly.
+### 🏢 **Server Deployment (No Reverse Proxy)**
 
-📚 **See detailed deployment guide:** [DEPLOYMENT_REVERSE_PROXY.md](./DEPLOYMENT_REVERSE_PROXY.md)
+For internal organization servers accessed directly by IP or hostname:
+
+```bash
+cp .env.server.example .env.server
+# Edit .env.server with your server's IP/hostname
+docker compose -f docker-compose.server.yml up -d
+```
+
+### 🌐 **Production with Reverse Proxy**
+
+For production with domain name and HTTPS (Nginx Proxy Manager, Traefik, Caddy):
+
+```bash
+cp .env.proxy.example .env.proxy
+# Edit .env.proxy with your domain
+docker compose -f docker-compose.proxy.yml up -d
+```
+
+---
+
+📚 **Complete deployment guide**: [DEPLOYMENT.md](./DEPLOYMENT.md)  
+🔧 **Reverse proxy troubleshooting**: [DEPLOYMENT_REVERSE_PROXY.md](./DEPLOYMENT_REVERSE_PROXY.md)
 
 **Quick setup:**
 

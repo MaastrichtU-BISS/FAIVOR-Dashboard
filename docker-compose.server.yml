@@ -1,0 +1,63 @@
+# Docker Compose for Server Deployment (No Reverse Proxy)
+# Usage: docker compose -f docker-compose.server.yml up -d
+
+name: faivor-server
+
+services:
+  faivor-backend:
+    image: ghcr.io/maastrichtu-biss/faivor-ml-validator
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOCKER_HOST_INTERNAL=host.docker.internal
+
+  postgres:
+    image: postgres:latest
+    env_file:
+      - .env.server
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data_server:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  migrate:
+    image: ghcr.io/maastrichtu-biss/faivor-dashboard:latest
+    env_file:
+      - .env.server
+    command: sh -c "sleep 5 && DATABASE_URL='postgres://${DB_USER}:${DB_PASSWORD}@postgres:${DB_PORT:-5432}/${DB_NAME}' bunx node-pg-migrate up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dashboard:
+        condition: service_started
+
+  dashboard:
+    image: ghcr.io/maastrichtu-biss/faivor-dashboard:latest
+    ports:
+      - "${DASHBOARD_PORT:-3000}:3000"
+    env_file:
+      - .env.server
+    environment:
+      # Direct server access - specify your server's IP or domain
+      - ORIGIN=${PUBLIC_URL}
+      - AUTH_URL=${PUBLIC_URL}
+      - FAIVOR_BACKEND_URL=http://faivor-backend:8000
+      - ALLOWED_ORIGINS=${PUBLIC_URL}
+    restart: always
+    depends_on:
+      - postgres
+      - faivor-backend
+
+volumes:
+  postgres_data_server:

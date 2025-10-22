@@ -1,0 +1,78 @@
+# Docker Compose for Local Development
+# Usage: docker compose -f docker-compose.local.yml up
+
+name: faivor-local
+
+services:
+  faivor-backend:
+    image: ghcr.io/maastrichtu-biss/faivor-ml-validator
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOCKER_HOST_INTERNAL=host.docker.internal
+
+  postgres:
+    image: postgres:latest
+    env_file:
+      - .env.local
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-faivor}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  migrate:
+    image: ghcr.io/maastrichtu-biss/faivor-dashboard:latest
+    env_file:
+      - .env.local
+    command: sh -c "sleep 5 && DATABASE_URL='postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:${DB_PORT:-5432}/${DB_NAME:-faivor}' bunx node-pg-migrate up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dashboard:
+        condition: service_started
+
+  dashboard:
+    image: ghcr.io/maastrichtu-biss/faivor-dashboard:latest
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      # Local development - no reverse proxy
+      - ORIGIN=http://localhost:3000
+      - AUTH_URL=http://localhost:3000
+      - FAIVOR_BACKEND_URL=http://faivor-backend:8000
+      - ALLOWED_ORIGINS=http://localhost:3000
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - faivor-backend
+
+  seed:
+    profiles:
+      - seed
+    image: postgres:latest
+    env_file:
+      - .env.local
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-postgres}
+    command: psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-faivor} -f /seed-database/seed.sql
+    volumes:
+      - ./dashboard/seed-database:/seed-database
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data_local:
