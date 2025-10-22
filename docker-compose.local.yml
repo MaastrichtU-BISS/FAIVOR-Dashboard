@@ -9,6 +9,8 @@ services:
     restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - DOCKER_HOST_INTERNAL=host.docker.internal
 
