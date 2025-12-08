@@ -3,6 +3,7 @@
 	// import FeedbackButton from '$lib/components/ui/feedback/FeedbackButton.svelte';
 	import { onMount } from 'svelte';
 	import Login from '$lib/components/ui/Login/LoginButton.svelte';
+	import VersionInfo from '$lib/components/VersionInfo.svelte';
 	import { toggleMenu } from '$lib/stores/menu.store';
 	import IconamoonMenuBurgerHorizontalBold from '~icons/iconamoon/menu-burger-horizontal-bold';
 	import menuItems from './menu-itmes';
@@ -56,6 +57,7 @@
 
 			<!-- <FeedbackButton showButton={isDesktop} /> -->
 
+			<VersionInfo />
 			<Login />
 		</header>
 	</div>
