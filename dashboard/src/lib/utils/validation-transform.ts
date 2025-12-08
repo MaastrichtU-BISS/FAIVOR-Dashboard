@@ -6,15 +6,19 @@ import type {
   // ValidationJob, // Old type, replaced by UiValidationJob for new transformations
   ValidationFormData,
   ValidationRow,
-  DatasetFolderFiles
+  DatasetFolderFiles,
+  ModelMetadataSnapshot
 } from '$lib/types/validation';
-import type { UiValidationJob, JsonLdPerformanceMetricItem } from '$lib/stores/models/types'; // Import new types
+import type { UiValidationJob, JsonLdPerformanceMetricItem, FullJsonLdModel } from '$lib/stores/models/types'; // Import new types
 import { getFileSizesFromStore, validationFormStore, type ValidationResults } from '$lib/stores/models/validation.store';
 
 /**
  * Transform form data to ValidationData structure - simplified using store
+ * @param formData - The form data to transform
+ * @param comprehensiveMetrics - Optional comprehensive metrics data
+ * @param model - Optional model to extract metadata snapshot from
  */
-export function formDataToValidationData(formData: ValidationFormData, comprehensiveMetrics?: any): ValidationData {
+export function formDataToValidationData(formData: ValidationFormData, comprehensiveMetrics?: any, model?: FullJsonLdModel): ValidationData {
   const fileSizes = getFileSizesFromStore();
   let validationResults: ValidationResults | undefined;
   let datasetAnalysis: any = undefined;
@@ -92,7 +96,9 @@ export function formDataToValidationData(formData: ValidationFormData, comprehen
       metrics: Boolean(formData.metricsDescription || comprehensiveMetrics),
       validation_results: validationResults && validationResults.stage !== 'none' ? validationResults : undefined,
       comprehensive_metrics: comprehensiveMetrics || undefined
-    }
+    },
+    // Capture model metadata snapshot if model is provided
+    model_metadata: model ? extractModelMetadataSnapshot(model) : undefined
   };
   return validationData;
 }
@@ -346,5 +352,101 @@ export function legacyToValidationData(legacy: {
       dataCharacteristics: Boolean(legacy.description),
       ...legacy.validation_result
     }
+  };
+}
+
+/**
+ * Extract a comprehensive model metadata snapshot from a FullJsonLdModel.
+ * This snapshot is stored with each validation to track which exact version
+ * of the model was used for that validation.
+ */
+export function extractModelMetadataSnapshot(model: FullJsonLdModel): ModelMetadataSnapshot {
+  const generalInfo = model['General Model Information'];
+
+  // Helper to safely extract @value from JsonLdValue
+  const getValue = <T = string>(obj: { '@value': T | null } | undefined): T | undefined => {
+    return obj?.['@value'] ?? undefined;
+  };
+
+  // Helper to extract array of values
+  const getValues = (arr: Array<{ '@value': string | null }> | undefined): string[] => {
+    if (!arr || !Array.isArray(arr)) return [];
+    return arr.map(item => item['@value']).filter((v): v is string => v !== null && v !== undefined);
+  };
+
+  // Helper to safely get @id from JsonLdIdRef
+  const getIdRef = (obj: { '@id': string; 'rdfs:label'?: string } | undefined): string | undefined => {
+    return obj?.['@id'];
+  };
+
+  // Extract input features
+  const inputFeatures = model['Input data1']?.map(input => ({
+    feature_id: input['Input feature']?.['@id'],
+    label: getValue(input['Input label']),
+    description: getValue(input['Description']),
+    type: getValue(input['Type of input']),
+    min: getValue(input['Minimum - for numerical']),
+    max: getValue(input['Maximum - for numerical']),
+    categories: input['Categories']?.map(cat => ({
+      label: getValue(cat['Category Label'] as any),
+      identifier: getValue(cat['Identification for category used in model'])
+    })).filter(cat => cat.label || cat.identifier)
+  }));
+
+  // Extract papers array
+  const papers = getValues(generalInfo?.['References to papers']);
+
+  // Extract code repositories array
+  const codeRepositories = getValues(generalInfo?.['References to code']);
+
+  return {
+    // Docker/Image information
+    docker_image_name: getValue(generalInfo?.['FAIRmodels image name']),
+    docker_exposed_port: getValue(generalInfo?.['Docker image details (exposed port)']),
+    // Note: docker_image_sha256 is typically set during validation execution, not from model metadata
+
+    // Model identification
+    fair_model_id: model.fair_model_id || model['@id']?.split('/').pop(),
+    fair_model_url: model['@id'],
+    checkpoint_id: model.checkpoint_id,
+
+    // Basic model info
+    title: getValue(generalInfo?.['Title']),
+    description: getValue(generalInfo?.['Description']),
+    editor_note: getValue(generalInfo?.['Editor Note']),
+
+    // Authorship and dates
+    created_by: getValue(generalInfo?.['Created by']),
+    creation_date: getValue(generalInfo?.['Creation date']),
+    contact_email: getValue(generalInfo?.['Contact email']),
+    last_updated: model['pav:lastUpdatedOn'],
+
+    // References
+    papers: papers.length > 0 ? papers : undefined,
+    code_repositories: codeRepositories.length > 0 ? codeRepositories : undefined,
+    software_license: generalInfo?.['Software License']?.['@id'],
+
+    // Model characteristics
+    outcome: getIdRef(model['Outcome']),
+    outcome_label: getValue(model['Outcome label']),
+    outcome_type: getValue(model['Outcome type']),
+    algorithm: getIdRef(model['Foundational model or algorithm used']),
+
+    // Applicability and usage
+    applicability_criteria: getValues(model['Applicability criteria']),
+    primary_intended_uses: getValues(model['Primary intended use(s)']),
+    primary_intended_users: getValues(model['Primary intended users']),
+    out_of_scope_use_cases: getValues(model['Out-of-scope use cases']),
+
+    // Input data schema
+    input_features: inputFeatures && inputFeatures.length > 0 ? inputFeatures : undefined,
+
+    // Risk and compliance
+    human_life_impact: getValues(model['Human life']),
+    mitigations: getValues(model['Mitigations']),
+    risks_and_harms: getValues(model['Risks and harms']),
+
+    // Timestamp when this snapshot was captured
+    captured_at: new Date().toISOString()
   };
 }

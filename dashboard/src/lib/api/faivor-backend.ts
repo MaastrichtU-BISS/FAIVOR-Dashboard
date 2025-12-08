@@ -1,5 +1,8 @@
 // src/lib/api/faivor-backend.ts - FAIVOR Backend API client
+
 import { ValidationError, ValidationErrors, ValidationErrorCode } from '$lib/types/validation-errors';
+// SvelteKit public env import
+import { PUBLIC_VALIDATOR_URL } from '$env/static/public';
 
 export interface CSVValidationResponse {
   valid: boolean;
@@ -13,6 +16,7 @@ export interface CSVValidationResponse {
 export interface ModelValidationResponse {
   model_name: string;
   metrics: Record<string, number>;
+  docker_image_sha256?: string;
 }
 
 export interface ComprehensiveMetricsResponse {
@@ -46,7 +50,10 @@ export interface HealthCheckResponse {
 
 export class FaivorBackendAPI {
   // Direct connection to FAIVOR backend with CORS enabled
-  private static readonly BASE_URL = "http://localhost:8000";
+  private static readonly BASE_URL =
+    typeof PUBLIC_VALIDATOR_URL !== 'undefined' && PUBLIC_VALIDATOR_URL
+      ? PUBLIC_VALIDATOR_URL
+      : "http://localhost:8000";
 
   /**
    * Parse error response from FAIVOR backend

@@ -201,18 +201,20 @@
 			);
 			
 			console.log('📊 Validation result from backend:', validationResult);
+			console.log('🐳 Docker image SHA256 from backend:', validationResult.docker_image_sha256 ?? 'NOT IN RESPONSE');
 
 			// Convert to comprehensive metrics format
 			const comprehensiveMetrics = await FaivorBackendAPI.convertToComprehensiveFormat(validationResult, metadata);
 			console.log('📊 Comprehensive metrics to store:', comprehensiveMetrics);
 
-			// Update validation with results
+			// Update validation with results (including docker image SHA256 if available)
 			const completeResponse = await fetch(`/api/validations/${validationId}/complete`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					status: 'completed',
-					metrics: comprehensiveMetrics
+					metrics: comprehensiveMetrics,
+					docker_image_sha256: validationResult.docker_image_sha256
 				})
 			});
 			
@@ -313,9 +315,9 @@
 				};
 			}
 
-			// Transform form data to ValidationData structure with comprehensive metrics
-			const validationData = formDataToValidationData(formData, comprehensiveMetrics);
-			
+			// Transform form data to ValidationData structure with comprehensive metrics and model metadata
+			const validationData = formDataToValidationData(formData, comprehensiveMetrics, model);
+
 			// Add IndexedDB ID to the validation data
 			if (indexedDbId && validationData.dataset_info?.folderUpload) {
 				validationData.dataset_info.folderUpload.indexedDbId = indexedDbId;
