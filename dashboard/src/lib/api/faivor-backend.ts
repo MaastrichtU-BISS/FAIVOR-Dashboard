@@ -16,6 +16,7 @@ export interface CSVValidationResponse {
 export interface ModelValidationResponse {
   model_name: string;
   metrics: Record<string, number>;
+  docker_image_sha256?: string;
 }
 
 export interface ComprehensiveMetricsResponse {

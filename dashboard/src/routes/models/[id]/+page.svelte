@@ -10,6 +10,8 @@
 	import MaterialSymbolsDeleteOutline from '~icons/material-symbols/delete-outline';
 	import ValidationModal from './components/ValidationModal.svelte';
 	import ResultsModal from './components/ResultsModal.svelte';
+	import ModelMetadataPopover from '$lib/components/ModelMetadataPopover.svelte';
+	import { extractModelMetadataSnapshot } from '$lib/utils/validation-transform';
 	import { validationStore } from '$lib/stores/models/validation.store';
 	import type {
 		FullJsonLdModel,
@@ -28,6 +30,31 @@
 
 	let { data: pageRouteData }: Props = $props(); // Renamed to avoid conflict
 	let modelData = $state(pageRouteData.model as FullJsonLdModel); // Cast to new type
+
+	// Extract model metadata snapshot for the popover
+	// Also look for docker_image_sha256 from the latest completed validation
+	let modelMetadata = $derived.by(() => {
+		if (!modelData) return null;
+
+		const baseMetadata = extractModelMetadataSnapshot(modelData);
+
+		// Try to find SHA256 from the most recent completed validation
+		const evaluations = modelData['Evaluation results1'];
+		if (evaluations && Array.isArray(evaluations)) {
+			// Find the latest validation with a docker_image_sha256
+			for (const evalItem of evaluations) {
+				const sha256 = (evalItem as any).model_metadata?.docker_image_sha256;
+				if (sha256) {
+					return {
+						...baseMetadata,
+						docker_image_sha256: sha256
+					};
+				}
+			}
+		}
+
+		return baseMetadata;
+	});
 
 	let showResultsModal = $state(false);
 	let showValidationModal = $state(false);
@@ -108,6 +135,8 @@
 						const deleted_at = (evalItem as any).deleted_at || null;
 						// Extract dataset_info if it was merged by the API
 						const dataset_info = (evalItem as any).dataset_info || undefined;
+						// Extract model_metadata snapshot if available
+						const model_metadata = (evalItem as any).model_metadata || undefined;
 
 						return {
 							val_id: val_id,
@@ -127,7 +156,8 @@
 							userName: evalItem['user/hospital']?.['@value'] || undefined,
 							originalEvaluationData: evalItem,
 							deleted_at: deleted_at,
-							dataset_info: dataset_info // Add dataset_info to UiValidationJob
+							dataset_info: dataset_info, // Add dataset_info to UiValidationJob
+							model_metadata: model_metadata // Add model_metadata snapshot
 						};
 					})
 					.filter((v) => !v.deleted_at)
@@ -249,16 +279,21 @@
 	</div>
 
 	<div class="flex items-start gap-4">
-		<div class="bg-base-200 flex h-16 w-16 items-center justify-center rounded-lg">
+		<div class="bg-base-200 flex h-16 w-16 shrink-0 items-center justify-center rounded-lg">
 			<MaterialSymbolsScreenshotMonitorOutline class="h-8 w-8" />
 		</div>
 		<div>
-			<h1 class="text-2xl font-bold">
-				{modelData['General Model Information']?.Title?.['@value'] ||
-					modelData['General Model Information']?.Description?.['@value'] ||
-					modelData['@id'] ||
-					'Model Details'}
-			</h1>
+			<div class="flex items-center gap-2">
+				<h1 class="text-2xl font-bold">
+					{modelData['General Model Information']?.Title?.['@value'] ||
+						modelData['General Model Information']?.Description?.['@value'] ||
+						modelData['@id'] ||
+						'Model Details'}
+				</h1>
+				{#if modelMetadata}
+					<ModelMetadataPopover metadata={modelMetadata} size="md" />
+				{/if}
+			</div>
 			<p class="text-base-content/70">
 				{modelData['General Model Information']?.Description?.['@value'] ||
 					modelData['General Model Information']?.['Editor Note']?.['@value'] ||
@@ -301,6 +336,14 @@
 						>
 							View Paper
 						</a>
+					</p>
+				{/if}
+				{#if modelData['General Model Information']?.['FAIRmodels image name']?.['@value']}
+					<p class="flex items-center gap-2">
+						<strong>Docker Image:</strong>
+						<code class="bg-base-200 rounded px-2 py-0.5 text-xs">
+							{modelData['General Model Information']['FAIRmodels image name']['@value']}
+						</code>
 					</p>
 				{/if}
 			</div>

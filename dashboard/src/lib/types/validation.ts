@@ -160,6 +160,74 @@ export interface ValidationData {
 
   // Additional metadata (extensible)
   metadata?: Record<string, any>;
+
+  // Model metadata snapshot captured at validation time
+  // This preserves the exact state of the model when the validation was created
+  model_metadata?: ModelMetadataSnapshot;
+}
+
+// Snapshot of model metadata captured when a validation is created
+// Ensures we can track which exact version of the model was validated
+export interface ModelMetadataSnapshot {
+  // Docker/Image information
+  docker_image_name?: string;
+  docker_image_sha256?: string;
+  docker_exposed_port?: string;
+
+  // Model identification
+  fair_model_id?: string;
+  fair_model_url?: string;
+  checkpoint_id?: string;
+
+  // Basic model info
+  title?: string;
+  description?: string;
+  editor_note?: string;
+
+  // Authorship and dates
+  created_by?: string;
+  creation_date?: string;
+  contact_email?: string;
+  last_updated?: string;
+
+  // References
+  papers?: string[];
+  code_repositories?: string[];
+  software_license?: string;
+
+  // Model characteristics
+  outcome?: string;
+  outcome_label?: string;
+  outcome_type?: string;
+  algorithm?: string;
+
+  // Applicability and usage
+  applicability_criteria?: string[];
+  primary_intended_uses?: string[];
+  primary_intended_users?: string[];
+  out_of_scope_use_cases?: string[];
+
+  // Input data schema
+  input_features?: Array<{
+    feature_id?: string;
+    label?: string;
+    description?: string;
+    type?: string; // 'n' for numerical, 'c' for categorical
+    min?: string;
+    max?: string;
+    categories?: Array<{
+      label?: string;
+      identifier?: string;
+    }>;
+  }>;
+
+  // Risk and compliance
+  human_life_impact?: string[];
+  mitigations?: string[];
+  risks_and_harms?: string[];
+
+  // Timestamp when this snapshot was captured
+  captured_at: string;
 }
 
 // Database row interface

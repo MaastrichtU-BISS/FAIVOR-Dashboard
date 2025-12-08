@@ -52,54 +52,46 @@ export const GET: RequestHandler = async ({ params }) => {
     `;
 
     const transformedEvaluations: JsonLdEvaluationResultItem[] = localValidationsRows.map(row => {
-      const validationData = row.data;
-      const metricsData = validationData.validation_result?.validation_results?.modelValidation?.details?.metrics;
+      const validationData = row.data || {};
+      const metricsData = validationData?.validation_result?.validation_results?.modelValidation?.details?.metrics;
       const performanceMetrics: JsonLdPerformanceMetricItem[] = [];
 
       if (metricsData) {
         for (const key in metricsData) {
           performanceMetrics.push({
-            // '@type': 'Performance metric', // This was incorrect and removed. The type is implicitly Performance metric by being in this array.
-            'Metric Label': { 'rdfs:label': key }, // Simplified: using metric key as label
+            'Metric Label': { 'rdfs:label': key },
             'Measured metric (mean value)': {
-              '@type': 'xsd:decimal', // This is correct as part of JsonLdValue
+              '@type': 'xsd:decimal',
               '@value': String(metricsData[key])
             }
-            // Add other optional fields like 'Measured metric (lower bound...)'
-            // or 'Acceptance level' if they are available in validationData.metrics
           });
         }
       }
 
       // Dataset characteristics: Check if we have dataset_info to populate this
       const datasetCharacteristics: JsonLdDatasetCharacteristicItem[] = [];
-      
+
       // If we have dataset_info, create basic dataset characteristics
-      if (validationData.dataset_info) {
+      if (validationData?.dataset_info) {
         datasetCharacteristics.push({
-          'The number of subject for evaluation': { '@value': '1' }, // Default value
-          Volume: { '@value': validationData.dataset_info.folderUpload?.totalSize?.toString() || '0' }
+          'The number of subject for evaluation': { '@value': '1' },
+          Volume: { '@value': validationData.dataset_info?.folderUpload?.totalSize?.toString() || '0' }
         });
       }
 
       return {
         '@id': row.fair_eval_id || `local-eval-${String(row.val_id)}`,
-        '@type': 'Evaluation result', // Standard type for evaluation results in JSON-LD
-        'User Note': { '@value': validationData.validation_name || `Validation ${row.val_id}` },
-        'pav:createdOn': row.start_datetime, // Ensure this is in ISO 8601 format if not already
+        '@type': 'Evaluation result',
+        'User Note': { '@value': validationData?.validation_name || `Validation ${row.val_id}` },
+        'pav:createdOn': row.start_datetime,
         'Performance metric': performanceMetrics,
         'Dataset characteristics': datasetCharacteristics,
-        'user/hospital': { '@value': validationData.dataset_info?.userName || '' },
-        // Pass dataset_info directly as the frontend page expects to find it here
-        // for constructing UiValidationJob
-        dataset_info: validationData.dataset_info,
-        // Pass validation_status for UI to show proper status
+        'user/hospital': { '@value': validationData?.dataset_info?.userName || '' },
+        dataset_info: validationData?.dataset_info,
         validation_status: row.validation_status,
-        // Pass the entire validation data for ResultsModal to access
         data: validationData,
-        // Include other fields if the frontend's UiValidationJob mapping relies on them
-        // from the original JsonLdEvaluationResultItem structure.
-      } as JsonLdEvaluationResultItem; // Cast to ensure type alignment
+        model_metadata: validationData?.model_metadata,
+      } as JsonLdEvaluationResultItem;
     });
 
     modelWithCheckpointId['Evaluation results1'] = transformedEvaluations;

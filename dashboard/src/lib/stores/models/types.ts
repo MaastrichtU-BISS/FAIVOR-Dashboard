@@ -272,6 +272,8 @@ export interface UiValidationJob {
   performanceMetrics?: string; // Derived/Formatted from 'Performance metric'
   originalEvaluationData: JsonLdEvaluationResultItem; // Keep original for details
   deleted_at?: string | null; // Application-specific field for soft deletes
+  // Model metadata snapshot captured at validation time
+  model_metadata?: import('$lib/types/validation').ModelMetadataSnapshot;
   // Add dataset_info to store folder upload details
   dataset_info?: {
     userName?: string;
