@@ -28,7 +28,7 @@ Visit [http://localhost:3000](http://localhost:3000) to open the application.
 ### Production Considerations
 
 - The application requires HTTPS in production for authentication to work properly.
-- Update .env-test, especially the `AUTH_SECRET` variable to make sure all passwords have a unique hash, not similar to this demo environment variable.
+- Copy `.env.example` to `.env` and update values, especially the `AUTH_SECRET` variable. Generate a new secret with `npx auth secret`.
 
 ### Reverse Proxy Configuration
 

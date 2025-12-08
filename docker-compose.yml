@@ -14,7 +14,7 @@ services:
   postgres:
     image: postgres:latest
     env_file:
-      - .env-test
+      - .env
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
@@ -33,7 +33,7 @@ services:
   migrate:
     image: ghcr.io/maastrichtu-biss/faivor-dashboard:build_image_dashboard
     env_file:
-      - .env-test
+      - .env
     command: sh -c "sleep 5 && DATABASE_URL='postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:${DB_PORT:-5432}/${DB_NAME:-faivor}' bunx node-pg-migrate up"
     depends_on:
       postgres:
@@ -46,7 +46,7 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - .env-test
+      - .env
     restart: unless-stopped
 
   seed:
@@ -54,7 +54,7 @@ services:
       - seed
     image: postgres:latest
     env_file:
-      - .env-test
+      - .env
     environment:
       PGPASSWORD: ${DB_PASSWORD:-postgres}
     command: psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-faivor} -f /seed-database/seed.sql
