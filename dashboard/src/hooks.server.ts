@@ -80,43 +80,67 @@ const handleProtectedRoutes: Handle = async ({ event, resolve }) => {
 };
 
 // --- CORS middleware for API routes ---
+// MUST run first to handle OPTIONS preflight before auth checks
 import { PUBLIC_DASHBOARD_ORIGIN } from '$env/static/public';
-const handleCORS: Handle = async ({ event, resolve }) => {
-  // Only apply CORS to API routes (adjust as needed)
-  const allowOrigin = typeof PUBLIC_DASHBOARD_ORIGIN !== 'undefined' && PUBLIC_DASHBOARD_ORIGIN
-    ? PUBLIC_DASHBOARD_ORIGIN
-    : '*';
 
-  if (event.url.pathname.startsWith('/api/')) {
-    if (event.request.method === 'OPTIONS') {
-      // Preflight request
-      return new Response(null, {
-        status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': allowOrigin,
-          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          'Access-Control-Allow-Credentials': 'true'
-        }
-      });
-    }
+const handleCORS: Handle = async ({ event, resolve }) => {
+  // Only apply CORS to API routes
+  if (!event.url.pathname.startsWith('/api/')) {
+    return resolve(event);
   }
 
+  // Parse allowed origins from env (comma-separated for multiple origins)
+  // Example: "https://example.com,https://staging.example.com"
+  const allowedOrigins = PUBLIC_DASHBOARD_ORIGIN
+    ? PUBLIC_DASHBOARD_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)
+    : [];
+
+  // If no origins configured, skip CORS headers (same-origin only - secure default)
+  if (allowedOrigins.length === 0) {
+    return resolve(event);
+  }
+
+  // Get the request origin
+  const requestOrigin = event.request.headers.get('Origin');
+
+  // Check if request origin is in allowed list
+  const isAllowedOrigin = requestOrigin && allowedOrigins.includes(requestOrigin);
+
+  // CORS headers to apply (only if origin is allowed)
+  const corsHeaders: Record<string, string> = isAllowedOrigin
+    ? {
+        'Access-Control-Allow-Origin': requestOrigin,
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Credentials': 'true',
+        'Vary': 'Origin'
+      }
+    : {
+        'Vary': 'Origin' // Always set Vary for caching correctness
+      };
+
+  // Handle OPTIONS preflight request
+  if (event.request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
+  }
+
+  // Process the actual request
   const response = await resolve(event);
 
-  if (event.url.pathname.startsWith('/api/')) {
-    response.headers.set('Access-Control-Allow-Origin', allowOrigin);
-    response.headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    response.headers.set('Access-Control-Allow-Credentials', 'true');
-  }
+  // Add CORS headers to response
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
 
   return response;
 };
 
 // Sequence of middleware to run
-// 1. handleAuth - Handles authentication from @auth
-// 2. handleProtectedRoutes - Redirects to home if not logged in
-// 3. protectRoute - Our gatekeeper for RBAC (no role required by default)
-// 4. handleCORS - Set CORS headers for API routes (should be last)
-export const handle = sequence(handleAuth, handleProtectedRoutes, protectRoute(), handleCORS);
+// 1. handleCORS - Handle CORS preflight BEFORE auth (OPTIONS requests don't carry credentials)
+// 2. handleAuth - Handles authentication from @auth
+// 3. handleProtectedRoutes - Redirects to home if not logged in
+// 4. protectRoute - Our gatekeeper for RBAC (no role required by default)
+export const handle = sequence(handleCORS, handleAuth, handleProtectedRoutes, protectRoute());
