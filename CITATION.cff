@@ -1,0 +1,40 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: FAIVOR - FAIr Validator for Open Research
+abstract: >-
+  A validation dashboard for machine learning models,
+  providing tools to assess model fairness, interpretability,
+  and validation metrics.
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+version: 1.0.0
+date-released: '2025-12-08'
+authors:
+
+  - given-names: Saba
+    family-names: Amiri
+    email: s.amiri@esciencecenter.nl
+    affiliation: Netherlands eScience Center
+  - given-names: Vedran
+    family-names: Kasalica
+    email: v.kasalica@esciencecenter.nl
+    affiliation: Netherlands eScience Center
+    orcid: 'https://orcid.org/0000-0002-0097-1056'
+  - given-names: Jesse
+    family-names: Gonzalez
+    email: j.g.gonzalez@esciencecenter.nl
+    affiliation: Netherlands eScience Center
+  - given-names: Sonja
+    family-names: Georgievska
+    email: s.georgievska@esciencecenter.nl
+    affiliation: Netherlands eScience Center
+  - given-names: Johan
+    family-names: van Soest
+    affiliation: Maastricht University
+    orcid: 'https://orcid.org/0000-0003-2548-0330'
+repository-code: 'https://github.com/MaastrichtU-BISS/FAIVOR'
+license: Apache-2.0
