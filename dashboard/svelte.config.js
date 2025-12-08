@@ -30,6 +30,13 @@ const config = {
 			}
 		}),
 
+		// Disable origin check for CSRF when behind a reverse proxy
+		// The reverse proxy should handle origin validation
+		// Security: Ensure your reverse proxy validates the Origin header
+		csrf: {
+			checkOrigin: false
+		},
+
 		alias: {
 			// these are the aliases and paths to them
 			$api: path.resolve('./src/api'),

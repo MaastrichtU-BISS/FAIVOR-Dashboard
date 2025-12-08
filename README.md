@@ -28,7 +28,36 @@ Visit [http://localhost:3000](http://localhost:3000) to open the application.
 ### Production Considerations
 
 - The application requires HTTPS in production for authentication to work properly.
-- update .env-test, especially the `AUTH_SECRET` variable to make sure all passwords have a unique hash, not similar to this demo environment variable.
+- Update .env-test, especially the `AUTH_SECRET` variable to make sure all passwords have a unique hash, not similar to this demo environment variable.
+
+### Reverse Proxy Configuration
+
+When deploying behind a reverse proxy (e.g., Nginx, Traefik, Caddy), the following security measures should be configured at the proxy level:
+
+1. **Origin Header Validation**: The application has `checkOrigin: false` to support reverse proxy setups. Your proxy should validate the `Origin` header to prevent CSRF attacks.
+
+2. **Required Headers**: Ensure your proxy forwards these headers:
+   - `X-Forwarded-For`
+   - `X-Forwarded-Proto`
+   - `X-Forwarded-Host`
+   - `Origin`
+
+3. **Environment Variables**: Set `PUBLIC_DASHBOARD_ORIGIN` to your public URL(s) for CORS:
+   ```
+   PUBLIC_DASHBOARD_ORIGIN=https://your-domain.com
+   ```
+
+4. **Example Nginx configuration**:
+   ```nginx
+   location / {
+       proxy_pass http://dashboard:3000;
+       proxy_set_header Host $host;
+       proxy_set_header X-Real-IP $remote_addr;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_set_header X-Forwarded-Host $host;
+   }
+   ```
 
 ## Features
 
