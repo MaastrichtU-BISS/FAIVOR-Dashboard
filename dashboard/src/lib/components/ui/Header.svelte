@@ -65,11 +65,17 @@
 
 <style lang="postcss">
 	.menu-link {
-		@apply text-base-content hover:text-secondary font-medium text-opacity-80 transition hover:text-opacity-100;
+		color: oklch(from var(--color-base-content) l c h / 0.8);
+		font-weight: 500;
+		transition: all 0.15s ease;
+	}
+
+	.menu-link:hover {
+		color: var(--color-secondary);
 	}
 
 	.menu-link.active {
-		@apply text-primary;
+		color: var(--color-primary);
 	}
 
 	/* Frosted navigation header */

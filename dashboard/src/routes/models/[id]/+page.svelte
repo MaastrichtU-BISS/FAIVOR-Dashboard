@@ -23,6 +23,7 @@
 	import MaterialSymbolsAutoGraphRounded from '~icons/material-symbols/auto-graph-rounded';
 	import MaterialSymbolsVisibilityOutline from '~icons/material-symbols/visibility-outline';
 	import { onMount, onDestroy } from 'svelte';
+	import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
 	interface Props {
 		data: PageData; // PageData likely contains the initial model data
@@ -442,32 +443,29 @@
 								</button>
 							</td>
 							<td>
-								<div class="dropdown dropdown-end">
-									<button tabindex="0" class="btn btn-ghost btn-circle">
-										<MaterialSymbolsMoreVert class="h-5 w-5" />
-									</button>
-									<ul
-										tabindex="0"
-										class="dropdown-content menu bg-base-100 rounded-box z-10 w-52 p-2 shadow"
-									>
-										<!-- <li class="disabled">
-											<button class="flex items-center gap-2">
-												<MaterialSymbolsContentCopyOutline class="h-5 w-5" />Duplicate
-											</button>
-										</li> -->
-										<li>
-											<button
-												class="flex items-center gap-2"
-												onclick={(event) => {
-													event.stopPropagation();
-													handleDeleteValidation(job.val_id);
-												}}
-											>
-												<MaterialSymbolsDeleteOutline class="h-5 w-5" />Delete
-											</button>
-										</li>
-									</ul>
-								</div>
+								<Dropdown placement="bottom-end">
+									{#snippet trigger()}
+										<span class="btn btn-ghost btn-circle">
+											<MaterialSymbolsMoreVert class="h-5 w-5" />
+										</span>
+									{/snippet}
+									<!-- <li class="disabled">
+										<button class="flex items-center gap-2">
+											<MaterialSymbolsContentCopyOutline class="h-5 w-5" />Duplicate
+										</button>
+									</li> -->
+									<li>
+										<button
+											class="flex items-center gap-2"
+											onclick={(event) => {
+												event.stopPropagation();
+												handleDeleteValidation(job.val_id);
+											}}
+										>
+											<MaterialSymbolsDeleteOutline class="h-5 w-5" />Delete
+										</button>
+									</li>
+								</Dropdown>
 							</td>
 						</tr>
 					{/each}

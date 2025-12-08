@@ -5,6 +5,7 @@
 	import { PUBLIC_ORGANIZATION_NAME } from '$env/static/public';
 	import MaterialSymbolsMoreVert from '~icons/material-symbols/more-vert';
 	import MaterialSymbolsDelete from '~icons/material-symbols/delete';
+	import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
 	const props = $props();
 	let models = $state([...props.data.models]);
@@ -266,33 +267,25 @@
 									<span class="badge badge-ghost">-</span>
 								{/if}
 							</td>
-							<td class="text-center">
-								<div class="dropdown dropdown-end">
-									<div
-										tabindex="0"
-										role="button"
-										class="btn btn-ghost btn-sm"
-										onclick={(e) => e.stopPropagation()}
-									>
-										<MaterialSymbolsMoreVert class="h-4 w-4" />
-									</div>
-									<ul
-										tabindex="0"
-										class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow"
-									>
-										<li>
-											<button
-												class="text-error"
-												class:loading={deletingModelId === model.checkpoint_id}
-												disabled={deletingModelId !== null}
-												onclick={(e) => handleDeleteModel(model.checkpoint_id, e)}
-											>
-												<MaterialSymbolsDelete class="h-4 w-4" />
-												{deletingModelId === model.checkpoint_id ? 'Deleting...' : 'Remove model'}
-											</button>
-										</li>
-									</ul>
-								</div>
+							<td class="text-center" onclick={(e) => e.stopPropagation()}>
+								<Dropdown placement="bottom-end">
+									{#snippet trigger()}
+										<span class="btn btn-ghost btn-sm">
+											<MaterialSymbolsMoreVert class="h-4 w-4" />
+										</span>
+									{/snippet}
+									<li>
+										<button
+											class="text-error"
+											class:loading={deletingModelId === model.checkpoint_id}
+											disabled={deletingModelId !== null}
+											onclick={(e) => handleDeleteModel(model.checkpoint_id, e)}
+										>
+											<MaterialSymbolsDelete class="h-4 w-4" />
+											{deletingModelId === model.checkpoint_id ? 'Deleting...' : 'Remove model'}
+										</button>
+									</li>
+								</Dropdown>
 							</td>
 						</tr>
 					{/each}

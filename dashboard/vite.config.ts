@@ -1,5 +1,6 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import tailwindcss from '@tailwindcss/vite';
 import Icons from 'unplugin-icons/vite'
 import VitePluginRestart from 'vite-plugin-restart';
 
@@ -10,6 +11,7 @@ export default defineConfig({
 		port: 5173
 	},
 	plugins: [
+		tailwindcss(),
 		VitePluginRestart({ restart: ['./content/**'] }),
 		sveltekit(),
 		Icons({

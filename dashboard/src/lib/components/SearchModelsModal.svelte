@@ -1,7 +1,6 @@
 <script lang="ts">
 	import MaterialSymbolsSearch from '~icons/material-symbols/search';
 	import MaterialSymbolsClose from '~icons/material-symbols/close';
-	import MaterialSymbolsDocumentScannerOutline from '~icons/material-symbols/document-scanner-outline';
 	import MaterialSymbolsCloudOutline from '~icons/material-symbols/cloud-outline';
 	import MaterialSymbolsCheckCircle from '~icons/material-symbols/check-circle';
 	import {
@@ -95,9 +94,9 @@
 </script>
 
 <dialog class="modal" class:modal-open={props.open}>
-	<div class="modal-box max-w-6xl">
+	<div class="modal-box my-20 mx-4 flex w-full max-w-3xl max-h-[calc(100vh-10rem)] flex-col overflow-hidden">
 		<!-- Top bar -->
-		<div class="mb-6 flex items-center justify-between">
+		<div class="mb-6 flex shrink-0 items-center justify-between">
 			<div>
 				<h3 class="text-2xl font-bold">Available models</h3>
 				<p class="text-base-content/70 mt-1 flex items-center gap-1 text-sm">
@@ -106,37 +105,37 @@
 					<span class="font-medium">fairmodels.org</span>
 				</p>
 			</div>
-			<button class="btn btn-ghost btn-sm" on:click={props.onClose}>
+			<button class="btn btn-ghost btn-sm" onclick={props.onClose}>
 				<MaterialSymbolsClose class="h-5 w-5" />
 			</button>
 		</div>
 
-		<div class="grid grid-cols-[1fr_auto] gap-6">
-			<div>
-				<!-- Search input -->
-				<div class="form-control mb-6">
-					<div class="relative">
-						<span class="absolute left-3 top-1/2 -translate-y-1/2">
-							<MaterialSymbolsSearch class="text-base-content/70 h-5 w-5" />
-						</span>
-						<input
-							type="text"
-							placeholder="Search"
-							class="input input-bordered w-full pl-10"
-							bind:value={searchQuery}
-						/>
-					</div>
-				</div>
+		<!-- Search input -->
+		<div class="form-control mb-4 shrink-0">
+			<div class="relative">
+				<span class="absolute left-3 top-1/2 -translate-y-1/2">
+					<MaterialSymbolsSearch class="text-base-content/70 h-5 w-5" />
+				</span>
+				<input
+					type="text"
+					placeholder="Search"
+					class="input input-bordered w-full pl-10"
+					bind:value={searchQuery}
+				/>
+			</div>
+		</div>
 
-				<!-- Error message -->
-				{#if importError}
-					<div class="alert alert-error mb-4">
-						<span>{importError}</span>
-					</div>
-				{/if}
+		<!-- Error message -->
+		{#if importError}
+			<div class="alert alert-error mb-4 shrink-0">
+				<span>{importError}</span>
+			</div>
+		{/if}
 
-				<!-- Models list -->
-				<div class="mb-6 space-y-4">
+		<!-- Scrollable content area -->
+		<div class="flex-1 overflow-y-auto pr-2">
+			<!-- Models list -->
+			<div class="space-y-4">
 					{#if isLoading}
 						<div class="flex justify-center py-8">
 							<span class="loading loading-spinner loading-lg"></span>
@@ -169,7 +168,7 @@
 										class="btn btn-primary gap-2"
 										class:loading={isImporting === model.id}
 										disabled={isImporting !== null}
-										on:click={() => handleImportModel(model)}
+										onclick={() => handleImportModel(model)}
 									>
 										{isImporting === model.id ? 'Importing...' : 'Import model'}
 									</button>
@@ -185,11 +184,10 @@
 							{allModels.length} models available. Type to search.
 						</div>
 					{/if}
-				</div>
 			</div>
 		</div>
 	</div>
 	<form method="dialog" class="modal-backdrop">
-		<button on:click={props.onClose}>close</button>
+		<button onclick={props.onClose}>close</button>
 	</form>
 </dialog>

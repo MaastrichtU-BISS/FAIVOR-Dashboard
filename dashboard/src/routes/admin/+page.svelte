@@ -5,6 +5,7 @@
 	import MoreVertical from '~icons/lucide/more-vertical';
 	import Trash from '~icons/lucide/trash';
 	import CreateUserModal from './CreateUserModal.svelte';
+	import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
 	interface User {
 		id: number;
@@ -166,29 +167,26 @@
 								</div>
 							</td>
 							<td>
-								<div class="dropdown dropdown-end">
-									<button tabindex="0" class="btn btn-ghost btn-sm">
-										<MoreVertical class="h-5 w-5" />
-									</button>
-									<ul
-										tabindex="0"
-										class="menu dropdown-content rounded-box bg-base-100 z-[1] w-52 p-2 shadow"
-									>
-										<li>
-											<button
-												class="text-error"
-												onclick={() => {
-													if (confirm('Are you sure you want to delete this user?')) {
-														deleteUser(user.id);
-													}
-												}}
-											>
-												<Trash class="h-4 w-4" />
-												Delete User
-											</button>
-										</li>
-									</ul>
-								</div>
+								<Dropdown placement="bottom-end">
+									{#snippet trigger()}
+										<span class="btn btn-ghost btn-sm">
+											<MoreVertical class="h-5 w-5" />
+										</span>
+									{/snippet}
+									<li>
+										<button
+											class="text-error"
+											onclick={() => {
+												if (confirm('Are you sure you want to delete this user?')) {
+													deleteUser(user.id);
+												}
+											}}
+										>
+											<Trash class="h-4 w-4" />
+											Delete User
+										</button>
+									</li>
+								</Dropdown>
 							</td>
 						</tr>
 					{/each}
