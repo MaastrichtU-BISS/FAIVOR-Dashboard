@@ -15,7 +15,12 @@
     "postbuild": "vite build --mode preview",
     "seed:dev": "source .env.local && psql $DATABASE_URL -f seed-database/seed.sql",
     "seed:clean": "source .env.local && psql $DATABASE_URL -f seed-database/seed.sql",
-    "seed:docker": "docker compose exec postgres psql -U postgres -d faivor -f /seed-database/seed.sql"
+    "seed:docker": "docker compose exec postgres psql -U postgres -d faivor -f /seed-database/seed.sql",
+    "test": "NODE_ENV=test bun test",
+    "test:watch": "NODE_ENV=test bun test --watch",
+    "test:coverage": "NODE_ENV=test bun test --coverage --coverage-reporter=html --coverage-reporter=text-summary",
+    "test:unit": "NODE_ENV=test bun test test/unit",
+    "test:integration": "NODE_ENV=test bun test test/integration"
   },
   "devDependencies": {
     "@sveltejs/kit": "^2.13.0",

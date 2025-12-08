@@ -1,0 +1,11 @@
+patient_id,age,gender,bmi,risk_category
+1,45,F,24.5,low
+2,67,M,31.2,high
+3,52,F,26.8,medium
+4,38,M,22.1,low
+5,71,F,35.4,high
+6,44,M,27.3,medium
+7,58,F,29.1,medium
+8,33,M,23.7,low
+9,62,F,32.5,high
+10,49,M,25.9,medium
