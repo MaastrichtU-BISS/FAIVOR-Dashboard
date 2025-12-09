@@ -1,5 +1,6 @@
 import { visit } from 'unist-util-visit'
-// path import might not be needed if using alias
+import path from 'path'
+import { fileURLToPath } from 'url'
 import autolinkHeadings from 'rehype-autolink-headings'
 import slugPlugin from 'rehype-slug'
 
@@ -7,16 +8,15 @@ import relativeImages from 'mdsvex-relative-images'
 import remarkExternalLinks from 'remark-external-links';
 import readingTime from 'remark-reading-time';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 export default {
   extensions: ['.svx', '.md'],
   smartypants: {
     dashes: 'oldschool'
   },
   layout: {
-    // Using SvelteKit alias $lib which should resolve to dashboard/src/lib
-    _: 'src/lib/components/ui/markdown-layouts/default.svelte',
-    // If the above doesn't work, try an absolute path from project root if mdsvex resolves from there
-    // _: '/dashboard/src/lib/components/ui/markdown-layouts/default.svelte',
+    _: path.resolve(__dirname, './src/lib/components/ui/markdown-layouts/default.svelte'),
   },
   remarkPlugins: [
     videos,
