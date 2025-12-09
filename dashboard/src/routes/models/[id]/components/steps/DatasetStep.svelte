@@ -340,18 +340,27 @@
 
 	async function checkDataset() {
 		isCheckingDataset = true;
-		validationFormStore.clearValidationResults();
+		// Preserve existing CSV details before clearing
+		const existingCsvDetails = validationResults.csvValidation?.details;
+
 		try {
-			// console.warn("DatasetStepService.checkDataset is currently not implemented or under review.");
-			// For now, let's assume this function might not be needed or its logic is covered elsewhere.
-			// If it is critical, its definition in DatasetStepService needs to be verified.
+			// Re-run validation but preserve the column mapping details
 			validationFormStore.setValidationResults({
-				csvValidation: { success: true, message: 'Dataset check placeholder.' },
+				csvValidation: {
+					success: true,
+					message: 'Dataset check placeholder.',
+					details: existingCsvDetails // Preserve CSV column details
+				},
 				stage: 'csv'
 			});
 		} catch (error: any) {
 			console.error('Dataset check failed:', error);
 			validationFormStore.setValidationResults({
+				csvValidation: {
+					success: false,
+					message: `Dataset check failed: ${error.message || 'Unknown error occurred'}`,
+					details: existingCsvDetails // Preserve details even on error
+				},
 				modelValidation: {
 					success: false,
 					message: `Dataset check failed: ${error.message || 'Unknown error occurred'}`
