@@ -31,6 +31,15 @@
 	let metricsError = $state<string | null>(null);
 	let metricsErrorDetails = $state<any>(null);
 
+	// Validation error state (for failed validations)
+	let validationError = $state<{
+		message?: string;
+		code?: string;
+		technicalDetails?: string;
+		userGuidance?: string;
+	} | null>(null);
+	let showTechnicalDetails = $state(false);
+
 	// View mode toggles
 	let showCharts = $state(true);
 	let showTables = $state(true);
@@ -134,14 +143,30 @@
 		isLoadingMetrics = true;
 		metricsError = null;
 		metricsErrorDetails = null;
+		validationError = null;
 
 		try {
 			// Debug: Log the entire validation job structure
 			console.log('ResultsModal - Full validationJob:', validationJob);
 			console.log('ResultsModal - originalEvaluationData:', validationJob.originalEvaluationData);
 
-			// Check multiple possible locations for comprehensive metrics
+			// Check if this is a failed validation with error details
 			const evalData = validationJob.originalEvaluationData as any;
+			const storedError = evalData?.data?.validation_error || evalData?.validation_error;
+
+			if (validationJob.validation_status === 'failed' && storedError) {
+				console.log('Found validation error:', storedError);
+				validationError = {
+					message: storedError.message || 'Validation failed',
+					code: storedError.code,
+					technicalDetails: storedError.technicalDetails,
+					userGuidance: storedError.userGuidance
+				};
+				isLoadingMetrics = false;
+				return;
+			}
+
+			// Check multiple possible locations for comprehensive metrics
 
 			// Try different paths where metrics might be stored
 			const possibleMetrics =
@@ -364,6 +389,85 @@
 						<span class="loading loading-spinner loading-md"></span>
 						<span class="text-base-content/70">Loading comprehensive metrics...</span>
 					</div>
+				</div>
+			{:else if validationError}
+				<!-- Display validation error with full details -->
+				<div class="space-y-4">
+					<div class="alert alert-error">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-6 w-6 shrink-0 stroke-current"
+							fill="none"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+							/>
+						</svg>
+						<div class="flex-1">
+							<h3 class="font-bold">Validation Failed</h3>
+							<div class="text-sm">{validationError.message}</div>
+							{#if validationError.code}
+								<div class="badge badge-error badge-sm mt-1">{validationError.code}</div>
+							{/if}
+						</div>
+					</div>
+
+					{#if validationError.userGuidance}
+						<div class="alert alert-info">
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+								class="h-6 w-6 shrink-0 stroke-current"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+								></path>
+							</svg>
+							<div>
+								<h4 class="font-semibold">What to do</h4>
+								<p class="text-sm">{validationError.userGuidance}</p>
+							</div>
+						</div>
+					{/if}
+
+					{#if validationError.technicalDetails}
+						<div class="border-base-300 rounded-xl border">
+							<button
+								class="flex w-full items-center justify-between p-4 text-left"
+								onclick={() => (showTechnicalDetails = !showTechnicalDetails)}
+							>
+								<span class="font-semibold">Technical Details (Container Logs)</span>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									class="h-5 w-5 transition-transform {showTechnicalDetails ? 'rotate-180' : ''}"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 9l-7 7-7-7"
+									/>
+								</svg>
+							</button>
+							{#if showTechnicalDetails}
+								<div class="border-base-300 border-t p-4">
+									<pre
+										class="bg-base-200 max-h-96 overflow-auto rounded-lg p-4 text-xs">{validationError.technicalDetails}</pre>
+								</div>
+							{/if}
+						</div>
+					{/if}
 				</div>
 			{:else if metricsError}
 				<div class="alert alert-error">

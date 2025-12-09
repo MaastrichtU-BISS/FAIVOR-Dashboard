@@ -18,6 +18,7 @@
 	import MetricsForValidationStep from './steps/MetricsForValidationStep.svelte';
 	// import PerformanceMetricsStep from './steps/PerformanceMetricsStep.svelte'; // Not used in current step logic
 	import { FaivorBackendAPI } from '$lib/api/faivor-backend';
+	import { ValidationError } from '$lib/types/validation-errors';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -199,7 +200,7 @@
 				uploadedFolder.data,
 				columnMetadata
 			);
-			
+
 			console.log('📊 Validation result from backend:', validationResult);
 			console.log('🐳 Docker image SHA256 from backend:', validationResult.docker_image_sha256 ?? 'NOT IN RESPONSE');
 
@@ -217,7 +218,7 @@
 					docker_image_sha256: validationResult.docker_image_sha256
 				})
 			});
-			
+
 			if (!completeResponse.ok) {
 				throw new Error(`Failed to update validation: ${completeResponse.statusText}`);
 			}
@@ -226,13 +227,48 @@
 			dispatch('validationChange');
 		} catch (error) {
 			console.error('❌ Background validation failed:', error);
-			// Update validation status to failed
+
+			// Build detailed error information for storage
+			let errorInfo: {
+				message: string;
+				code?: string;
+				technicalDetails?: string;
+				userGuidance?: string;
+			};
+
+			if (error instanceof ValidationError) {
+				// Extract full error details from ValidationError
+				errorInfo = {
+					message: error.details.message,
+					code: error.details.code,
+					technicalDetails: error.details.technicalDetails,
+					userGuidance: error.details.userGuidance
+				};
+				console.error('ValidationError details:', {
+					code: error.code,
+					message: error.message,
+					technicalDetails: error.details.technicalDetails?.substring(0, 500),
+					userGuidance: error.details.userGuidance
+				});
+			} else if (error instanceof Error) {
+				errorInfo = {
+					message: error.message,
+					technicalDetails: error.stack
+				};
+			} else {
+				errorInfo = {
+					message: 'Unknown error occurred during validation'
+				};
+			}
+
+			// Update validation status to failed with detailed error info
 			await fetch(`/api/validations/${validationId}/status`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ 
+				body: JSON.stringify({
 					status: 'failed',
-					error: error instanceof Error ? error.message : 'Unknown error'
+					error: errorInfo.message,
+					error_details: errorInfo
 				})
 			});
 			dispatch('validationChange');

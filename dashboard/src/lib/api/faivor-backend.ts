@@ -57,11 +57,12 @@ export class FaivorBackendAPI {
 
   /**
    * Parse error response from FAIVOR backend
+   * Handles structured error responses from FastAPI with code, message, technical_details
    */
   private static async parseErrorResponse(response: Response): Promise<ValidationError> {
     let errorText = '';
     let errorJson: any = null;
-    
+
     try {
       errorText = await response.text();
       errorJson = JSON.parse(errorText);
@@ -69,23 +70,76 @@ export class FaivorBackendAPI {
       // If not JSON, use the text as-is
     }
 
-    // Check for specific error patterns
-    if (errorJson?.detail) {
-      // FastAPI HTTPException format
-      const message = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
-      
+    // Check for structured error response from FastAPI (ErrorDetail format)
+    // Backend sends: { detail: { code, message, technical_details, metadata } }
+    if (errorJson?.detail && typeof errorJson.detail === 'object') {
+      const detail = errorJson.detail;
+      const errorCode = detail.code || 'UNKNOWN_ERROR';
+      const message = detail.message || 'An error occurred';
+      const technicalDetails = detail.technical_details || '';
+      const metadata = detail.metadata || {};
+
+      // Map backend error codes to frontend ValidationErrorCode
+      let validationErrorCode: ValidationErrorCode;
+      switch (errorCode) {
+        case 'CONTAINER_EXECUTION_ERROR':
+          validationErrorCode = ValidationErrorCode.CONTAINER_EXECUTION_ERROR;
+          break;
+        case 'MODEL_EXECUTION_TIMEOUT':
+          validationErrorCode = ValidationErrorCode.CONTAINER_TIMEOUT;
+          break;
+        case 'MODEL_EXECUTION_FAILED':
+          validationErrorCode = ValidationErrorCode.MODEL_EXECUTION_FAILED;
+          break;
+        case 'INVALID_METADATA_JSON':
+        case 'METADATA_PARSE_ERROR':
+          validationErrorCode = ValidationErrorCode.MODEL_METADATA_INVALID;
+          break;
+        case 'INVALID_CSV_FORMAT':
+        case 'CSV_READ_ERROR':
+          validationErrorCode = ValidationErrorCode.INVALID_CSV_FORMAT;
+          break;
+        case 'MISSING_REQUIRED_COLUMNS':
+          validationErrorCode = ValidationErrorCode.MISSING_REQUIRED_COLUMNS;
+          break;
+        default:
+          validationErrorCode = ValidationErrorCode.VALIDATION_FAILED;
+      }
+
+      // Log the full error for debugging
+      console.error('API Error Response (structured):', {
+        status: response.status,
+        errorCode,
+        message,
+        technicalDetails: technicalDetails.substring(0, 500) + (technicalDetails.length > 500 ? '...' : ''),
+        metadata
+      });
+
+      return new ValidationError({
+        code: validationErrorCode,
+        message: message,
+        technicalDetails: technicalDetails,
+        userGuidance: this.getErrorGuidance(validationErrorCode, technicalDetails),
+        metadata: { ...metadata, status: response.status, backendCode: errorCode }
+      }, response.status);
+    }
+
+    // Fallback: Handle legacy string-based error detail
+    if (errorJson?.detail && typeof errorJson.detail === 'string') {
+      const message = errorJson.detail;
+
       // Detect error type based on message content
       if (message.includes('Missing required columns')) {
         const missingColumnsMatch = message.match(/Missing required columns: (.*)/);
-        const missingColumns = missingColumnsMatch ? 
+        const missingColumns = missingColumnsMatch ?
           missingColumnsMatch[1].split(',').map((col: string) => col.trim()) : [];
         return ValidationErrors.missingColumns(missingColumns, []);
       }
-      
+
       if (message.includes('container') || message.includes('Docker')) {
         return ValidationErrors.containerStartFailed(message);
       }
-      
+
       if (message.includes('CSV') || message.includes('format')) {
         return ValidationErrors.invalidCSVFormat(message);
       }
@@ -111,6 +165,38 @@ export class FaivorBackendAPI {
       technicalDetails: errorText,
       metadata: { status: response.status, statusText: response.statusText, errorJson }
     }, response.status);
+  }
+
+  /**
+   * Get user-friendly guidance based on error code and technical details
+   */
+  private static getErrorGuidance(code: ValidationErrorCode, technicalDetails: string): string {
+    switch (code) {
+      case ValidationErrorCode.CONTAINER_EXECUTION_ERROR:
+        return 'The model container failed to start or execute. Check that the Docker image exists and is properly configured.';
+      case ValidationErrorCode.CONTAINER_TIMEOUT:
+        return 'The model took too long to process. Try with a smaller dataset or contact the model maintainer.';
+      case ValidationErrorCode.MODEL_EXECUTION_FAILED:
+        // Check if technical details contain specific error patterns from the model
+        if (technicalDetails.includes('preprocessing') || technicalDetails.includes('invalid data')) {
+          return 'The model encountered an error processing your data. Check that your data matches the expected format and types.';
+        }
+        if (technicalDetails.includes('KeyError') || technicalDetails.includes('column')) {
+          return 'The model could not find expected columns in your data. Verify column names match the model requirements.';
+        }
+        if (technicalDetails.includes('ValueError') || technicalDetails.includes('type')) {
+          return 'The model received data in an unexpected format. Check that numeric columns contain valid numbers.';
+        }
+        return 'The model encountered an error during execution. Review the technical details below for more information.';
+      case ValidationErrorCode.MODEL_METADATA_INVALID:
+        return 'The model metadata file is invalid. Ensure metadata.json follows the FAIRmodels format.';
+      case ValidationErrorCode.INVALID_CSV_FORMAT:
+        return 'The CSV file format is invalid. Check for proper formatting, headers, and encoding.';
+      case ValidationErrorCode.MISSING_REQUIRED_COLUMNS:
+        return 'Your CSV is missing required columns. Ensure all expected columns are present with exact names.';
+      default:
+        return 'An unexpected error occurred. Please try again or contact support.';
+    }
   }
 
   /**
