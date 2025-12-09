@@ -36,5 +36,14 @@ authors:
     family-names: van Soest
     affiliation: Maastricht University
     orcid: 'https://orcid.org/0000-0003-2548-0330'
+  - given-names: Daniël
+    family-names: Slob
+    affiliation: Maastricht University
+    orcid: 'https://orcid.org/0009-0002-2084-5660'
+  - given-names: Ekaterina
+    family-names: Akhmad
+    alias: Kate Akhmad
+    affiliation: Maastricht University
+    orcid: 'https://orcid.org/0000-0002-8235-9361'
 repository-code: 'https://github.com/MaastrichtU-BISS/FAIVOR'
 license: Apache-2.0
