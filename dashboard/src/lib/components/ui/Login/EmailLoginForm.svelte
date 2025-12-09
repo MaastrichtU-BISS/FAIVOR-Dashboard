@@ -61,7 +61,7 @@
 				bind:value={email}
 				type="email"
 				placeholder="Enter your email"
-				class="input input-bordered"
+				class="input input-bordered w-full"
 				required
 				autocomplete="email"
 				disabled={isLoading}
@@ -75,7 +75,7 @@
 				bind:value={password}
 				type="password"
 				placeholder="Enter your password"
-				class="input input-bordered"
+				class="input input-bordered w-full"
 				required
 				autocomplete="current-password"
 				disabled={isLoading}

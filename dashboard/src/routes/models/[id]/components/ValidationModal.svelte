@@ -501,7 +501,7 @@
 					{model}
 				/>
 			{:else if currentStep === 1}
-				<DatasetCharacteristicsStep readonly={$validationStore.mode === 'view'} />
+				<DatasetCharacteristicsStep readonly={$validationStore.mode === 'view'} {model} />
 			{:else if currentStep === 2}
 				<MetricsForValidationStep readonly={$validationStore.mode === 'view'} {model} />
 			{/if}

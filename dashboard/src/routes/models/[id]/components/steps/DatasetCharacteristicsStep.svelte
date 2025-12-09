@@ -5,13 +5,18 @@
 	import { DatasetStepService } from '$lib/services/dataset-step-service'; // For calculateSummary
 	import DatasetVisualization from '$lib/components/validation/DatasetVisualization.svelte';
 	import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
+	import type { FullJsonLdModel } from '$lib/stores/models/types';
 
 	interface Props {
 		readonly?: boolean;
 		onFieldChange?: () => void;
+		model?: FullJsonLdModel;
 	}
 
-	let { readonly = false, onFieldChange = () => {} }: Props = $props();
+	let { readonly = false, onFieldChange = () => {}, model }: Props = $props();
+
+	// Extract model name for PDF export
+	let modelName = $derived(model?.['Model name']?.['@value'] || model?.title || undefined);
 
 	// Use the validation form store for all data
 	let formData = $derived($validationFormStore);
@@ -168,6 +173,7 @@
 					folderName={formData.folderName || 'Dataset'}
 					onAnalysisComplete={handleAnalysisComplete}
 					existingAnalysis={existingAnalysis}
+					{modelName}
 				/>
 			</div>
 		</div>

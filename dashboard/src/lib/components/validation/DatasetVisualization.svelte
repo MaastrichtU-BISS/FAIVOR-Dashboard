@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import MaterialSymbolsAnalytics from '~icons/material-symbols/analytics';
+	import MaterialSymbolsDownload from '~icons/material-symbols/download';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
 	import { CSVAnalysisService } from '$lib/services/csv-analysis-service';
 	import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
+	import { PDFExportService } from '$lib/services/pdf-export-service';
 	import DatasetOverview from './DatasetOverview.svelte';
 	import ColumnAnalysis from './ColumnAnalysis.svelte';
 
@@ -12,14 +14,17 @@
 		folderName: string;
 		onAnalysisComplete?: (analysis: DatasetAnalysis) => void;
 		existingAnalysis?: DatasetAnalysis;
+		modelName?: string;
 	}
 
-	let { folderFiles, folderName, onAnalysisComplete, existingAnalysis }: Props = $props();
+	let { folderFiles, folderName, onAnalysisComplete, existingAnalysis, modelName }: Props =
+		$props();
 
 	let datasetAnalysis = $state<DatasetAnalysis | null>(existingAnalysis || null);
 	let isAnalyzing = $state(!existingAnalysis);
 	let analysisError = $state<string | null>(null);
 	let gridColumns = $state(3);
+	let isExporting = $state(false);
 
 	// Use existing analysis if available, otherwise analyze the dataset
 	$effect(() => {
@@ -38,7 +43,7 @@
 
 			const analysis = await CSVAnalysisService.analyzeCSV(csvFile);
 			datasetAnalysis = analysis;
-			
+
 			// Emit the analysis results
 			if (onAnalysisComplete) {
 				onAnalysisComplete(analysis);
@@ -48,6 +53,20 @@
 			analysisError = error instanceof Error ? error.message : 'Failed to analyze dataset';
 		} finally {
 			isAnalyzing = false;
+		}
+	}
+
+	async function exportToPDF() {
+		if (!datasetAnalysis) return;
+
+		try {
+			isExporting = true;
+			await PDFExportService.exportAnalysisToPDF(datasetAnalysis, modelName);
+		} catch (error) {
+			console.error('PDF export failed:', error);
+			alert('Failed to export PDF. Please try again.');
+		} finally {
+			isExporting = false;
 		}
 	}
 </script>
@@ -78,6 +97,23 @@
 			</div>
 		</div>
 	{:else if datasetAnalysis}
+		<!-- Export Button -->
+		<div class="flex justify-end">
+			<button
+				class="btn btn-outline btn-sm gap-2"
+				onclick={exportToPDF}
+				disabled={isExporting}
+			>
+				{#if isExporting}
+					<span class="loading loading-spinner loading-xs"></span>
+					Exporting...
+				{:else}
+					<MaterialSymbolsDownload class="h-4 w-4" />
+					Export PDF
+				{/if}
+			</button>
+		</div>
+
 		<!-- Dataset Overview -->
 		<DatasetOverview analysis={datasetAnalysis} />
 

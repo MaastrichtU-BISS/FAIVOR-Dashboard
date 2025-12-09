@@ -7,6 +7,8 @@
 	import PRCurveChart from '$lib/components/charts/PRCurveChart.svelte';
 	import MetricsRadarChart from '$lib/components/charts/MetricsRadarChart.svelte';
 	import SubgroupComparisonChart from '$lib/components/charts/SubgroupComparisonChart.svelte';
+	import MaterialSymbolsDownload from '~icons/material-symbols/download';
+	import { ValidationPDFExportService, type ChartImages } from '$lib/services/validation-pdf-export-service';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -32,6 +34,83 @@
 	// View mode toggles
 	let showCharts = $state(true);
 	let showTables = $state(true);
+
+	// Export state
+	let isExporting = $state(false);
+
+	// Chart component references for PDF export
+	let radarChartRef: MetricsRadarChart;
+	let rocChartRef: ROCCurveChart;
+	let prChartRef: PRCurveChart;
+	let subgroupChartRefs: Record<string, SubgroupComparisonChart> = {};
+
+	// Get model name for PDF
+	let modelName = $derived(
+		model?.['General Model Information']?.Title?.['@value'] ||
+			model?.['Model name']?.['@value'] ||
+			model?.title ||
+			undefined
+	);
+
+	async function exportToPDF() {
+		try {
+			isExporting = true;
+
+			// Capture chart images if charts are visible
+			const chartImages: ChartImages = {};
+
+			if (showCharts) {
+				// Capture radar chart
+				if (radarChartRef) {
+					const radarImage = radarChartRef.getImageData();
+					if (radarImage) {
+						chartImages.radarChart = radarImage;
+					}
+				}
+
+				// Capture ROC curve
+				if (rocChartRef) {
+					const rocImage = rocChartRef.getImageData();
+					if (rocImage) {
+						chartImages.rocChart = rocImage;
+					}
+				}
+
+				// Capture PR curve
+				if (prChartRef) {
+					const prImage = prChartRef.getImageData();
+					if (prImage) {
+						chartImages.prChart = prImage;
+					}
+				}
+
+				// Capture subgroup charts
+				if (Object.keys(subgroupChartRefs).length > 0) {
+					chartImages.subgroupCharts = {};
+					for (const [feature, chartRef] of Object.entries(subgroupChartRefs)) {
+						if (chartRef) {
+							const subgroupImage = chartRef.getImageData();
+							if (subgroupImage) {
+								chartImages.subgroupCharts[feature] = subgroupImage;
+							}
+						}
+					}
+				}
+			}
+
+			await ValidationPDFExportService.exportResultsToPDF(
+				validationJob,
+				metricsData,
+				modelName,
+				Object.keys(chartImages).length > 0 ? chartImages : undefined
+			);
+		} catch (error) {
+			console.error('PDF export failed:', error);
+			alert('Failed to export PDF. Please try again.');
+		} finally {
+			isExporting = false;
+		}
+	}
 
 	// Open/close modal based on isOpen prop
 	$effect(() => {
@@ -220,9 +299,24 @@
 
 <dialog bind:this={dialogElement} class="modal grid-w" onclose={handleDialogClose}>
 	<div class="modal-box max-w-full">
-		<form method="dialog">
-			<button class="btn btn-circle btn-ghost btn-sm absolute right-2 top-2">✕</button>
-		</form>
+		<div class="absolute right-2 top-2 flex items-center gap-2">
+			<button
+				class="btn btn-outline btn-sm gap-2"
+				onclick={exportToPDF}
+				disabled={isExporting || isLoadingMetrics}
+			>
+				{#if isExporting}
+					<span class="loading loading-spinner loading-xs"></span>
+					Exporting...
+				{:else}
+					<MaterialSymbolsDownload class="h-4 w-4" />
+					Export PDF
+				{/if}
+			</button>
+			<form method="dialog">
+				<button class="btn btn-circle btn-ghost btn-sm">✕</button>
+			</form>
+		</div>
 		<h2 class="mb-6 text-2xl font-bold">Validation Results</h2>
 
 		<div class="mb-4">
@@ -353,6 +447,7 @@
 								{#if groupedMetrics.Performance && Object.keys(groupedMetrics.Performance).length > 0}
 									<div class="border-base-300 rounded-xl border p-6">
 										<MetricsRadarChart
+											bind:this={radarChartRef}
 											metrics={Object.fromEntries(
 												Object.entries(parsedMetrics.overall).filter(([key]) =>
 													key.startsWith('performance.')
@@ -370,6 +465,7 @@
 									{#if parsedMetrics.threshold_metrics.roc_curve}
 										<div class="border-base-300 rounded-xl border p-6">
 											<ROCCurveChart
+												bind:this={rocChartRef}
 												fpr={parsedMetrics.threshold_metrics.roc_curve.fpr}
 												tpr={parsedMetrics.threshold_metrics.roc_curve.tpr}
 												auc={parsedMetrics.threshold_metrics.roc_curve.auc}
@@ -382,6 +478,7 @@
 									{#if parsedMetrics.threshold_metrics.pr_curve}
 										<div class="border-base-300 rounded-xl border p-6">
 											<PRCurveChart
+												bind:this={prChartRef}
 												precision={parsedMetrics.threshold_metrics.pr_curve.precision}
 												recall={parsedMetrics.threshold_metrics.pr_curve.recall}
 												averagePrecision={parsedMetrics.threshold_metrics.pr_curve
@@ -535,6 +632,7 @@
 										{#if showCharts && subgroupData.length > 0}
 											<div class="mb-4">
 												<SubgroupComparisonChart
+													bind:this={subgroupChartRefs[feature]}
 													{subgroupData}
 													selectedMetric="accuracy"
 													title={`${feature.replace(/_/g, ' ')} - Performance Comparison`}

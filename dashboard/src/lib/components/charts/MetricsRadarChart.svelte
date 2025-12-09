@@ -12,6 +12,14 @@
 	let isLoading = true;
 	let error: Error | null = null;
 
+	// Export function to get chart as image data URL
+	export function getImageData(): string | null {
+		if (chartCanvas && chartInstance) {
+			return chartCanvas.toDataURL('image/png', 1.0);
+		}
+		return null;
+	}
+
 	const createChart = () => {
 		if (!chartCanvas || Object.keys(metrics).length === 0) return;
 

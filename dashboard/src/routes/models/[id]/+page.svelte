@@ -286,16 +286,16 @@
 		<div>
 			<div class="flex items-center gap-2">
 				<h1 class="text-2xl font-bold">
-					{modelData['General Model Information']?.Title?.['@value'] ||
+					{(modelData['General Model Information']?.Title?.['@value'] ||
 						modelData['General Model Information']?.Description?.['@value'] ||
 						modelData['@id'] ||
-						'Model Details'}
+						'Model Details').replace(/_/g, ' ')}
 				</h1>
 				{#if modelMetadata}
 					<ModelMetadataPopover metadata={modelMetadata} size="md" />
 				{/if}
 			</div>
-			<p class="text-base-content/70">
+			<p class="text-base-content/70 mt-2">
 				{modelData['General Model Information']?.Description?.['@value'] ||
 					modelData['General Model Information']?.['Editor Note']?.['@value'] ||
 					'No description available.'}
@@ -339,14 +339,14 @@
 						</a>
 					</p>
 				{/if}
-				{#if modelData['General Model Information']?.['FAIRmodels image name']?.['@value']}
+				<!-- {#if modelData['General Model Information']?.['FAIRmodels image name']?.['@value']}
 					<p class="flex items-center gap-2">
 						<strong>Docker Image:</strong>
 						<code class="bg-base-200 rounded px-2 py-0.5 text-xs">
 							{modelData['General Model Information']['FAIRmodels image name']['@value']}
 						</code>
 					</p>
-				{/if}
+				{/if} -->
 			</div>
 		</div>
 	</div>
