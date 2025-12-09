@@ -1,6 +1,23 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+function extractOrganization(email: string | null): string {
+  if (!email) return 'Unknown';
+  const domain = email.split('@')[1];
+  if (!domain) return 'Unknown';
+
+  // Map common domains to readable organization names
+  const orgMap: Record<string, string> = {
+    'maastrichtuniversity.nl': 'Maastricht University',
+    'icr.ac.uk': 'Institute of Cancer Research',
+    'gmail.com': 'Independent',
+    'yahoo.com': 'Independent',
+    '163.com': 'Independent'
+  };
+
+  return orgMap[domain] || domain;
+}
+
 export const GET: RequestHandler = async () => {
   try {
     const response = await fetch('https://v3.fairmodels.org', {
@@ -13,15 +30,23 @@ export const GET: RequestHandler = async () => {
 
     const models = await response.json();
 
+    // Transform to a standardized format with author and organization
+    const transformedModels = Object.entries(models).map(([id, data]: [string, any]) => {
+      const generalInfo = data.metadata?.['General Model Information'] || {};
+      const author = generalInfo['Created by']?.['@value'] || 'Unknown';
+      const email = generalInfo['Contact email']?.['@value'] || null;
+      const creationDate = generalInfo['Creation date']?.['@value'] || null;
 
-    // Transform to a standardized format
-    const transformedModels = Object.entries(models).map(([id, data]: [string, any]) => ({
-      id,
-      title: data.title,
-      created_at: data.time,
-      url: `https://v3.fairmodels.org/instance/${id}`,
-      source: 'fairmodels.org'
-    }));
+      return {
+        id,
+        title: data.title,
+        created_at: creationDate || data.time,
+        url: `https://v3.fairmodels.org/instance/${id}`,
+        source: 'fairmodels.org',
+        author,
+        organization: extractOrganization(email)
+      };
+    });
 
     return json(transformedModels);
   } catch (error) {

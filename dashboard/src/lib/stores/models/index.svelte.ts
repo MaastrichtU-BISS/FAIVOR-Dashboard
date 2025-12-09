@@ -130,6 +130,8 @@ export async function loadFairModelsRepository() {
       created_at: model.created_at,
       url: model.url,
       source: model.source,
+      author: model.author || 'Unknown',
+      organization: model.organization || 'Unknown',
       description: `Available from ${model.source}`,
       metadata: {
         applicabilityCriteria: []
