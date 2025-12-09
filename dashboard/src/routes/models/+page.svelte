@@ -216,31 +216,31 @@
 				<!-- Headers -->
 				<thead>
 					<tr>
-						<th>Model name</th>
+						<th class="w-32">Model name</th>
 						<th>Small description</th>
-						<th class="text-center">
+						<th class="text-center w-28">
 							Overall number
 							<br />
 							of validations
 						</th>
-						<th class="text-center">
+						<th class="text-center w-28">
 							Date of last
 							<br />
 							validation
 						</th>
-						<th class="text-center">
+						<th class="text-center w-28">
 							Status of last
 							<br />
 							validation
 						</th>
-						<th class="text-center">Actions</th>
+						<th class="text-center w-20">Actions</th>
 					</tr>
 				</thead>
 				<!-- Body -->
 				<tbody>
 					{#each models as model}
 						<tr class="hover cursor-pointer" onclick={() => handleModelClick(model.checkpoint_id)}>
-							<td class="font-bold">{model.title || model.fair_model_id}</td>
+							<td class="font-bold">{(model.title || model.fair_model_id).replace(/_/g, ' ')}</td>
 							<td>{model.description}</td>
 							<td class="text-center">{model.validations?.count ?? 0}</td>
 							<td class="text-center">
