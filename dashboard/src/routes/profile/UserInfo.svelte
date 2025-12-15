@@ -1,20 +1,29 @@
 <script lang="ts">
-	// import LogOutButton from '$lib/components/Login/LogOutButton.svelte';
 	import { page } from '$app/stores';
 	import Key from '~icons/lucide/key';
+	import Shield from '~icons/lucide/shield';
+	import User from '~icons/lucide/user';
 	import ChangePasswordModal from './ChangePasswordModal.svelte';
 
-	let showPasswordModal = false;
-	// TODO: Fix provider detection - session.provider doesn't exist in current Session type
-	// let isCredentialsProvider = $derived($page.data?.session?.provider === 'credentials');
-	let isCredentialsProvider = $derived(false); // Temporarily disabled until proper provider detection is implemented
+	let showPasswordModal = $state(false);
+
+	let session = $derived($page.data?.session);
+	let user = $derived(session?.user);
+	let roles = $derived((user as { roles?: string[] })?.roles ?? []);
+	let provider = $derived((session as { provider?: string })?.provider);
+	let isCredentialsProvider = $derived(provider === 'credentials');
 
 	function handleImageError(e: Event) {
 		if (e.target instanceof HTMLImageElement) {
 			console.error('Image failed to load:', e.target.src);
-			e.target.onerror = null; // Prevent infinite loop
+			e.target.onerror = null;
 			e.target.src = '/images/profile.avif';
 		}
+	}
+
+	function formatProvider(p: string | undefined): string {
+		if (!p) return 'Unknown';
+		return p.charAt(0).toUpperCase() + p.slice(1);
 	}
 </script>
 
@@ -34,16 +43,28 @@
 		<div class="ml-10">
 			<div class="">
 				<div class="block text-3xl font-light leading-relaxed">
-					{$page.data?.session?.user?.name ||
-						$page.data?.session?.user?.email?.split('@')[0] ||
-						'User'}
+					{user?.name || user?.email?.split('@')[0] || 'User'}
 				</div>
-				<div class="block font-light leading-relaxed">
-					{$page.data?.session?.user?.email || ''}
+				<div class="block font-light leading-relaxed text-base-content/70">
+					{user?.email || ''}
 				</div>
 			</div>
 
-			<!-- <LogOutButton /> -->
+			<div class="mt-4 flex flex-wrap gap-2">
+				{#each roles as role (role)}
+					<span class="badge badge-primary gap-1">
+						<Shield class="h-3 w-3" />
+						{role}
+					</span>
+				{/each}
+				{#if provider}
+					<span class="badge badge-ghost gap-1">
+						<User class="h-3 w-3" />
+						{formatProvider(provider)}
+					</span>
+				{/if}
+			</div>
+
 			{#if isCredentialsProvider}
 				<button class="btn btn-outline mt-4" onclick={() => (showPasswordModal = true)}>
 					<Key />
