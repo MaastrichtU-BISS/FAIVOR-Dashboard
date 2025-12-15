@@ -43,6 +43,16 @@ docker compose --profile backend-dev up --scale faivor-backend=0
 
 This mounts `FAIVOR-ML-Validator/src/` and enables Python hot reload.
 
+### Troubleshooting
+
+If you encounter errors (missing files, migrations failing, 404 errors), rebuild the images without cache:
+
+```bash
+docker compose down
+docker compose build --no-cache
+docker compose up
+```
+
 ### Production
 
 For production deployment, use the pre-built images:
@@ -57,7 +67,10 @@ Visit [http://localhost:3000](http://localhost:3000). This uses pre-built images
 
 - The application requires HTTPS in production for authentication to work properly.
 - For **development**, no `.env` file is needed - sensible defaults are used automatically.
-- For **production**, copy `.env.example` to `.env` and set a secure `AUTH_SECRET`. Generate one with `npx auth secret`.
+- For **production**:
+  1. Copy `.env.example` to `.env`
+  2. Generate a secure `AUTH_SECRET`: `cd dashboard && npx auth secret` (or use `openssl rand -base64 32`)
+  3. Update `PUBLIC_DASHBOARD_ORIGIN` to your domain (e.g., `https://faivor.example.com`)
 
 ### Reverse Proxy Configuration
 

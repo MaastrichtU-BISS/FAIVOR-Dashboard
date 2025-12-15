@@ -37,9 +37,7 @@ services:
           - validator
 
   postgres:
-    image: postgres:latest
-    env_file:
-      - .env
+    image: postgres:17
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
@@ -59,9 +57,7 @@ services:
     build:
       context: ./dashboard
       dockerfile: Dockerfile.dev
-    env_file:
-      - .env
-    command: sh -c "sleep 15 && DATABASE_URL='postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:${DB_PORT:-5432}/${DB_NAME:-faivor}' bunx node-pg-migrate up"
+    command: sh -c "DATABASE_URL='postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:${DB_PORT:-5432}/${DB_NAME:-faivor}' bunx node-pg-migrate up -m migrations --migration-file-language sql"
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,13 +68,17 @@ services:
       dockerfile: Dockerfile.dev
     ports:
       - "5173:5173"
-    env_file:
-      - .env
     environment:
       - DB_HOST=postgres
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-faivor}
       - NODE_ENV=development
       - PUBLIC_VALIDATOR_URL=http://localhost:8000
       - VALIDATOR_URL_INTERNAL=http://validator:8000
+      - PUBLIC_ORGANIZATION_NAME=${PUBLIC_ORGANIZATION_NAME:-FAIVOR}
+      - PUBLIC_DASHBOARD_ORIGIN=${PUBLIC_DASHBOARD_ORIGIN:-http://localhost:5173}
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,9 +89,7 @@ services:
   seed:
     profiles:
       - seed
-    image: postgres:latest
-    env_file:
-      - .env
+    image: postgres:17
     environment:
       PGPASSWORD: ${DB_PASSWORD:-postgres}
     command: psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-faivor} -f /seed-database/seed.sql

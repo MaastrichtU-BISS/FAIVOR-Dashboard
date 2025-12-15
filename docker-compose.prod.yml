@@ -12,7 +12,7 @@ services:
       - DOCKER_HOST_INTERNAL=host.docker.internal
 
   postgres:
-    image: postgres:latest
+    image: postgres:17
     env_file:
       - .env
     environment:
@@ -57,7 +57,7 @@ services:
   seed:
     profiles:
       - seed
-    image: postgres:latest
+    image: postgres:17
     env_file:
       - .env
     environment:
