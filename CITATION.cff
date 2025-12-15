@@ -14,7 +14,11 @@ type: software
 version: 1.5.0
 date-released: '2025-12-09'
 authors:
-
+  - given-names: Jesse
+    family-names: Gonzalez
+    email: j.g.gonzalez@esciencecenter.nl
+    orcid: 'https://orcid.org/0000-0002-2170-3253'
+    affiliation: Netherlands eScience Center
   - given-names: Saba
     family-names: Amiri
     email: s.amiri@esciencecenter.nl
@@ -24,10 +28,6 @@ authors:
     email: v.kasalica@esciencecenter.nl
     affiliation: Netherlands eScience Center
     orcid: 'https://orcid.org/0000-0002-0097-1056'
-  - given-names: Jesse
-    family-names: Gonzalez
-    email: j.g.gonzalez@esciencecenter.nl
-    affiliation: Netherlands eScience Center
   - given-names: Sonja
     family-names: Georgievska
     email: s.georgievska@esciencecenter.nl
