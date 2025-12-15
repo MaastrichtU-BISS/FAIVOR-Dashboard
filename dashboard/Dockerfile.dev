@@ -1,0 +1,17 @@
+# Development Dockerfile for FAIVOR Dashboard
+FROM oven/bun:1
+
+RUN apt update && apt upgrade -y
+
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package.json bun.lockb* ./
+
+# Install dependencies
+RUN bun install || true && bun install
+
+# Source code will be mounted as volume
+EXPOSE 5173
+
+CMD ["bun", "run", "dev", "--host", "0.0.0.0"]

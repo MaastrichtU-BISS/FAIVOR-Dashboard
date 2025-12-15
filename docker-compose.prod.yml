@@ -1,29 +1,12 @@
-# Development docker-compose (default for developers)
-# For production deployment, use docker-compose.prod.yml
 name: faivor
 
 services:
-  # Pre-built backend image (default)
   faivor-backend:
     image: ghcr.io/maastrichtu-biss/faivor-ml-validator
     restart: always
     ports:
       - "8000:8000"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - DOCKER_HOST_INTERNAL=host.docker.internal
-
-  # Backend dev mode with hot reload
-  faivor-backend-dev:
-    build:
-      context: ./FAIVOR-ML-Validator
-      dockerfile: Dockerfile.dev
-    profiles: ["backend-dev"]
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./FAIVOR-ML-Validator/src:/app/src
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DOCKER_HOST_INTERNAL=host.docker.internal
@@ -48,39 +31,28 @@ services:
     restart: unless-stopped
 
   migrate:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile.dev
+    image: ghcr.io/maastrichtu-biss/faivor-dashboard:main
     env_file:
       - .env
     command: sh -c "sleep 5 && DATABASE_URL='postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:${DB_PORT:-5432}/${DB_NAME:-faivor}' bunx node-pg-migrate up"
-    volumes:
-      - ./dashboard:/app
-      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
+      dashboard:
+        condition: service_started
 
   dashboard:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile.dev
+    image: ghcr.io/maastrichtu-biss/faivor-dashboard:main
     ports:
-      - "5173:5173"
+      - "3000:3000"
     env_file:
       - .env
-    volumes:
-      - ./dashboard:/app
-      - /app/node_modules
     environment:
       - DB_HOST=postgres
-      - NODE_ENV=development
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-    command: ["bun", "run", "dev", "--host", "0.0.0.0"]
 
   seed:
     profiles:
@@ -93,9 +65,6 @@ services:
     command: psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-faivor} -f /seed-database/seed.sql
     volumes:
       - ./dashboard/seed-database:/seed-database
-    depends_on:
-      postgres:
-        condition: service_healthy
 
 volumes:
   postgres_data:

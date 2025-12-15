@@ -17,13 +17,40 @@ Database schema
 
 ## Running with Docker
 
-To run all required services, please execute the [docker-compose.yml](docker-compose.yml) file in the root of this repository.
+### Development (default)
 
 ```bash
 docker compose up
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to open the application.
+Visit [http://localhost:5173](http://localhost:5173). Changes to the code in `dashboard/` will automatically hot reload.
+
+This setup:
+- Mounts your local `dashboard/` code into the container
+- Runs `bun dev` with hot module replacement
+- Runs database migrations automatically
+- Uses pre-built backend image
+- No need to install anything locally
+
+### Backend Development (optional)
+
+To also develop the ML-Validator backend with hot reload:
+
+```bash
+docker compose --profile backend-dev up --scale faivor-backend=0
+```
+
+This mounts `FAIVOR-ML-Validator/src/` and enables Python hot reload.
+
+### Production
+
+For production deployment, use the pre-built images:
+
+```bash
+docker compose -f docker-compose.prod.yml up
+```
+
+Visit [http://localhost:3000](http://localhost:3000). This uses pre-built images from the GitHub Container Registry (built by CI/CD).
 
 ### Production Considerations
 

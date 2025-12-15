@@ -7,7 +7,7 @@ RUN apt update && apt upgrade -y
 
 
 WORKDIR /app
-COPY dashboard .
+COPY . .
 
 RUN cp _example.env .env
 
