@@ -13,6 +13,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DOCKER_HOST_INTERNAL=host.docker.internal
+    networks:
+      default:
+        aliases:
+          - validator
 
   # Backend dev mode with hot reload
   faivor-backend-dev:
@@ -27,6 +31,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DOCKER_HOST_INTERNAL=host.docker.internal
+    networks:
+      default:
+        aliases:
+          - validator
 
   postgres:
     image: postgres:latest
@@ -75,6 +83,8 @@ services:
     environment:
       - DB_HOST=postgres
       - NODE_ENV=development
+      - PUBLIC_VALIDATOR_URL=http://localhost:8000
+      - VALIDATOR_URL_INTERNAL=http://validator:8000
     depends_on:
       postgres:
         condition: service_healthy

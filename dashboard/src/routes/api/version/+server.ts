@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { PUBLIC_VALIDATOR_URL } from '$env/static/public';
+import { env } from '$env/dynamic/private';
 import { version } from '../../../../package.json';
 
 export const GET: RequestHandler = async () => {
@@ -12,7 +12,8 @@ export const GET: RequestHandler = async () => {
   let validatorStatus = 'unknown';
 
   try {
-    const validatorUrl = PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
+    // Use internal URL for server-side requests (Docker internal), fallback to localhost
+    const validatorUrl = env.VALIDATOR_URL_INTERNAL || 'http://localhost:8000';
     const response = await fetch(`${validatorUrl}/version`, {
       signal: AbortSignal.timeout(5000) // 5 second timeout
     });
