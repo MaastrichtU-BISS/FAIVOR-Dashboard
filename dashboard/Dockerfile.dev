@@ -6,7 +6,7 @@ RUN apt update && apt upgrade -y
 WORKDIR /app
 
 # Copy package files first for better caching
-COPY package.json bun.lockb* ./
+COPY . .
 
 # Install dependencies
 RUN bun install || true && bun install
