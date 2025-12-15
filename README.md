@@ -34,9 +34,10 @@ This setup:
 
 ### Backend Development (optional)
 
-To also develop the ML-Validator backend with hot reload:
+To also develop the ML-Validator backend with hot reload, first clone the backend repo:
 
 ```bash
+git clone https://github.com/MaastrichtU-BISS/FAIVOR-ML-Validator.git
 docker compose --profile backend-dev up --scale faivor-backend=0
 ```
 
@@ -55,7 +56,8 @@ Visit [http://localhost:3000](http://localhost:3000). This uses pre-built images
 ### Production Considerations
 
 - The application requires HTTPS in production for authentication to work properly.
-- Copy `.env.example` to `.env` and update values, especially the `AUTH_SECRET` variable. Generate a new secret with `npx auth secret`.
+- For **development**, no `.env` file is needed - sensible defaults are used automatically.
+- For **production**, copy `.env.example` to `.env` and set a secure `AUTH_SECRET`. Generate one with `npx auth secret`.
 
 ### Reverse Proxy Configuration
 

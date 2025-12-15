@@ -6,7 +6,10 @@ import { pool } from "$lib/db";
 import type { CustomSession } from "./app";
 import bcrypt from 'bcryptjs';
 import Resend from "@auth/sveltekit/providers/resend";
-import { AUTH_SECRET } from "$env/static/private";
+import { env } from "$env/dynamic/private";
+
+// Use environment variable or generate a dev-only fallback
+const AUTH_SECRET = env.AUTH_SECRET || "dev-only-secret-change-in-production";
 
 export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth({
   trustHost: true,

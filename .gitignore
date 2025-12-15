@@ -67,3 +67,6 @@ out/
 vendor/
 cline_docs
 .clinerules
+
+# External repositories (clone separately if needed for backend-dev profile)
+FAIVOR-ML-Validator/
