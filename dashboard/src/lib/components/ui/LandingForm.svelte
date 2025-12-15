@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import LoginForm from './Login/LoginForm.svelte';
-	import { PUBLIC_ORGANIZATION_NAME } from '$env/static/public';
+	import { env } from '$env/dynamic/public';
 
 	const handleSubmit = () => {
 		// TODO: Implement actual password validation in a store
@@ -13,7 +13,7 @@
 	<!-- Logo and Organization Name -->
 	<div class="mb-16 flex items-center gap-4">
 		<div class="bg-base-200 h-16 w-16 rounded-lg"></div>
-		<h1 class="text-4xl font-bold">{PUBLIC_ORGANIZATION_NAME}</h1>
+		<h1 class="text-4xl font-bold">{env.PUBLIC_ORGANIZATION_NAME || 'FAIVOR'}</h1>
 	</div>
 
 	<LoginForm />

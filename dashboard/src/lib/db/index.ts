@@ -1,10 +1,4 @@
-import {
-  DB_HOST,
-  DB_PORT,
-  DB_USER,
-  DB_PASSWORD,
-  DB_NAME,
-} from "$env/static/private"
+import { env } from "$env/dynamic/private"
 
 import { dev } from '$app/environment';
 
@@ -13,11 +7,11 @@ import pkg from 'pg';
 const { Pool } = pkg;
 
 const dbaccess = {
-  host: DB_HOST,
-  port: Number(DB_PORT) || 5432,
-  user: DB_USER,
-  password: DB_PASSWORD,
-  database: DB_NAME || 'your_db_name',
+  host: env.DB_HOST || 'localhost',
+  port: Number(env.DB_PORT) || 5432,
+  user: env.DB_USER || 'postgres',
+  password: env.DB_PASSWORD || '',
+  database: env.DB_NAME || 'faivor',
   ssl: dev ? false : true,
   max: 5, // Lower max connections since this is only for auth
   idleTimeoutMillis: 30000,

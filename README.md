@@ -65,10 +65,44 @@ Visit [http://localhost:3000](http://localhost:3000). This uses pre-built images
 
 - The application requires HTTPS in production for authentication to work properly.
 - For **development**, no `.env` file is needed - sensible defaults are used automatically.
-- For **production**:
-  1. Copy `.env.example` to `.env`
-  2. Generate a secure `AUTH_SECRET`: `cd dashboard && npx auth secret` (or use `openssl rand -base64 32`)
-  3. Update `PUBLIC_DASHBOARD_ORIGIN` to your domain (e.g., `https://faivor.example.com`)
+- For **production**, configure the following environment variables:
+
+#### Required Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DB_HOST` | PostgreSQL database host | `postgres` |
+| `DB_PORT` | PostgreSQL database port | `5432` |
+| `DB_USER` | Database username | `faivor` |
+| `DB_PASSWORD` | Database password | `your-secure-password` |
+| `DB_NAME` | Database name | `faivor` |
+| `AUTH_SECRET` | Secret for signing auth tokens (generate with `openssl rand -base64 32`) | `abc123...` |
+
+#### Optional Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PUBLIC_VALIDATOR_URL` | URL of the FAIVOR ML Validator backend | `http://localhost:8000` |
+| `PUBLIC_DASHBOARD_ORIGIN` | Allowed CORS origins (comma-separated for multiple) | _(none - same-origin only)_ |
+| `PUBLIC_ORGANIZATION_NAME` | Organization name shown in the UI | `FAIVOR` |
+
+#### Docker Compose Example
+
+```yaml
+services:
+  dashboard:
+    image: ghcr.io/maastrichtu-biss/faivor-dashboard:main
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=faivor
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=faivor
+      - AUTH_SECRET=${AUTH_SECRET}
+      - PUBLIC_VALIDATOR_URL=http://faivor-backend:8000
+      - PUBLIC_DASHBOARD_ORIGIN=https://your-domain.com
+      - PUBLIC_ORGANIZATION_NAME=Your Organization
+```
 
 ### Reverse Proxy Configuration
 

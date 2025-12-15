@@ -9,7 +9,8 @@ RUN apt update && apt upgrade -y
 WORKDIR /app
 COPY . .
 
-RUN cp _example.env .env
+# Create empty .env - all env vars are now dynamic (read at runtime)
+RUN touch .env
 
 # second time it should work? based on https://github.com/oven-sh/bun/issues/7947
 RUN bun install || true && bun install

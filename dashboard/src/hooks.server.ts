@@ -112,7 +112,7 @@ const handleProtectedRoutes: Handle = async ({ event, resolve }) => {
 
 // --- CORS middleware for API routes ---
 // MUST run first to handle OPTIONS preflight before auth checks
-import { PUBLIC_DASHBOARD_ORIGIN } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 const handleCORS: Handle = async ({ event, resolve }) => {
   // Only apply CORS to API routes
@@ -122,8 +122,8 @@ const handleCORS: Handle = async ({ event, resolve }) => {
 
   // Parse allowed origins from env (comma-separated for multiple origins)
   // Example: "https://example.com,https://staging.example.com"
-  const allowedOrigins = PUBLIC_DASHBOARD_ORIGIN
-    ? PUBLIC_DASHBOARD_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)
+  const allowedOrigins = env.PUBLIC_DASHBOARD_ORIGIN
+    ? env.PUBLIC_DASHBOARD_ORIGIN.split(',').map(o => o.trim()).filter(Boolean)
     : [];
 
   // If no origins configured, skip CORS headers (same-origin only - secure default)
