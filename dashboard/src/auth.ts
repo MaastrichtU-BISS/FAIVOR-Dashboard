@@ -6,11 +6,12 @@ import { pool } from "$lib/db";
 import type { CustomSession } from "./app";
 import bcrypt from 'bcryptjs';
 import Resend from "@auth/sveltekit/providers/resend";
+import { AUTH_SECRET } from "$env/static/private";
 
 export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth({
   trustHost: true,
   adapter: PostgresAdapter(pool),
-  secret: process.env.AUTH_SECRET,
+  secret: AUTH_SECRET,
   session: {
     strategy: "jwt"
   },
