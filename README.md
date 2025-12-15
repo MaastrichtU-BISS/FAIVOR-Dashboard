@@ -1,6 +1,4 @@
-![](https://github.com/NLeSC/.github/blob/main/profile/escience.png)
-
-# FAIVOR @ eScience Center
+# FAIVOR Dashboard
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Research Software Directory](https://img.shields.io/badge/rsd-faivor-00a3e3.svg)](https://research-software-directory.org/projects/faivor)
