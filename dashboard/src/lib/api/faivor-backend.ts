@@ -91,6 +91,12 @@ export class FaivorBackendAPI {
         case 'MODEL_EXECUTION_FAILED':
           validationErrorCode = ValidationErrorCode.MODEL_EXECUTION_FAILED;
           break;
+        case 'DATA_VALIDATION_ERROR':
+          validationErrorCode = ValidationErrorCode.DATA_VALIDATION_ERROR;
+          break;
+        case 'MODEL_PROCESSING_ERROR':
+          validationErrorCode = ValidationErrorCode.MODEL_PROCESSING_ERROR;
+          break;
         case 'INVALID_METADATA_JSON':
         case 'METADATA_PARSE_ERROR':
           validationErrorCode = ValidationErrorCode.MODEL_METADATA_INVALID;
@@ -176,6 +182,10 @@ export class FaivorBackendAPI {
         return 'The model container failed to start or execute. Check that the Docker image exists and is properly configured.';
       case ValidationErrorCode.CONTAINER_TIMEOUT:
         return 'The model took too long to process. Try with a smaller dataset or contact the model maintainer.';
+      case ValidationErrorCode.DATA_VALIDATION_ERROR:
+        return 'The model rejected your input data. Check that all values are within the expected ranges for this model. Review the model documentation for valid input constraints.';
+      case ValidationErrorCode.MODEL_PROCESSING_ERROR:
+        return 'The model failed to process your data. This may be due to invalid values, missing data, or data format issues. Check the technical details for more information.';
       case ValidationErrorCode.MODEL_EXECUTION_FAILED:
         // Check if technical details contain specific error patterns from the model
         if (technicalDetails.includes('preprocessing') || technicalDetails.includes('invalid data')) {
