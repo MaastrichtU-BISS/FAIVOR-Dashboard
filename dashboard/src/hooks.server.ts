@@ -5,6 +5,7 @@ import { handleAuth } from "./auth";
 import { redirect } from '@sveltejs/kit';
 import { Role } from '$lib/types';
 import { error } from '@sveltejs/kit';
+import { pool } from '$lib/db';
 
 
 // Function to check if user has required role
@@ -15,6 +16,36 @@ function hasRequiredRole(userRole: string, requiredRole: Role): boolean {
   }
   return userRole === requiredRole;
 }
+
+// Validate session against database on full page loads only
+const validateSession: Handle = async ({ event, resolve }) => {
+  const session = await event.locals.getSession();
+
+  // Skip if no session
+  if (!session?.user?.id) {
+    return resolve(event);
+  }
+
+  // Only validate on full page loads (not SvelteKit client navigations)
+  const isFullPageLoad = event.request.headers.get('sec-fetch-dest') === 'document';
+  if (!isFullPageLoad) {
+    return resolve(event);
+  }
+
+  // Check if user still exists in database
+  const result = await pool.query('SELECT id, role FROM users WHERE id = $1', [session.user.id]);
+  const dbUser = result.rows[0];
+
+  if (!dbUser) {
+    // User no longer exists - invalidate session by redirecting to logout
+    throw redirect(303, '/api/auth/signout');
+  }
+
+  // Update role in locals if it changed in DB
+  event.locals.roles = [dbUser.role || 'user'];
+
+  return resolve(event);
+};
 
 // Middleware to protect routes based on role
 export const protectRoute = (requiredRole?: Role): Handle => {
@@ -141,6 +172,7 @@ const handleCORS: Handle = async ({ event, resolve }) => {
 // Sequence of middleware to run
 // 1. handleCORS - Handle CORS preflight BEFORE auth (OPTIONS requests don't carry credentials)
 // 2. handleAuth - Handles authentication from @auth
-// 3. handleProtectedRoutes - Redirects to home if not logged in
-// 4. protectRoute - Our gatekeeper for RBAC (no role required by default)
-export const handle = sequence(handleCORS, handleAuth, handleProtectedRoutes, protectRoute());
+// 3. validateSession - Validates session against DB on full page loads
+// 4. handleProtectedRoutes - Redirects to home if not logged in
+// 5. protectRoute - Our gatekeeper for RBAC (no role required by default)
+export const handle = sequence(handleCORS, handleAuth, validateSession, handleProtectedRoutes, protectRoute());

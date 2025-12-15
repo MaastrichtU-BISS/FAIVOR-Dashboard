@@ -13,7 +13,9 @@ export const { handle: handleAuth, signIn, signOut } = SvelteKitAuth({
   adapter: PostgresAdapter(pool),
   secret: AUTH_SECRET,
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
+    maxAge: 24 * 60 * 60, // 24 hours max lifetime
+    updateAge: 60 * 60, // Refresh token every hour of activity
   },
   providers: [
     Resend({
