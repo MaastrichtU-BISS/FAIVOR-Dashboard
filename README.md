@@ -86,6 +86,27 @@ When deploying behind a reverse proxy (e.g., Nginx, Traefik, Caddy), the followi
    }
    ```
 
+## CI/CD & Docker Images
+
+Docker images are automatically built and pushed to GitHub Container Registry on every push.
+
+### Dashboard
+- **Workflow**: `.github/workflows/dashboard-docker-build.yml`
+- **Trigger**: Push to any branch
+- **Image**: `ghcr.io/maastrichtu-biss/faivor-dashboard:{branch}`
+- **Dockerfile**: `dashboard/Dockerfile`
+
+### ML-Validator Backend
+- **Workflow**: `FAIVOR-ML-Validator/.github/workflows/publish-docker.yml`
+- **Trigger**: Push/PR to main
+- **Image**: `ghcr.io/maastrichtu-biss/faivor-ml-validator:latest`
+- **Dockerfile**: `FAIVOR-ML-Validator/Dockerfile`
+
+### Flow
+```
+Push to main → GitHub Actions → Build image → Push to ghcr.io → Production pulls image
+```
+
 ## Features
 
 - Validate FAIRmodels via a user-friendly dashboard

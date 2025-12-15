@@ -52,7 +52,7 @@
 	onmouseenter={() => (showTooltip = true)}
 	onmouseleave={() => (showTooltip = false)}
 >
-	<button class="btn btn-ghost btn-xs gap-1 text-base-content/60 hover:text-base-content">
+	<button class="btn btn-ghost btn-xs gap-1 text-base-content/60 hover:text-base-content cursor-default">
 		{#if isLoading}
 			<span class="loading loading-spinner loading-xs"></span>
 		{:else if versionData}
