@@ -20,6 +20,12 @@ function hasRequiredRole(userRole: string, requiredRole: Role): boolean {
 // Validate session against database on full page loads only
 const validateSession: Handle = async ({ event, resolve }) => {
   const session = await event.locals.getSession();
+  const path = event.url.pathname;
+
+  // Skip validation for auth routes to prevent redirect loops during signout
+  if (path.startsWith('/api/auth/')) {
+    return resolve(event);
+  }
 
   // Skip if no session
   if (!session?.user?.id) {
