@@ -18,6 +18,8 @@
 	let allModels = $state<any[]>([]);
 	let filteredModels = $state<any[]>([]);
 	let isLoading = $state(false);
+	let hasAttemptedLoad = $state(false);
+	let loadError = $state('');
 	let isImporting = $state<string | null>(null);
 	let importError = $state('');
 	let importedModels = $state<Set<string>>(new Set());
@@ -39,8 +41,15 @@
 
 	// Load models when modal opens
 	$effect(() => {
-		if (props.open && allModels.length === 0) {
+		if (props.open && allModels.length === 0 && !hasAttemptedLoad) {
 			loadRepositoryModels();
+		}
+	});
+
+	// Reset load attempt flag when modal closes (allows retry on reopen)
+	$effect(() => {
+		if (!props.open) {
+			hasAttemptedLoad = false;
 		}
 	});
 
@@ -114,6 +123,8 @@
 
 	async function loadRepositoryModels() {
 		isLoading = true;
+		hasAttemptedLoad = true;
+		loadError = '';
 		try {
 			allModels = await loadFairModelsRepository();
 			filteredModels = allModels;
@@ -122,11 +133,17 @@
 			await checkImportStatus();
 		} catch (error) {
 			console.error('Error loading repository models:', error);
+			loadError = 'Failed to connect to FAIRmodels.org. The service may be temporarily unavailable.';
 			allModels = [];
 			filteredModels = [];
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	function retryLoad() {
+		hasAttemptedLoad = false;
+		loadRepositoryModels();
 	}
 
 	async function checkImportStatus() {
@@ -345,6 +362,13 @@
 					{#if isLoading}
 						<div class="flex justify-center py-8">
 							<span class="loading loading-spinner loading-lg"></span>
+						</div>
+					{:else if loadError}
+						<div class="py-8 text-center">
+							<p class="text-error mb-4">{loadError}</p>
+							<button class="btn btn-primary btn-sm" onclick={retryLoad}>
+								Try Again
+							</button>
 						</div>
 					{:else if filteredModels.length === 0 && searchQuery}
 						<div class="text-base-content/70 py-8 text-center">
