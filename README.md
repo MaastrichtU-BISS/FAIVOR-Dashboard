@@ -18,6 +18,7 @@ Database schema
 ### Development (default)
 
 ```bash
+git clone https://github.com/MaastrichtU-BISS/FAIVOR-Dashboard.git
 docker compose up
 ```
 

@@ -44,7 +44,8 @@ const validateSession: Handle = async ({ event, resolve }) => {
 
   if (!dbUser) {
     // User no longer exists - invalidate session by redirecting to logout
-    throw redirect(303, '/api/auth/signout');
+    // Include callbackUrl to redirect to home after signout
+    throw redirect(303, '/api/auth/signout?callbackUrl=/');
   }
 
   // Update role in locals if it changed in DB
