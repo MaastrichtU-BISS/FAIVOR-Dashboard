@@ -53,7 +53,26 @@ docker compose up
 
 ### Production
 
-For production deployment, use the pre-built images:
+For production deployment, use the pre-built images from GitHub Container Registry:
+
+1. Create a `.env` file at the repo root with your configuration:
+
+```bash
+cat > .env << 'EOF'
+DB_USER=postgres
+DB_PASSWORD=your-secure-password
+DB_NAME=faivor
+DB_PORT=5432
+AUTH_SECRET=generate-with-openssl-rand-base64-32
+AUTH_URL=http://localhost:3000
+PUBLIC_VALIDATOR_URL=http://faivor-backend:8000
+PUBLIC_ORGANIZATION_NAME=FAIVOR
+EOF
+```
+
+> **Note:** For production with HTTPS, set `AUTH_URL=https://your-domain.com`
+
+2. Run the production stack:
 
 ```bash
 docker compose -f docker-compose.prod.yml up
@@ -77,6 +96,7 @@ Visit [http://localhost:3000](http://localhost:3000). This uses pre-built images
 | `DB_PASSWORD` | Database password | `your-secure-password` |
 | `DB_NAME` | Database name | `faivor` |
 | `AUTH_SECRET` | Secret for signing auth tokens (generate with `openssl rand -base64 32`) | `abc123...` |
+| `AUTH_URL` | Base URL for authentication (use `http://` for local, `https://` for production) | `https://your-domain.com` |
 
 #### Optional Environment Variables
 
@@ -99,6 +119,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=faivor
       - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_URL=https://your-domain.com
       - PUBLIC_VALIDATOR_URL=http://faivor-backend:8000
       - PUBLIC_DASHBOARD_ORIGIN=https://your-domain.com
       - PUBLIC_ORGANIZATION_NAME=Your Organization
