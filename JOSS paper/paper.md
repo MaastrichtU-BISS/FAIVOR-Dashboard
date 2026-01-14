@@ -27,15 +27,17 @@ authors:
     affiliation: 2
   - name: Daniël Slob
     orcid: 0009-0002-2084-5660
-    affiliation: 2
+    affiliation: 3
   - name: Ekaterina Akhmad
     orcid: 0000-0002-8235-9361
-    affiliation: 2
+    affiliation: 3
 affiliations:
   - name: Netherlands eScience Center, Amsterdam, The Netherlands
     index: 1
   - name: Maastricht University, Brightlands Institute for Smart Society (BISS), Maastricht, The Netherlands
     index: 2
+  - name: Department of Radiation Oncology (Maastro), GROW Research Institute for Oncology and Reproduction, Maastricht University Medical Centre+, Maastricht, The Netherlands
+    index: 3
 date: 22 December 2025
 bibliography: paper.bib
 ---
@@ -164,12 +166,12 @@ Researchers developing new AI models can use FAIVOR to benchmark against existin
 
 FAIVOR embodies FAIR principles both in its own development and in enabling FAIR validation workflows:
 
-- **Findable**: Registered in the Research Software Directory, comprehensive CITATION.cff with ORCID identifiers, OpenAPI documentation for API discovery
-- **Accessible**: Apache 2.0 license, Docker Compose deployment, detailed installation documentation
+- **Findable**: Registered in the Research Software Directory, comprehensive CITATION.cff with ORCID identifiers, OpenAPI documentation for API discovery, detailed installation documentation, software versions with distinct identifiers
+- **Accessible**: Docker Compose deployment, software is retrivable using standardized protocol which is open and free
 - **Interoperable**: FAIRmodels JSON-LD metadata integration, YAML-based extensible metrics configuration, REST API for programmatic access
-- **Reusable**: Contribution guidelines, code of conduct, semantic versioning, comprehensive test suite
+- **Reusable**: Apache 2.0 license, contribution guidelines, code of conduct, semantic versioning, comprehensive test suite, ML-Validator can be executed independently
 
-The platform builds upon FAIR4AI concepts, creating a web of linked data describing AI models and their independent validation results. This enables researchers to discover validation evidence, notified bodies to assess certification applications, and hospitals to find models validated in similar clinical contexts.
+The platform builds upon FAIR4AI concepts, creating a web of linked data describing AI models and their independent validation results. This enables researchers to discover validation evidence. In the future, notified bodies might assess certification applications, and hospitals find models validated in similar clinical contexts.
 
 # Quality Assurance
 
