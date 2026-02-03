@@ -103,6 +103,7 @@ FAIVOR-ML-Validator is a comprehensive validation system for FAIR (Findable, Acc
   - Output labels
   - Docker image reference
   - Model type (classification/regression)
+See guide for JSON-LD format https://github.com/MaastrichtU-BISS/FAIVOR-Dashboard/blob/main/docs/JSON_Schema_Guide.md
 
 ### 3. Data Parser (`parse_data.py`)
 - Detects CSV delimiters automatically
