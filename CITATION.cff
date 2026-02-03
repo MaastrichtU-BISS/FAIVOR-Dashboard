@@ -11,8 +11,8 @@ message: >-
   If you use this software, please cite it using the
   metadata from this file.
 type: software
-version: 1.15.2
-date-released: '2026-01-14'
+version: 1.15.3
+date-released: '2026-02-03'
 authors:
   - given-names: Jesse
     family-names: Gonzalez
