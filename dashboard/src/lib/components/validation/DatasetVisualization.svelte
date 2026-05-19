@@ -6,8 +6,12 @@
 	import { CSVAnalysisService } from '$lib/services/csv-analysis-service';
 	import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
 	import { PDFExportService } from '$lib/services/pdf-export-service';
+	import JsonLdExportDialog from '$lib/components/validation/JsonLdExportDialog.svelte';
+	import { JsonLdExportService } from '$lib/services/jsonld-export-service';
+	import type { JsonLdExportOptions } from '$lib/types/jsonld-export';
 	import DatasetOverview from './DatasetOverview.svelte';
 	import ColumnAnalysis from './ColumnAnalysis.svelte';
+	import toast from 'svelte-french-toast';
 
 	interface Props {
 		folderFiles: DatasetFolderFiles;
@@ -25,6 +29,7 @@
 	let analysisError = $state<string | null>(null);
 	let gridColumns = $state(3);
 	let isExporting = $state(false);
+	let isJsonLdDialogOpen = $state(false);
 
 	// Use existing analysis if available, otherwise analyze the dataset
 	$effect(() => {
@@ -62,11 +67,44 @@
 		try {
 			isExporting = true;
 			await PDFExportService.exportAnalysisToPDF(datasetAnalysis, modelName);
+			toast.success('Dataset PDF exported');
 		} catch (error) {
 			console.error('PDF export failed:', error);
-			alert('Failed to export PDF. Please try again.');
+			toast.error('Failed to export PDF. Please try again.');
 		} finally {
 			isExporting = false;
+		}
+	}
+
+	function openJsonLdExport() {
+		isJsonLdDialogOpen = true;
+	}
+
+	function closeJsonLdExportDialog() {
+		isJsonLdDialogOpen = false;
+	}
+
+	function exportToJsonLd(options: JsonLdExportOptions) {
+		if (!datasetAnalysis) return;
+
+		try {
+			const result = JsonLdExportService.buildDatasetAnalysisExport(datasetAnalysis, modelName, {
+				...options,
+				section: 'dataCharacteristics'
+			});
+
+			JsonLdExportService.downloadJsonLd(result.document, result.fileName);
+			toast.success('Dataset JSON-LD exported');
+
+			if (result.warnings.length > 0) {
+				toast(`JSON-LD exported with ${result.warnings.length} warning(s).`);
+				console.warn('JSON-LD export warnings:', result.warnings);
+			}
+		} catch (error) {
+			console.error('JSON-LD export failed:', error);
+			toast.error('Failed to export JSON-LD. Please try again.');
+		} finally {
+			closeJsonLdExportDialog();
 		}
 	}
 </script>
@@ -98,7 +136,11 @@
 		</div>
 	{:else if datasetAnalysis}
 		<!-- Export Button -->
-		<div class="flex justify-end">
+		<div class="flex justify-end gap-2">
+			<button class="btn btn-outline btn-sm gap-2" onclick={openJsonLdExport}>
+				<MaterialSymbolsDownload class="h-4 w-4" />
+				Export JSON-LD
+			</button>
 			<button
 				class="btn btn-outline btn-sm gap-2"
 				onclick={exportToPDF}
@@ -233,3 +275,12 @@
 		</div>
 	{/if}
 </div>
+
+<JsonLdExportDialog
+	isOpen={isJsonLdDialogOpen}
+	availableSections={['dataCharacteristics']}
+	defaultSection="dataCharacteristics"
+	title="Export Data Characteristics JSON-LD"
+	on:confirm={(event) => exportToJsonLd(event.detail)}
+	on:cancel={closeJsonLdExportDialog}
+/>

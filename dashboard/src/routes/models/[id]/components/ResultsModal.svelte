@@ -9,6 +9,10 @@
 	import SubgroupComparisonChart from '$lib/components/charts/SubgroupComparisonChart.svelte';
 	import MaterialSymbolsDownload from '~icons/material-symbols/download';
 	import { ValidationPDFExportService, type ChartImages } from '$lib/services/validation-pdf-export-service';
+	import JsonLdExportDialog from '$lib/components/validation/JsonLdExportDialog.svelte';
+	import { JsonLdExportService } from '$lib/services/jsonld-export-service';
+	import type { JsonLdExportOptions } from '$lib/types/jsonld-export';
+	import toast from 'svelte-french-toast';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -46,6 +50,7 @@
 
 	// Export state
 	let isExporting = $state(false);
+	let isJsonLdDialogOpen = $state(false);
 
 	// Chart component references for PDF export
 	let radarChartRef: MetricsRadarChart;
@@ -113,11 +118,46 @@
 				modelName,
 				Object.keys(chartImages).length > 0 ? chartImages : undefined
 			);
+			toast.success('Validation PDF exported');
 		} catch (error) {
 			console.error('PDF export failed:', error);
-			alert('Failed to export PDF. Please try again.');
+			toast.error('Failed to export PDF. Please try again.');
 		} finally {
 			isExporting = false;
+		}
+	}
+
+	function openJsonLdExport() {
+		isJsonLdDialogOpen = true;
+	}
+
+	function closeJsonLdExportDialog() {
+		isJsonLdDialogOpen = false;
+	}
+
+	function exportToJsonLd(options: JsonLdExportOptions) {
+		try {
+			const result = JsonLdExportService.buildValidationExport(
+				{
+					validationJob,
+					model,
+					metricsData
+				},
+				options
+			);
+
+			JsonLdExportService.downloadJsonLd(result.document, result.fileName);
+			toast.success('Validation JSON-LD exported');
+
+			if (result.warnings.length > 0) {
+				toast(`JSON-LD exported with ${result.warnings.length} warning(s).`);
+				console.warn('JSON-LD export warnings:', result.warnings);
+			}
+		} catch (error) {
+			console.error('JSON-LD export failed:', error);
+			toast.error('Failed to export JSON-LD. Please try again.');
+		} finally {
+			closeJsonLdExportDialog();
 		}
 	}
 
@@ -325,6 +365,10 @@
 <dialog bind:this={dialogElement} class="modal grid-w" onclose={handleDialogClose}>
 	<div class="modal-box max-w-full">
 		<div class="absolute right-2 top-2 flex items-center gap-2">
+			<button class="btn btn-outline btn-sm gap-2" onclick={openJsonLdExport}>
+				<MaterialSymbolsDownload class="h-4 w-4" />
+				Export JSON-LD
+			</button>
 			<button
 				class="btn btn-outline btn-sm gap-2"
 				onclick={exportToPDF}
@@ -911,3 +955,12 @@
 		<button>close</button>
 	</form>
 </dialog>
+
+<JsonLdExportDialog
+	isOpen={isJsonLdDialogOpen}
+	availableSections={['validationResults', 'combined']}
+	defaultSection="validationResults"
+	title="Export Validation JSON-LD"
+	on:confirm={(event) => exportToJsonLd(event.detail)}
+	on:cancel={closeJsonLdExportDialog}
+/>
