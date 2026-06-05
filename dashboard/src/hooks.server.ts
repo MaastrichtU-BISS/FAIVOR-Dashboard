@@ -23,7 +23,7 @@ const validateSession: Handle = async ({ event, resolve }) => {
   const path = event.url.pathname;
 
   // Skip validation for auth routes to prevent redirect loops during signout
-  if (path.startsWith('/api/auth/')) {
+  if (path.startsWith('/auth/')) {
     return resolve(event);
   }
 
@@ -45,7 +45,7 @@ const validateSession: Handle = async ({ event, resolve }) => {
   if (!dbUser) {
     // User no longer exists - invalidate session by redirecting to logout
     // Include callbackUrl to redirect to home after signout
-    throw redirect(303, '/api/auth/signout?callbackUrl=/');
+    throw redirect(303, '/auth/signout?callbackUrl=/');
   }
 
   // Update role in locals if it changed in DB
@@ -85,19 +85,58 @@ export const protectRoute = (requiredRole?: Role): Handle => {
 const handleProtectedRoutes: Handle = async ({ event, resolve }) => {
   const session = await event.locals.getSession();
   const path = event.url.pathname;
+  const isDocumentRequest = event.request.headers.get('sec-fetch-dest') === 'document';
 
-  // Redirect logged-in users from root to models page
-  if (path === '/' && session?.user) {
+  // Some environments do not resolve Vite internal URLs correctly.
+  // Rewrite them to stable module paths.
+  if (path === '/@vite/client') {
+    return new Response(null, {
+      status: 307,
+      headers: {
+        Location: `/node_modules/vite/dist/client/client.mjs${event.url.search}`,
+        'Cache-Control': 'no-store'
+      }
+    });
+  }
+  if (path === '/@vite/env') {
+    return new Response(null, {
+      status: 307,
+      headers: {
+        Location: `/node_modules/vite/dist/client/env.mjs${event.url.search}`,
+        'Cache-Control': 'no-store'
+      }
+    });
+  }
+  if (path === '/client.js') {
+    return new Response(null, {
+      status: 307,
+      headers: {
+        Location: `/node_modules/@sveltejs/kit/src/runtime/client/client.js${event.url.search}`,
+        'Cache-Control': 'no-store'
+      }
+    });
+  }
+
+  // Only enforce route protection on full document navigations.
+  // Never intercept module/script/style/ws requests used by Vite/SvelteKit runtime.
+  if (!isDocumentRequest) {
+    return resolve(event);
+  }
+
+  // Redirect logged-in users from root to models page on full page loads only.
+  // This avoids intercepting Vite HMR websocket requests (also sent to '/').
+  if (path === '/' && session?.user && isDocumentRequest) {
     throw redirect(303, '/models');
   }
 
-  // Allow access to public routes and assets
+  // Allow access to public routes
   if (
     path === '/' ||
+    path.startsWith('/auth/') ||
     path.startsWith('/login') ||
     path.startsWith('/api/register') ||
-    path.startsWith('/api/models') ||  // Allow model API access
-    path.startsWith('/_app') ||  // SvelteKit internal routes
+    path.startsWith('/api/version') ||
+    path.startsWith('/api/models') ||
     path.startsWith('/favicon') ||
     path.startsWith('/images') ||
     path.startsWith('/manifest.json') ||
@@ -115,6 +154,20 @@ const handleProtectedRoutes: Handle = async ({ event, resolve }) => {
   }
 
   return resolve(event);
+};
+
+// Prevent stale browser cache from serving outdated SSR/hydration payloads in dev.
+const handleNoCache: Handle = async ({ event, resolve }) => {
+  const response = await resolve(event);
+  const isDocumentRequest = event.request.headers.get('sec-fetch-dest') === 'document';
+
+  if (isDocumentRequest) {
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+  }
+
+  return response;
 };
 
 // --- CORS middleware for API routes ---
@@ -182,4 +235,4 @@ const handleCORS: Handle = async ({ event, resolve }) => {
 // 3. validateSession - Validates session against DB on full page loads
 // 4. handleProtectedRoutes - Redirects to home if not logged in
 // 5. protectRoute - Our gatekeeper for RBAC (no role required by default)
-export const handle = sequence(handleCORS, handleAuth, validateSession, handleProtectedRoutes, protectRoute());
+export const handle = sequence(handleCORS, handleAuth, validateSession, handleProtectedRoutes, protectRoute(), handleNoCache);

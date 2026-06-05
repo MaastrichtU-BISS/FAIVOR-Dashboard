@@ -1,7 +1,6 @@
 <script lang="ts">
 	import BiGoogle from '~icons/bi/google';
 	import { signIn } from '@auth/sveltekit/client';
-	import { page } from '$app/stores';
 	import { closeLoginModal, getAuthErrorMessage } from './utils';
 	import type { AuthProvider } from './types';
 
@@ -15,7 +14,7 @@
 		try {
 			closeLoginModal();
 			await signIn('google' satisfies AuthProvider, {
-				callbackUrl: $page.url.pathname,
+				callbackUrl: '/models',
 				redirect: true
 			});
 		} catch (e) {

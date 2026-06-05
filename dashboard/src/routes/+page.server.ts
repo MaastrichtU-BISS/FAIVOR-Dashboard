@@ -8,5 +8,5 @@ export const load: PageServerLoad = async ({ locals }) => {
     return {};
   }
 
-  throw redirect(302, '/');
+  throw redirect(302, '/models');
 };
