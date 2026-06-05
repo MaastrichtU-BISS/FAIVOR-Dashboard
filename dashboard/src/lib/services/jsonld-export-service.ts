@@ -8,17 +8,30 @@ import type {
 } from '$lib/types/jsonld-export';
 
 const EXPORT_CONTEXT = {
+  '@vocab': 'https://fairmodels.org/ontology.owl#',
   schema: 'https://schema.org/',
   pav: 'http://purl.org/pav/',
   prov: 'http://www.w3.org/ns/prov#',
   xsd: 'http://www.w3.org/2001/XMLSchema#',
-  faivor: 'https://faivor.org/ns#',
+  faivor: 'https://fairmodels.org/ontology.owl#',
   exportedAt: {
     '@id': 'schema:dateCreated',
     '@type': 'xsd:dateTime'
   },
   exportScope: 'faivor:exportScope',
-  redactionApplied: 'faivor:redactionApplied'
+  redactionApplied: 'faivor:redactionApplied',
+  exportProfile: 'faivor:exportProfile',
+  model: 'schema:subjectOf',
+  validationRun: 'prov:activity',
+  validationResult: 'schema:result',
+  dataCharacteristics: 'schema:dataset',
+  warnings: 'schema:warning',
+  hasMetrics: 'faivor:hasMetrics',
+  fallbackMetrics: 'faivor:fallbackMetrics',
+  hasCharacteristics: 'faivor:hasCharacteristics',
+  jsonLdCharacteristics: 'faivor:jsonLdCharacteristics',
+  analysis: 'schema:distribution',
+  redacted: 'faivor:redacted'
 };
 
 const DEFAULT_EXPORT_OPTIONS: JsonLdExportOptions = {
@@ -110,10 +123,12 @@ export class JsonLdExportService {
       ]
     };
 
-    this.runLightweightChecks(document, warnings, false, true);
+    const documentWithContext = this.withTerminologyContext(document);
+
+    this.runLightweightChecks(documentWithContext, warnings, false, true);
 
     return {
-      document,
+      document: documentWithContext,
       warnings,
       fileName: `${this.normalizeForFileName(modelName || 'model')}-dataset-characteristics-${new Date().toISOString().replace(/[:.]/g, '-')}.jsonld`
     };
@@ -242,10 +257,11 @@ export class JsonLdExportService {
     doc['@graph'] = graph;
 
     const redactedDoc = this.applyRedaction(doc, input.validationJob, options, evalData);
-    this.runLightweightChecks(redactedDoc, warnings, includeValidation, includeCharacteristics);
+    const redactedDocWithContext = this.withTerminologyContext(redactedDoc);
+    this.runLightweightChecks(redactedDocWithContext, warnings, includeValidation, includeCharacteristics);
 
     return {
-      document: redactedDoc,
+      document: redactedDocWithContext,
       warnings,
       fileName: this.buildFileName(input.validationJob, modelName, options.section)
     };
@@ -491,6 +507,54 @@ export class JsonLdExportService {
 
   private static normalizeForNodeId(value: string): string {
     return this.normalizeForFileName(value || 'node');
+  }
+
+  private static withTerminologyContext(document: Record<string, unknown>): Record<string, unknown> {
+    const context = document['@context'];
+    const normalizedContext =
+      context && typeof context === 'object' && !Array.isArray(context)
+        ? ({ ...(context as Record<string, unknown>) } as Record<string, unknown>)
+        : ({ ...EXPORT_CONTEXT } as Record<string, unknown>);
+
+    const keys = this.collectPropertyKeys(document);
+    for (const key of keys) {
+      if (key in normalizedContext) {
+        continue;
+      }
+
+      normalizedContext[key] = this.buildTerminologyUriForProperty(key);
+    }
+
+    return {
+      ...document,
+      '@context': normalizedContext
+    };
+  }
+
+  private static collectPropertyKeys(value: unknown, keys = new Set<string>()): Set<string> {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        this.collectPropertyKeys(item, keys);
+      }
+      return keys;
+    }
+
+    if (!value || typeof value !== 'object') {
+      return keys;
+    }
+
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      if (!key.startsWith('@')) {
+        keys.add(key);
+      }
+      this.collectPropertyKeys(nested, keys);
+    }
+
+    return keys;
+  }
+
+  private static buildTerminologyUriForProperty(propertyKey: string): string {
+    return `https://fairmodels.org/ontology.owl#${encodeURIComponent(propertyKey)}`;
   }
 }
 

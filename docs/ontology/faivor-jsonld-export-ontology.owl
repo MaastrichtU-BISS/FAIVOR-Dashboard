@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+  xmlns:owl="http://www.w3.org/2002/07/owl#"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+  xmlns:faivor="https://fairmodels.org/ontology.owl#"
+  xmlns:schema="https://schema.org/"
+  xmlns:prov="http://www.w3.org/ns/prov#">
+
+  <owl:Ontology rdf:about="https://fairmodels.org/ontology.owl">
+    <rdfs:label xml:lang="en">FAIVOR JSON-LD Export Ontology</rdfs:label>
+    <rdfs:comment xml:lang="en">Ontology for FAIVOR Dashboard JSON-LD export terms. Generated export properties are governed under the https://fairmodels.org/ontology.owl# namespace.</rdfs:comment>
+    <owl:versionInfo>2026-06-05</owl:versionInfo>
+  </owl:Ontology>
+
+  <owl:Class rdf:about="https://fairmodels.org/ontology.owl#ValidationExport">
+    <rdfs:label xml:lang="en">Validation Export</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schema.org/CreativeWork"/>
+  </owl:Class>
+
+  <owl:Class rdf:about="https://fairmodels.org/ontology.owl#ValidationRun">
+    <rdfs:label xml:lang="en">Validation Run</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schema.org/Action"/>
+  </owl:Class>
+
+  <owl:Class rdf:about="https://fairmodels.org/ontology.owl#ValidationResult">
+    <rdfs:label xml:lang="en">Validation Result</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schema.org/Report"/>
+  </owl:Class>
+
+  <owl:Class rdf:about="https://fairmodels.org/ontology.owl#DatasetCharacteristics">
+    <rdfs:label xml:lang="en">Dataset Characteristics</rdfs:label>
+    <rdfs:subClassOf rdf:resource="https://schema.org/Dataset"/>
+  </owl:Class>
+
+  <owl:Class rdf:about="https://fairmodels.org/ontology.owl#RedactionPolicy">
+    <rdfs:label xml:lang="en">Redaction Policy</rdfs:label>
+  </owl:Class>
+
+  <owl:Class rdf:about="https://fairmodels.org/ontology.owl#ExportWarning">
+    <rdfs:label xml:lang="en">Export Warning</rdfs:label>
+  </owl:Class>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#model">
+    <rdfs:label xml:lang="en">model</rdfs:label>
+    <rdfs:domain rdf:resource="https://fairmodels.org/ontology.owl#ValidationExport"/>
+    <rdfs:range rdf:resource="https://schema.org/SoftwareApplication"/>
+    <owl:equivalentProperty rdf:resource="https://schema.org/subjectOf"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#validationRun">
+    <rdfs:label xml:lang="en">validationRun</rdfs:label>
+    <rdfs:domain rdf:resource="https://fairmodels.org/ontology.owl#ValidationExport"/>
+    <rdfs:range rdf:resource="https://fairmodels.org/ontology.owl#ValidationRun"/>
+    <owl:equivalentProperty rdf:resource="http://www.w3.org/ns/prov#activity"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#validationResult">
+    <rdfs:label xml:lang="en">validationResult</rdfs:label>
+    <rdfs:domain rdf:resource="https://fairmodels.org/ontology.owl#ValidationExport"/>
+    <rdfs:range rdf:resource="https://fairmodels.org/ontology.owl#ValidationResult"/>
+    <owl:equivalentProperty rdf:resource="https://schema.org/result"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#dataCharacteristics">
+    <rdfs:label xml:lang="en">dataCharacteristics</rdfs:label>
+    <rdfs:domain rdf:resource="https://fairmodels.org/ontology.owl#ValidationExport"/>
+    <rdfs:range rdf:resource="https://fairmodels.org/ontology.owl#DatasetCharacteristics"/>
+    <owl:equivalentProperty rdf:resource="https://schema.org/dataset"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#redactionApplied">
+    <rdfs:label xml:lang="en">redactionApplied</rdfs:label>
+    <rdfs:domain rdf:resource="https://fairmodels.org/ontology.owl#ValidationExport"/>
+    <rdfs:range rdf:resource="https://fairmodels.org/ontology.owl#RedactionPolicy"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#creator">
+    <rdfs:label xml:lang="en">creator</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://schema.org/creator"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#warnings">
+    <rdfs:label xml:lang="en">warnings</rdfs:label>
+    <rdfs:domain rdf:resource="https://fairmodels.org/ontology.owl#ValidationExport"/>
+    <rdfs:range rdf:resource="https://fairmodels.org/ontology.owl#ExportWarning"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#analysis">
+    <rdfs:label xml:lang="en">analysis</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://schema.org/distribution"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#metrics"><rdfs:label xml:lang="en">metrics</rdfs:label></owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#failure"><rdfs:label xml:lang="en">failure</rdfs:label></owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#quartiles"><rdfs:label xml:lang="en">quartiles</rdfs:label></owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#distribution"><rdfs:label xml:lang="en">distribution</rdfs:label></owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#confusionMatrix">
+    <rdfs:label xml:lang="en">confusion matrix</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://fairmodels.org/ontology.owl#confusion_matrix"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#prCurve">
+    <rdfs:label xml:lang="en">PR curve</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://fairmodels.org/ontology.owl#pr_curve"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#rocCurve">
+    <rdfs:label xml:lang="en">ROC curve</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://fairmodels.org/ontology.owl#roc_curve"/>
+  </owl:ObjectProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#exportedAt">
+    <rdfs:label xml:lang="en">exportedAt</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+    <owl:equivalentProperty rdf:resource="https://schema.org/dateCreated"/>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#exportProfile"><rdfs:label xml:lang="en">exportProfile</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#exportScope"><rdfs:label xml:lang="en">exportScope</rdfs:label></owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#hasMetrics"><rdfs:label xml:lang="en">hasMetrics</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#hasCharacteristics"><rdfs:label xml:lang="en">hasCharacteristics</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#redacted"><rdfs:label xml:lang="en">redacted</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/></owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#id"><rdfs:label xml:lang="en">id</rdfs:label></owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#name">
+    <rdfs:label xml:lang="en">name</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://schema.org/name"/>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#status"><rdfs:label xml:lang="en">status</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#createdAt"><rdfs:label xml:lang="en">createdAt</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/></owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#startTime">
+    <rdfs:label xml:lang="en">startTime</rdfs:label>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+    <owl:equivalentProperty rdf:resource="https://schema.org/startTime"/>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#actionStatus">
+    <rdfs:label xml:lang="en">actionStatus</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://schema.org/actionStatus"/>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#sourceEvaluationId"><rdfs:label xml:lang="en">sourceEvaluationId</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#userName"><rdfs:label xml:lang="en">userName</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#checkpointId"><rdfs:label xml:lang="en">checkpointId</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#fairModelId"><rdfs:label xml:lang="en">fairModelId</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#modelId"><rdfs:label xml:lang="en">modelId</rdfs:label></owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#identifier">
+    <rdfs:label xml:lang="en">identifier</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://schema.org/identifier"/>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#conformsTo">
+    <rdfs:label xml:lang="en">conformsTo</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://schema.org/conformsTo"/>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#fallbackMetrics"><rdfs:label xml:lang="en">fallbackMetrics</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#jsonLdCharacteristics"><rdfs:label xml:lang="en">jsonLdCharacteristics</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#fileName"><rdfs:label xml:lang="en">fileName</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#fileSize"><rdfs:label xml:lang="en">fileSize</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#totalRows"><rdfs:label xml:lang="en">totalRows</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#totalColumns"><rdfs:label xml:lang="en">totalColumns</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#completeness"><rdfs:label xml:lang="en">completeness</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#decimal"/></owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#message"><rdfs:label xml:lang="en">message</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#code"><rdfs:label xml:lang="en">code</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#technicalDetails"><rdfs:label xml:lang="en">technicalDetails</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#userGuidance"><rdfs:label xml:lang="en">userGuidance</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#value"><rdfs:label xml:lang="en">value</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#label"><rdfs:label xml:lang="en">label</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#type"><rdfs:label xml:lang="en">type</rdfs:label></owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#count"><rdfs:label xml:lang="en">count</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#max"><rdfs:label xml:lang="en">max</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#min"><rdfs:label xml:lang="en">min</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#mean"><rdfs:label xml:lang="en">mean</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#median"><rdfs:label xml:lang="en">median</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#std"><rdfs:label xml:lang="en">std</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#nullValues"><rdfs:label xml:lang="en">nullValues</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#uniqueValues"><rdfs:label xml:lang="en">uniqueValues</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#q1"><rdfs:label xml:lang="en">q1</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#q2"><rdfs:label xml:lang="en">q2</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#q3"><rdfs:label xml:lang="en">q3</rdfs:label></owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#auc"><rdfs:label xml:lang="en">auc</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#fpr"><rdfs:label xml:lang="en">fpr</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#tpr"><rdfs:label xml:lang="en">tpr</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#recall"><rdfs:label xml:lang="en">recall</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#precision"><rdfs:label xml:lang="en">precision</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#thresholds"><rdfs:label xml:lang="en">thresholds</rdfs:label></owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#averagePrecision">
+    <rdfs:label xml:lang="en">average precision</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://fairmodels.org/ontology.owl#average_precision"/>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#probabilityPreprocessing">
+    <rdfs:label xml:lang="en">probability preprocessing</rdfs:label>
+    <owl:equivalentProperty rdf:resource="https://fairmodels.org/ontology.owl#probability_preprocessing"/>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#fn"><rdfs:label xml:lang="en">false negatives</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#fp"><rdfs:label xml:lang="en">false positives</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#tn"><rdfs:label xml:lang="en">true negatives</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#tp"><rdfs:label xml:lang="en">true positives</rdfs:label><rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#integer"/></owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#identity">
+    <rdfs:label xml:lang="en">identity</rdfs:label>
+    <rdfs:domain rdf:resource="https://fairmodels.org/ontology.owl#RedactionPolicy"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#datasetFiles">
+    <rdfs:label xml:lang="en">datasetFiles</rdfs:label>
+    <rdfs:domain rdf:resource="https://fairmodels.org/ontology.owl#RedactionPolicy"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+  </owl:DatatypeProperty>
+
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#overall"><rdfs:label xml:lang="en">overall</rdfs:label></owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#overall_metrics"><rdfs:label xml:lang="en">overall metrics</rdfs:label></owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#threshold_metrics"><rdfs:label xml:lang="en">threshold metrics</rdfs:label></owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#pr_curve"><rdfs:label xml:lang="en">pr curve</rdfs:label></owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#roc_curve"><rdfs:label xml:lang="en">roc curve</rdfs:label></owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#confusion_matrix"><rdfs:label xml:lang="en">confusion matrix</rdfs:label></owl:ObjectProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#average_precision"><rdfs:label xml:lang="en">average precision</rdfs:label></owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="https://fairmodels.org/ontology.owl#probability_preprocessing"><rdfs:label xml:lang="en">probability preprocessing</rdfs:label></owl:DatatypeProperty>
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#columns"><rdfs:label xml:lang="en">columns</rdfs:label></owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="https://fairmodels.org/ontology.owl#folderUpload"><rdfs:label xml:lang="en">folderUpload</rdfs:label></owl:ObjectProperty>
+
+</rdf:RDF>
