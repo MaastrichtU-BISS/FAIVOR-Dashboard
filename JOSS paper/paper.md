@@ -44,7 +44,7 @@ bibliography: paper.bib
 
 # Summary
 
-Artificial intelligence (AI) models are increasingly developed for clinical decision support, yet a significant translational gap exists between research publications and clinical implementation. AI models described in scientific papers often lack machine-interpretable specifications, hampering independent validation and limiting uptake in clinical practice. The European Medical Device Regulation (MDR) requires substantial evidence of AI performance through independent validations before certification, creating an urgent need for standardized validation infrastructure.
+Artificial intelligence (AI) models are increasingly developed for clinical decision support, yet a significant translational gap exists between research publications and clinical implementation. AI models described in scientific papers often lack machine-interpretable specifications, hampering independent validation and limiting uptake in clinical practice. This limits independent validation and makes it hard for users to assess whether a model is suitable for their own clinical environment.
 
 FAIVOR (FAIR AI Validation and Quality Control) addresses this challenge by providing an open-source software platform that enables systematic, reproducible validation of AI models throughout their lifecycle. Built upon FAIR principles (Findable, Accessible, Interoperable, Reusable) and integrating with the FAIRmodels metadata standard [@fairmodels], FAIVOR supports three critical validation phases: (1) gathering evidence for MDR certification requirements, (2) assessing model performance before clinical implementation, and (3) continuous quality monitoring of deployed AI systems to detect data and model drift.
 
@@ -56,13 +56,13 @@ The deployment of AI models in clinical practice faces several interconnected ch
 
 AI models published in scientific literature are typically described in human-readable text, with incomplete technical specifications that prevent proper replication and validation [@hutson2018artificial]. Existing reporting standards such as TRIPOD [@collins2015tripod] and model cards [@mitchell2019model] describe *what* information to report but lack syntactic methodologies for machine-interpretable descriptions. This hampers the ability to execute and independently validate published models.
 
-## Regulatory Requirements Under MDR
+## The need for local validation
 
-The European Medical Device Regulation treats AI models as medical devices, demanding strict criteria including CE-certification based on substantial independent validation evidence [@muehlematter2021approval]. Without standardized validation software, hospitals and notified bodies cannot efficiently gather the evidence required to demonstrate model robustness across diverse populations and clinical settings.
+Even well-performing AI models may behave differently in another hospital or clinical setting because of differences in patient populations, workflows, scanners, acquisition protocols, coding practices, or data quality. Before deployment, users need tools to test whether a model performs adequately in their own environment and to identify failure modes under local conditions. However, accessible infrastructure for systematic local validation remains limited.
 
 ## The Pre-Implementation Assessment Gap
 
-Even CE-certified AI models may not perform as advertised in specific hospital environments due to differences in patient populations, clinical workflows, imaging equipment, and data acquisition protocols. Hospitals must validate models in their local context before deployment, but lack accessible tools to perform such assessments systematically [@vansoest2017prospective].
+Even externally validated AI models may not perform as advertised in specific hospital environments due to differences in patient populations, clinical workflows, imaging equipment, and data acquisition protocols. Hospitals must validate models in their local context before deployment, but lack accessible tools to perform such assessments systematically [@vansoest2017prospective].
 
 ## Continuous Quality Assurance
 
@@ -122,7 +122,7 @@ The dashboard provides rich visualizations for understanding model performance:
 ### Accessibility and Reporting
 
 - **No-Code Interface**: Clinical staff can execute validations without programming knowledge
-- **PDF Report Generation**: One-click export of validation results as formatted reports suitable for regulatory submissions, audit trails, and clinical documentation
+- **PDF Report Generation**: One-click export of validation results as formatted reports suitable for audit trails, and clinical documentation
 - **Search and Organization**: Filter and search models by title, description, or validation status
 - **Role-Based Access Control**: Multi-user support with authentication via Auth.js and PostgreSQL session storage, enabling team-based validation workflows in clinical environments
 
@@ -152,7 +152,6 @@ AI models predicting treatment outcomes or guiding clinical decisions require ri
 
 - Pre-implementation validation to assess model performance on local patient populations
 - Regular performance monitoring for deployed decision support models
-- Evidence collection for regulatory compliance documentation (e.g., EU MDR)
 
 ## Medical Image Analysis
 
