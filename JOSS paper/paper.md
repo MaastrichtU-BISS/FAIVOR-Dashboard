@@ -46,7 +46,7 @@ bibliography: paper.bib
 
 Artificial intelligence (AI) models are increasingly developed for clinical decision support, yet a significant translational gap exists between research publications and clinical implementation. AI models described in scientific papers often lack machine-interpretable specifications, hampering independent validation and limiting uptake in clinical practice. This limits independent validation and makes it hard for users to assess whether a model is suitable for their own clinical environment.
 
-FAIVOR (FAIR AI Validation and Quality Control) addresses this challenge by providing an open-source software platform that enables systematic, reproducible validation of AI models throughout their lifecycle. Built upon FAIR principles (Findable, Accessible, Interoperable, Reusable) and integrating with the FAIRmodels metadata standard [@fairmodels], FAIVOR supports three critical validation phases: (1) gathering evidence for MDR certification requirements, (2) assessing model performance before clinical implementation, and (3) continuous quality monitoring of deployed AI systems to detect data and model drift.
+FAIVOR (FAIR AI Validation and Quality Control) addresses this challenge by providing an open-source software platform that enables systematic, reproducible validation of AI models throughout their lifecycle. Built upon FAIR principles (Findable, Accessible, Interoperable, Reusable) [@wilkinson2016fair] and integrating with the FAIRmodels metadata standard [@fairmodels], FAIVOR supports three critical validation phases: (1) assessing model performance before clinical implementation, and (2) continuous quality monitoring of deployed AI systems to detect data and model drift.
 
 # Statement of Need
 
