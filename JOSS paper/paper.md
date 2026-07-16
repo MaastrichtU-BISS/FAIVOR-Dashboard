@@ -48,7 +48,7 @@ Artificial intelligence (AI) models are increasingly developed for clinical deci
 
 FAIVOR (FAIR AI Validation and Quality Control) addresses this challenge by providing an open-source software platform that enables systematic, reproducible validation of AI models throughout their lifecycle. Built upon FAIR principles (Findable, Accessible, Interoperable, Reusable) [@wilkinson2016fair] and integrating with the FAIRmodels metadata standard [@fairmodels], FAIVOR supports three critical validation phases: (1) assessing model performance before clinical implementation, and (2) continuous quality monitoring of deployed AI systems to detect data and model drift.
 
-# Statement of Need
+# Statement of need
 
 The deployment of AI models in clinical practice faces several interconnected challenges that FAIVOR directly addresses:
 
@@ -68,9 +68,19 @@ Even externally validated AI models may not perform as advertised in specific ho
 
 Once deployed, AI models require ongoing monitoring as clinical workflows evolve, equipment changes, and patient populations shift---phenomena collectively known as data drift [@vela2022temporal]. Without continuous validation infrastructure, performance degradation may go undetected, potentially compromising patient safety.
 
+# State of the field
+
+While several tools address aspects of ML model validation, FAIVOR uniquely combines FAIR principles with clinical validation requirements:
+
+- **MLflow** and **Weights & Biases** focus on experiment tracking rather than independent external validation
+- **Fairlearn** and **AI Fairness 360** provide fairness metrics but lack integrated model execution and clinical deployment context
+- **Model Card Toolkit** addresses documentation but not automated validation execution
+
+FAIVOR's integration with FAIRmodels metadata and focus on clinical AI lifecycle management fills a critical gap in the research-to-practice pipeline.
+
 **Research Question**: Can we overcome the translational gap for AI models by providing a software platform for regular validations and publishing validation results using machine-readable FAIR descriptions?
 
-# Architecture and Implementation
+# Software design
 
 FAIVOR consists of two main components working in concert to provide end-to-end validation capabilities (Figure 1).
 
@@ -142,7 +152,7 @@ The database schema (Figure 3) captures model checkpoints with their FAIRmodels 
 
 ![Database schema showing relationships between model checkpoints, validations, data statistics, and users.](./database.jpg){#fig:database}
 
-# Potential Use Cases
+# Research impact statement
 
 FAIVOR is designed to support AI validation across diverse healthcare scenarios:
 
@@ -181,18 +191,12 @@ FAIVOR maintains rigorous software quality standards aligned with Netherlands eS
 - **Automated CI/CD**: GitHub Actions workflows for testing, semantic version bumping based on conventional commits, and container image building
 - **Documentation**: Deployment guides, API documentation, contribution guidelines, and inline code documentation
 
-# Related Work
-
-While several tools address aspects of ML model validation, FAIVOR uniquely combines FAIR principles with clinical validation requirements:
-
-- **MLflow** and **Weights & Biases** focus on experiment tracking rather than independent external validation
-- **Fairlearn** and **AI Fairness 360** provide fairness metrics but lack integrated model execution and clinical deployment context
-- **Model Card Toolkit** addresses documentation but not automated validation execution
-
-FAIVOR's integration with FAIRmodels metadata and focus on clinical AI lifecycle management fills a critical gap in the research-to-practice pipeline.
-
 # Acknowledgements
 
 This work was supported by the Netherlands eScience Center under project NLESC.OEC.2023.072. We thank our clinical partners for requirements and validation support, and the broader FAIR4AI and Health-RI communities for valuable feedback.
+
+# AI usage disclosure
+
+AI tools were used to generate the draft of this paper. The final paper was prepared after verifying the quality and correctness of AI-generated content by co-authors.
 
 # References
