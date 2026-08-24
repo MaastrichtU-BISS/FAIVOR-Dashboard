@@ -2,11 +2,12 @@
 
 import { ValidationError, ValidationErrors, ValidationErrorCode } from '$lib/types/validation-errors';
 // SvelteKit public env import (dynamic for runtime configuration)
-// import { env as publicEnv } from '$env/dynamic/public';
-// import { env as privateEnv } from '$env/dynamic/private';
-
-// Browser-safe public env only
 import { env } from '$env/dynamic/public';
+
+// Default timeout for backend requests (ms). Prevents the UI from
+// freezing indefinitely when the validator backend is unreachable
+// (e.g. misconfigured / internal-only URL used from the browser).
+const DEFAULT_FETCH_TIMEOUT_MS = 20000;
 
 export interface CSVValidationResponse {
   valid: boolean;
@@ -53,8 +54,62 @@ export interface HealthCheckResponse {
 }
 
 export class FaivorBackendAPI {
-  private static get BASE_URL() { 
-     return env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
+  /**
+   * Resolve the base URL for the FAIVOR validator backend.
+   *
+   * IMPORTANT: `FaivorBackendAPI` methods (validateCSV, validateModel, etc.)
+   * are called both from server-side code and directly from client-side
+   * Svelte components/services (e.g. dataset-step-service.ts running in
+   * the browser). The browser can only reach `PUBLIC_VALIDATOR_URL`
+   * (a value it is served, e.g. http://localhost:8000). It CANNOT reach
+   * an internal Docker network hostname such as `http://faivor-backend:8000`.
+   *
+   * If an internal-only URL is used for a browser-side fetch, the request
+   * hangs indefinitely (DNS/connect never resolves), which manifests as
+   * the whole app freezing after selecting a CSV file.
+   *
+   * To support both contexts safely:
+   *  - In the browser, ALWAYS use `PUBLIC_VALIDATOR_URL`.
+   *  - On the server, prefer an internal-only URL if provided
+   *    (`VALIDATOR_INTERNAL_URL`), falling back to `PUBLIC_VALIDATOR_URL`.
+   */
+  private static get BASE_URL() {
+    const isServer = typeof window === 'undefined';
+
+    if (isServer) {
+      return env.VALIDATOR_INTERNAL_URL || env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
+    }
+
+    // Browser context: never use an internal-only URL here.
+    return env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
+  }
+
+  /**
+   * Wrapper around fetch() that aborts the request after `timeoutMs`
+   * so callers fail fast (with a clear error) instead of hanging forever
+   * when the backend is unreachable.
+   */
+  private static async fetchWithTimeout(
+    input: string,
+    init: RequestInit = {},
+    timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(input, { ...init, signal: controller.signal });
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        throw ValidationErrors.serviceUnavailable(
+          'FAIVOR ML Validator',
+          `Request to ${input} timed out after ${timeoutMs / 1000}s. The validator backend may be unreachable or misconfigured.`
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   /**
@@ -216,7 +271,7 @@ export class FaivorBackendAPI {
    */
   static async healthCheck(): Promise<HealthCheckResponse> {
     try {
-      const response = await fetch(`${this.BASE_URL}/`);
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/`);
 
       if (!response.ok) {
         throw await this.parseErrorResponse(response);
@@ -243,7 +298,7 @@ export class FaivorBackendAPI {
     formData.append("csv_file", csvFile);
 
     try {
-      const response = await fetch(`${this.BASE_URL}/validate-csv/`, {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/validate-csv/`, {
         method: "POST",
         body: formData,
       });
@@ -269,11 +324,6 @@ export class FaivorBackendAPI {
     csvFile: File,
     dataMetadata: Record<string, any> | null = null
   ): Promise<ModelValidationResponse> {
-    console.log('[validateModel BASE_URL]', {
-      isServer: typeof window === 'undefined',
-      baseUrl: this.BASE_URL
-    });
-
     const formData = new FormData();
     formData.append("model_metadata", JSON.stringify(modelMetadata));
     formData.append("csv_file", csvFile);
@@ -281,19 +331,15 @@ export class FaivorBackendAPI {
       formData.append("column_metadata", JSON.stringify(dataMetadata));
     }
 
-   
     try {
-      const response = await fetch(`${this.BASE_URL}/validate-model`, {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/validate-model`, {
         method: "POST",
         body: formData,
-      });
+      }, 60000); // model execution can take longer than default requests
 
       if (!response.ok) {
         throw await this.parseErrorResponse(response);
       }
-
-   //   console.log('[validateModel] URL:', `${this.BASE_URL}/validate-model`);
-   //   console.log('[validateModel] has GMI:', !!modelMetadata?.['General Model Information']);
 
       return await response.json();
     } catch (error: any) {
@@ -427,7 +473,7 @@ export class FaivorBackendAPI {
     }
 
     try {
-      const response = await fetch(`${this.BASE_URL}/retrieve-metrics`, {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/retrieve-metrics`, {
         method: "POST",
         body: formData,
       });
