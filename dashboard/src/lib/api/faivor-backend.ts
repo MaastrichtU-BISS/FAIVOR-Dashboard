@@ -4,6 +4,14 @@ import { ValidationError, ValidationErrors, ValidationErrorCode } from '$lib/typ
 // SvelteKit public env import (dynamic for runtime configuration)
 import { env } from '$env/dynamic/public';
 
+// DEBUG: confirm this module loads/evaluates without blocking, and log
+// when/how many times it gets imported (helps rule out module-level
+// infinite loops or repeated re-imports as part of the freeze investigation).
+console.log('[faivor-backend.ts] module evaluated', {
+  isServer: typeof window === 'undefined',
+  timestamp: new Date().toISOString()
+});
+
 // Default timeout for backend requests (ms). Prevents the UI from
 // hanging indefinitely when the validator backend is unreachable
 // (e.g. misconfigured or internal-only URL used from the browser).
@@ -79,13 +87,20 @@ export class FaivorBackendAPI {
    */
   private static get BASE_URL() {
     const isServer = typeof window === 'undefined';
+    const resolved = isServer
+      ? (env.VALIDATOR_INTERNAL_URL || env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000')
+      : (env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000');
 
-    if (isServer) {
-      return env.VALIDATOR_INTERNAL_URL || env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
-    }
+    // DEBUG: log every time BASE_URL is accessed, to correlate with freeze timing.
+    console.log('[faivor-backend.ts] BASE_URL accessed', {
+      isServer,
+      resolved,
+      PUBLIC_VALIDATOR_URL: env.PUBLIC_VALIDATOR_URL,
+      VALIDATOR_INTERNAL_URL: (env as any).VALIDATOR_INTERNAL_URL,
+      timestamp: new Date().toISOString()
+    });
 
-    // Browser context: never use an internal-only URL here.
-    return env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
+    return resolved;
   }
 
   /**
@@ -98,12 +113,33 @@ export class FaivorBackendAPI {
     init: RequestInit = {},
     timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
   ): Promise<Response> {
+    // DEBUG: log entry into fetchWithTimeout to confirm whether/when
+    // any network call is actually attempted relative to the freeze.
+    console.log('[faivor-backend.ts] fetchWithTimeout called', {
+      input,
+      method: init.method || 'GET',
+      timeoutMs,
+      timestamp: new Date().toISOString()
+    });
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      return await fetch(input, { ...init, signal: controller.signal });
+      const response = await fetch(input, { ...init, signal: controller.signal });
+      console.log('[faivor-backend.ts] fetchWithTimeout response received', {
+        input,
+        status: response.status,
+        timestamp: new Date().toISOString()
+      });
+      return response;
     } catch (error: any) {
+      console.log('[faivor-backend.ts] fetchWithTimeout error', {
+        input,
+        errorName: error?.name,
+        errorMessage: error?.message,
+        timestamp: new Date().toISOString()
+      });
       if (error?.name === 'AbortError') {
         throw ValidationErrors.serviceUnavailable(
           'FAIVOR ML Validator',
@@ -297,6 +333,12 @@ export class FaivorBackendAPI {
     modelMetadata: any,
     csvFile: File
   ): Promise<CSVValidationResponse> {
+    console.log('[faivor-backend.ts] validateCSV called', {
+      csvFileName: csvFile?.name,
+      csvFileSize: csvFile?.size,
+      timestamp: new Date().toISOString()
+    });
+
     const formData = new FormData();
     formData.append("model_metadata", JSON.stringify(modelMetadata));
     formData.append("csv_file", csvFile);
@@ -328,6 +370,12 @@ export class FaivorBackendAPI {
     csvFile: File,
     dataMetadata: Record<string, any> | null = null
   ): Promise<ModelValidationResponse> {
+    console.log('[faivor-backend.ts] validateModel called', {
+      csvFileName: csvFile?.name,
+      csvFileSize: csvFile?.size,
+      timestamp: new Date().toISOString()
+    });
+
     const formData = new FormData();
     formData.append("model_metadata", JSON.stringify(modelMetadata));
     formData.append("csv_file", csvFile);
