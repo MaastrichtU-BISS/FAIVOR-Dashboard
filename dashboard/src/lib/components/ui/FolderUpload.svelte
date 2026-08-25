@@ -18,11 +18,6 @@ Dataset Upload Component
 	import { validateDatasetFolder, extractFolderName } from '$lib/utils/indexeddb-storage';
 	import { validationFormStore } from '$lib/stores/models/validation.store';
 
-	// DEBUG: confirm this component's <script> block runs (once per mount).
-	console.log('[FolderUpload.svelte] script block evaluated', {
-		timestamp: new Date().toISOString()
-	});
-
 	interface Props {
 		folderFiles?: DatasetFolderFiles;
 		folderName?: string;
@@ -41,18 +36,6 @@ Dataset Upload Component
 		onFolderRemoved = () => {}
 	}: Props = $props();
 
-	// DEBUG: log the readonly prop value at mount time - if readonly is
-	// unexpectedly true, openCsvDialog()/openFolderDialog() would be no-ops
-	// (button click does nothing, no dialog opens, no logs from
-	// DatasetStep.svelte - matching the observed symptom).
-	console.log('[FolderUpload.svelte] props snapshot', {
-		readonly,
-		hasFolderFiles: !!folderFiles,
-		folderName,
-		hasModel: !!model,
-		timestamp: new Date().toISOString()
-	});
-
 	let folderInput: HTMLInputElement;
 	let csvInput: HTMLInputElement;
 	let isDragging = $state(false);
@@ -62,9 +45,6 @@ Dataset Upload Component
 	}>({ isValid: true, errors: [] });
 
 	function handleFolderSelect(event: Event) {
-		console.log('[FolderUpload.svelte] handleFolderSelect (onchange) fired', {
-			timestamp: new Date().toISOString()
-		});
 		const input = event.target as HTMLInputElement;
 		if (input.files && input.files.length > 0) {
 			processFolderUpload(input.files);
@@ -72,9 +52,6 @@ Dataset Upload Component
 	}
 
 	function handleCsvSelect(event: Event) {
-		console.log('[FolderUpload.svelte] handleCsvSelect (onchange) fired', {
-			timestamp: new Date().toISOString()
-		});
 		const input = event.target as HTMLInputElement;
 		if (input.files && input.files.length > 0) {
 			processCsvUpload(input.files[0]);
@@ -206,10 +183,6 @@ Dataset Upload Component
 	}
 
 	function processFolderUpload(files: FileList) {
-		console.log('[FolderUpload.svelte] processFolderUpload called', {
-			fileCount: files.length,
-			timestamp: new Date().toISOString()
-		});
 		const validation = validateDatasetFolder(files, model);
 		validationResult = {
 			isValid: validation.isValid,
@@ -229,11 +202,6 @@ Dataset Upload Component
 	}
 
 	function processCsvUpload(file: File) {
-		console.log('[FolderUpload.svelte] processCsvUpload called', {
-			fileName: file?.name,
-			fileSize: file?.size,
-			timestamp: new Date().toISOString()
-		});
 		// Create a simple validation for single CSV file
 		const validation = {
 			isValid: file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv'),
@@ -281,30 +249,14 @@ Dataset Upload Component
 	}
 
 	function openFolderDialog() {
-		console.log('[FolderUpload.svelte] openFolderDialog clicked', {
-			readonly,
-			hasFolderInputRef: !!folderInput,
-			timestamp: new Date().toISOString()
-		});
 		if (!readonly) {
 			folderInput?.click();
-			console.log('[FolderUpload.svelte] folderInput.click() called', {
-				timestamp: new Date().toISOString()
-			});
 		}
 	}
 
 	function openCsvDialog() {
-		console.log('[FolderUpload.svelte] openCsvDialog clicked', {
-			readonly,
-			hasCsvInputRef: !!csvInput,
-			timestamp: new Date().toISOString()
-		});
 		if (!readonly) {
 			csvInput?.click();
-			console.log('[FolderUpload.svelte] csvInput.click() called', {
-				timestamp: new Date().toISOString()
-			});
 		}
 	}
 
