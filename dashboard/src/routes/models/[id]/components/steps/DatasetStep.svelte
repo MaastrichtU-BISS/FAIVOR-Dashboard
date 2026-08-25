@@ -10,6 +10,12 @@
 	import type { ValidationResults } from '$lib/stores/models/validation.store';
 	import { page } from '$app/stores';
 
+	// DEBUG: confirm this component's <script> block runs, and count how
+	// many times it's evaluated (should be once per mount).
+	console.log('[DatasetStep.svelte] script block evaluated', {
+		timestamp: new Date().toISOString()
+	});
+
 	interface Props {
 		readonly?: boolean;
 		onFieldChange?: () => void;
@@ -20,6 +26,23 @@
 
 	// Use the validation form store for all data
 	let formData = $derived($validationFormStore);
+
+	// DEBUG: count how many times formData is recomputed. A rapidly
+	// increasing counter here (many per second) would indicate a
+	// reactive loop driven by the validationFormStore.
+	let __formDataRecomputeCount = 0;
+	$effect(() => {
+		// touching formData here registers this effect as a dependent,
+		// letting us log every recompute without altering behavior.
+		void formData;
+		__formDataRecomputeCount++;
+		console.log('[DatasetStep.svelte] formData recomputed', {
+			count: __formDataRecomputeCount,
+			hasUploadedFolder: !!formData.uploadedFolder,
+			validationName: formData.validationName,
+			timestamp: new Date().toISOString()
+		});
+	});
 
 	// Local state for input fields that sync with the store
 	let validationName = $state(formData.validationName || '');
@@ -39,7 +62,14 @@
 
 	// Sync local state with store when formData changes from external sources (loading data)
 	let isUpdatingStore = false;
+	let __syncEffectRunCount = 0;
 	$effect(() => {
+		__syncEffectRunCount++;
+		console.log('[DatasetStep.svelte] sync $effect run', {
+			count: __syncEffectRunCount,
+			isUpdatingStore,
+			timestamp: new Date().toISOString()
+		});
 		if (!isUpdatingStore) {
 			validationName = formData.validationName || '';
 			initialValues = DatasetStepService.createInitialValues({
@@ -98,6 +128,10 @@
 	);
 
 	async function handleFolderSelected(files: DatasetFolderFiles, selectedFolderName: string) {
+		console.log('[DatasetStep.svelte] handleFolderSelected called', {
+			selectedFolderName,
+			timestamp: new Date().toISOString()
+		});
 		isProcessingFolder = true;
 		validationFormStore.clearValidationResults();
 
@@ -286,7 +320,21 @@
 
 	let columnTypes = $state<Record<string, boolean>>({});
 
+	// DEBUG: count how many times this effect runs. If this number climbs
+	// rapidly (many per second) without any user interaction, it confirms
+	// an infinite reactive loop pinning the main thread and causing the
+	// UI freeze reported before the file picker even opens.
+	let __columnTypesEffectRunCount = 0;
 	$effect(() => {
+		__columnTypesEffectRunCount++;
+		const runId = __columnTypesEffectRunCount;
+		console.log('[DatasetStep.svelte] columnTypes $effect run START', {
+			runId,
+			hasUploadedMetadata: !!formData.uploadedFolder?.metadata,
+			hasModelInputData: !!model?.['Input data1'],
+			timestamp: new Date().toISOString()
+		});
+
 		async function updateColumnTypes() {
 			const newColumnTypes: Record<string, boolean> = {};
 			if (formData.uploadedFolder?.metadata) {
@@ -320,6 +368,11 @@
 				}
 			}
 			columnTypes = newColumnTypes;
+			console.log('[DatasetStep.svelte] columnTypes $effect run END (columnTypes reassigned)', {
+				runId,
+				keys: Object.keys(newColumnTypes),
+				timestamp: new Date().toISOString()
+			});
 		}
 		updateColumnTypes();
 	});
