@@ -1,0 +1,452 @@
+// src/lib/utils/validation-transform.ts
+// Utility functions for transforming validation data between formats
+
+import type {
+  ValidationData,
+  // ValidationJob, // Old type, replaced by UiValidationJob for new transformations
+  ValidationFormData,
+  ValidationRow,
+  DatasetFolderFiles,
+  ModelMetadataSnapshot
+} from '$lib/types/validation';
+import type { UiValidationJob, JsonLdPerformanceMetricItem, FullJsonLdModel } from '$lib/stores/models/types'; // Import new types
+import { getFileSizesFromStore, validationFormStore, type ValidationResults } from '$lib/stores/models/validation.store';
+
+/**
+ * Transform form data to ValidationData structure - simplified using store
+ * @param formData - The form data to transform
+ * @param comprehensiveMetrics - Optional comprehensive metrics data
+ * @param model - Optional model to extract metadata snapshot from
+ */
+export function formDataToValidationData(formData: ValidationFormData, comprehensiveMetrics?: any, model?: FullJsonLdModel): ValidationData {
+  const fileSizes = getFileSizesFromStore();
+  let validationResults: ValidationResults | undefined;
+  let datasetAnalysis: any = undefined;
+  const unsubscribe = validationFormStore.subscribe(state => {
+    validationResults = state.validationResults;
+    datasetAnalysis = state.datasetAnalysis;
+  });
+  unsubscribe();
+
+  console.log('🔍 formDataToValidationData - validation results to save:', validationResults);
+  console.log('📊 formDataToValidationData - dataset analysis to save:', datasetAnalysis);
+
+  // Extract column pairing data from validation results
+  let columnPairingData: any = undefined;
+  if (validationResults?.csvValidation?.details) {
+    const csvDetails = validationResults.csvValidation.details;
+    columnPairingData = {
+      csv_columns: csvDetails.csv_columns,
+      model_input_columns: csvDetails.model_input_columns,
+      column_mapping: csvDetails.column_mapping,
+      // Include any mock columns that were added
+      mock_columns_added: (csvDetails as any).mock_columns_added
+    };
+    console.log('📊 Extracted column pairing data:', columnPairingData);
+  }
+
+  const validationData: ValidationData = {
+    validation_name: formData.validationName || undefined,
+    dataset_info: {
+      userName: formData.userName || undefined,
+      date: formData.date || undefined,
+      datasetName: formData.datasetName || formData.folderName || undefined,
+      description: formData.datasetDescription || undefined,
+      characteristics: formData.datasetCharacteristics || undefined,
+      uploadedFile: formData.uploadedFile ? {
+        name: formData.uploadedFile.name,
+        size: formData.uploadedFile.size || 0,
+        type: formData.uploadedFile.type
+      } : undefined,
+      folderUpload: formData.uploadedFolder ? {
+        folderName: formData.folderName || 'Unknown Folder',
+        fileCount: Object.keys(formData.uploadedFolder).length,
+        totalSize: fileSizes.totalSize,
+        hasMetadata: Boolean(formData.uploadedFolder.metadata),
+        hasData: Boolean(formData.uploadedFolder.data),
+        hasColumnMetadata: Boolean(formData.uploadedFolder.columnMetadata),
+        fileDetails: {
+          metadata: formData.uploadedFolder.metadata ? {
+            name: formData.uploadedFolder.metadata.name || 'metadata.json',
+            size: fileSizes.metadataSize,
+            lastModified: formData.uploadedFolder.metadata.lastModified || Date.now()
+          } : undefined,
+          data: formData.uploadedFolder.data ? {
+            name: formData.uploadedFolder.data.name || 'data.csv',
+            size: fileSizes.dataSize,
+            lastModified: formData.uploadedFolder.data.lastModified || Date.now()
+          } : undefined,
+          columnMetadata: formData.uploadedFolder.columnMetadata ? {
+            name: formData.uploadedFolder.columnMetadata.name || 'column_metadata.json',
+            size: fileSizes.columnMetadataSize,
+            lastModified: formData.uploadedFolder.columnMetadata.lastModified || Date.now()
+          } : undefined
+        }
+      } : undefined,
+      // Add column pairing data to dataset_info
+      columnPairing: columnPairingData,
+      // Add dataset analysis data
+      datasetAnalysis: datasetAnalysis || undefined
+    },
+    validation_result: {
+      metrics_description: formData.metricsDescription || undefined,
+      performance_description: formData.performanceMetrics || undefined,
+      dataProvided: Boolean(formData.uploadedFile || formData.uploadedFolder?.data || formData.datasetName),
+      dataCharacteristics: Boolean(formData.datasetDescription || formData.datasetCharacteristics),
+      metrics: Boolean(formData.metricsDescription || comprehensiveMetrics),
+      validation_results: validationResults && validationResults.stage !== 'none' ? validationResults : undefined,
+      comprehensive_metrics: comprehensiveMetrics || undefined
+    },
+    // Capture model metadata snapshot if model is provided
+    model_metadata: model ? extractModelMetadataSnapshot(model) : undefined
+  };
+  return validationData;
+}
+
+/**
+ * Transform ValidationRow to a generic object.
+ * The original ValidationJob type might be deprecated.
+ */
+export function validationRowToJob(row: ValidationRow): any {
+  console.warn("validationRowToJob: Review usage with new JSON-LD model structure. 'row.data' access might be incorrect.");
+  // Assuming row.data was a JSONB field containing the old structure.
+  // This needs careful review based on actual DB schema for ValidationRow.
+  // If 'data' is not a direct property, this will fail.
+  const data = (row as any).data || {};
+  return {
+    val_id: row.val_id.toString(),
+    validation_name: data.validation_name,
+    start_datetime: row.start_datetime,
+    end_datetime: row.end_datetime,
+    validation_status: row.validation_status,
+    validation_result: data.validation_result,
+    dataset_info: data.dataset_info,
+    configuration: data.configuration,
+    metadata: data.metadata,
+    modelId: row.model_checkpoint_id,
+    userId: row.user_id || undefined,
+    deleted_at: (row as any).deleted_at
+  };
+}
+
+/**
+ * Transform UiValidationJob (derived from JSON-LD) to form data for editing.
+ */
+export async function validationJobToFormData(job: UiValidationJob): Promise<ValidationFormData & { validationResults?: ValidationResults; datasetAnalysis?: any }> {
+  const evalData = job.originalEvaluationData;
+
+  let reconstructedFolderFiles: Partial<DatasetFolderFiles> | undefined = undefined;
+  let folderName: string | undefined = undefined;
+  // Access dataset_info directly from the job object
+  const folderUploadInfo = job.dataset_info?.folderUpload;
+
+  if (folderUploadInfo) {
+    folderName = folderUploadInfo.folderName;
+    
+    // Try to restore files from IndexedDB if we have an ID
+    if (folderUploadInfo.indexedDbId) {
+      try {
+        const { datasetStorage } = await import('$lib/utils/indexeddb-storage');
+        const dataset = await datasetStorage.getDataset(folderUploadInfo.indexedDbId);
+        
+        if (dataset?.files) {
+          reconstructedFolderFiles = dataset.files;
+          console.log('✅ Restored files from IndexedDB:', folderUploadInfo.indexedDbId);
+        }
+      } catch (error) {
+        console.error('Failed to restore files from IndexedDB:', error);
+      }
+    }
+    
+    // If we couldn't restore from IndexedDB, create mock File objects for display
+    if (!reconstructedFolderFiles || Object.keys(reconstructedFolderFiles).length === 0) {
+      reconstructedFolderFiles = {}; // Initialize as an empty object
+
+      // Helper to create a mock File-like object for display purposes
+      const createFileLikeObject = (detail: { name?: string; size?: number; lastModified?: number } | undefined, defaultName: string) => {
+        if (!detail) return undefined;
+        return {
+          name: detail.name || defaultName,
+          size: detail.size || 0,
+          lastModified: detail.lastModified || Date.now(),
+          // Add other properties if FolderUpload.svelte or other components expect them,
+          // but keep it minimal for display.
+        } as File; // Cast to File for structural compatibility with FolderUpload's props
+      };
+
+      if (folderUploadInfo.hasMetadata && folderUploadInfo.fileDetails?.metadata) {
+        reconstructedFolderFiles.metadata = createFileLikeObject(folderUploadInfo.fileDetails.metadata, 'metadata.json');
+      }
+      if (folderUploadInfo.hasData && folderUploadInfo.fileDetails?.data) {
+        reconstructedFolderFiles.data = createFileLikeObject(folderUploadInfo.fileDetails.data, 'data.csv');
+      }
+      if (folderUploadInfo.hasColumnMetadata && folderUploadInfo.fileDetails?.columnMetadata) {
+        reconstructedFolderFiles.columnMetadata = createFileLikeObject(folderUploadInfo.fileDetails.columnMetadata, 'column_metadata.json');
+      }
+    }
+  }
+
+  const validationName = job.validation_name || `Evaluation ${job.val_id.slice(-6)}`;
+  const userName = evalData?.['user/hospital']?.['@value'] || '';
+  const date = evalData?.['pav:createdOn'] || job.start_datetime;
+
+  const datasetName = evalData?.['User Note']?.['@value']?.split(':')[0].trim() || '';
+
+  const datasetDescription = evalData?.['User Note']?.['@value'] || '';
+  const datasetCharacteristics = '';
+  const metricsDescription = '';
+
+  let performanceMetricsSummary = '';
+  if (evalData?.['Performance metric'] && evalData['Performance metric'].length > 0) {
+    performanceMetricsSummary = evalData['Performance metric']
+      .map((m: JsonLdPerformanceMetricItem) => {
+        const metricLabelObj = m['Metric Label'];
+        const label = (metricLabelObj && 'rdfs:label' in metricLabelObj && typeof metricLabelObj['rdfs:label'] === 'string') ? metricLabelObj['rdfs:label'] :
+          (metricLabelObj && '@id' in metricLabelObj && typeof metricLabelObj['@id'] === 'string') ? metricLabelObj['@id'] :
+            'Metric';
+        const value = m['Measured metric (mean value)']?.['@value'];
+        return `${label}: ${value !== null && value !== undefined ? parseFloat(value).toFixed(3) : 'N/A'}`;
+      })
+      .join('; ');
+  }
+
+  // Check if we have stored validation results in the data
+  let storedValidationResults: ValidationResults | undefined;
+  if ('data' in job && job.data && typeof job.data === 'object' && 'validation_result' in job.data) {
+    const validationResult = (job.data as any).validation_result;
+    if (validationResult?.validation_results) {
+      storedValidationResults = validationResult.validation_results;
+      console.log('📊 Restored validation results from storage:', storedValidationResults);
+    }
+  }
+
+  // Check if we have column pairing data stored
+  let columnPairingData: any = undefined;
+  let datasetAnalysis: any = undefined;
+  if ('data' in job && job.data && typeof job.data === 'object' && 'dataset_info' in job.data) {
+    const datasetInfo = (job.data as any).dataset_info;
+    if (datasetInfo?.columnPairing) {
+      columnPairingData = datasetInfo.columnPairing;
+      console.log('📊 Restored column pairing data from storage:', columnPairingData);
+    }
+    if (datasetInfo?.datasetAnalysis) {
+      datasetAnalysis = datasetInfo.datasetAnalysis;
+      console.log('📊 Restored dataset analysis from storage:', datasetAnalysis);
+    }
+  }
+
+  // Use stored validation results if available, otherwise reconstruct
+  const reconstructedResults: ValidationResults = storedValidationResults || {
+    stage: job.validation_status === 'completed' ? 'complete' : job.validation_status === 'pending' ? 'none' : 'model',
+    csvValidation: {
+      success: job.dataProvided || false,
+      message: job.dataProvided ? 'Dataset provided (details from evaluation)' : 'Dataset details not fully available',
+    },
+    modelValidation: {
+      success: job.metrics || false,
+      message: job.metrics ? 'Metrics available' : 'Metrics not fully available',
+    }
+  };
+  
+  // If we have column pairing data, add it to the validation results
+  if (columnPairingData && reconstructedResults.csvValidation) {
+    reconstructedResults.csvValidation.details = {
+      valid: true,
+      csv_columns: columnPairingData.csv_columns || [],
+      model_input_columns: columnPairingData.model_input_columns || [],
+      column_mapping: columnPairingData.column_mapping || {},
+      mock_columns_added: columnPairingData.mock_columns_added
+    } as CSVValidationResponse;
+  }
+  
+  // If we have stored results but they're missing details, try to enhance them
+  if (reconstructedResults.csvValidation && !reconstructedResults.csvValidation.details && job.dataProvided) {
+    console.log('⚠️ CSV validation results missing details, validation might have been done with older version');
+  }
+  // Removed setValidationResults call to prevent infinite loop
+  // The calling code should handle setting validation results if needed
+
+  return {
+    validationName: validationName,
+    userName: userName,
+    date: date,
+    datasetName: datasetName,
+    uploadedFile: null, // Keep as null, as we are restoring folder info, not a single file
+    folderName: folderName, // This will now have the restored folder name
+    uploadedFolder: reconstructedFolderFiles as DatasetFolderFiles | undefined, // This will have the reconstructed file details
+    datasetDescription: datasetDescription,
+    datasetCharacteristics: datasetCharacteristics,
+    metricsDescription: metricsDescription,
+    performanceMetrics: performanceMetricsSummary,
+    modelId: '', // This should be set from the page context (e.g., modelData['@id'] or checkpoint_id)
+    validationResults: reconstructedResults, // Include the validation results
+    datasetAnalysis: datasetAnalysis // Include the dataset analysis
+  };
+}
+
+/**
+ * Merge partial ValidationData updates
+ */
+export function mergeValidationData(
+  existing: ValidationData,
+  updates: Partial<ValidationData>
+): ValidationData {
+  return {
+    ...existing,
+    ...updates,
+    dataset_info: {
+      ...existing.dataset_info,
+      ...updates.dataset_info
+    },
+    validation_result: {
+      ...existing.validation_result,
+      ...updates.validation_result
+    },
+    configuration: {
+      ...(existing as any).configuration, // Cast to any if configuration is not on ValidationData
+      ...(updates as any).configuration
+    },
+    metadata: {
+      ...(existing as any).metadata, // Cast to any if metadata is not on ValidationData
+      ...(updates as any).metadata
+    }
+  };
+}
+
+/**
+ * Create default ValidationData structure
+ */
+export function createDefaultValidationData(): ValidationData {
+  return {
+    dataset_info: {},
+    validation_result: {
+      dataProvided: false,
+      dataCharacteristics: false,
+      metrics: false,
+      published: false
+    },
+    // configuration: {}, // Ensure these are part of ValidationData if used
+    // metadata: {}
+  };
+}
+
+/**
+ * Legacy transformation - convert old database structure to new format
+ */
+export function legacyToValidationData(legacy: {
+  validation_name?: string;
+  description?: string;
+  validation_dataset?: string;
+  validation_result?: any;
+  dataset_info?: any;
+}): ValidationData {
+  return {
+    validation_name: legacy.validation_name,
+    dataset_info: {
+      description: legacy.description,
+      datasetName: legacy.validation_dataset,
+      ...legacy.dataset_info
+    },
+    validation_result: {
+      dataProvided: Boolean(legacy.validation_dataset),
+      dataCharacteristics: Boolean(legacy.description),
+      ...legacy.validation_result
+    }
+  };
+}
+
+/**
+ * Extract a comprehensive model metadata snapshot from a FullJsonLdModel.
+ * This snapshot is stored with each validation to track which exact version
+ * of the model was used for that validation.
+ */
+export function extractModelMetadataSnapshot(model: FullJsonLdModel): ModelMetadataSnapshot {
+  const generalInfo = model['General Model Information'];
+
+  // Helper to safely extract @value from JsonLdValue
+  const getValue = <T = string>(obj: { '@value': T | null } | undefined): T | undefined => {
+    return obj?.['@value'] ?? undefined;
+  };
+
+  // Helper to extract array of values
+  const getValues = (arr: Array<{ '@value': string | null }> | undefined): string[] => {
+    if (!arr || !Array.isArray(arr)) return [];
+    return arr.map(item => item['@value']).filter((v): v is string => v !== null && v !== undefined);
+  };
+
+  // Helper to safely get @id from JsonLdIdRef
+  const getIdRef = (obj: { '@id': string; 'rdfs:label'?: string } | undefined): string | undefined => {
+    return obj?.['@id'];
+  };
+
+  // Extract input features
+  const inputFeatures = model['Input data1']?.map(input => ({
+    feature_id: input['Input feature']?.['@id'],
+    label: getValue(input['Input label']),
+    description: getValue(input['Description']),
+    type: getValue(input['Type of input']),
+    min: getValue(input['Minimum - for numerical']),
+    max: getValue(input['Maximum - for numerical']),
+    categories: input['Categories']?.map(cat => ({
+      label: getValue(cat['Category Label'] as any),
+      identifier: getValue(cat['Identification for category used in model'])
+    })).filter(cat => cat.label || cat.identifier)
+  }));
+
+  // Extract papers array
+  const papers = getValues(generalInfo?.['References to papers']);
+
+  // Extract code repositories array
+  const codeRepositories = getValues(generalInfo?.['References to code']);
+
+  return {
+    // Docker/Image information
+    docker_image_name: getValue(generalInfo?.['FAIRmodels image name']),
+    docker_exposed_port: getValue(generalInfo?.['Docker image details (exposed port)']),
+    // Note: docker_image_sha256 is typically set during validation execution, not from model metadata
+
+    // Model identification
+    fair_model_id: model.fair_model_id || model['@id']?.split('/').pop(),
+    fair_model_url: model['@id'],
+    checkpoint_id: model.checkpoint_id,
+
+    // Basic model info
+    title: getValue(generalInfo?.['Title']),
+    description: getValue(generalInfo?.['Description']),
+    editor_note: getValue(generalInfo?.['Editor Note']),
+
+    // Authorship and dates
+    created_by: getValue(generalInfo?.['Created by']),
+    creation_date: getValue(generalInfo?.['Creation date']),
+    contact_email: getValue(generalInfo?.['Contact email']),
+    last_updated: model['pav:lastUpdatedOn'],
+
+    // References
+    papers: papers.length > 0 ? papers : undefined,
+    code_repositories: codeRepositories.length > 0 ? codeRepositories : undefined,
+    software_license: generalInfo?.['Software License']?.['@id'],
+
+    // Model characteristics
+    outcome: getIdRef(model['Outcome']),
+    outcome_label: getValue(model['Outcome label']),
+    outcome_type: getValue(model['Outcome type']),
+    algorithm: getIdRef(model['Foundational model or algorithm used']),
+
+    // Applicability and usage
+    applicability_criteria: getValues(model['Applicability criteria']),
+    primary_intended_uses: getValues(model['Primary intended use(s)']),
+    primary_intended_users: getValues(model['Primary intended users']),
+    out_of_scope_use_cases: getValues(model['Out-of-scope use cases']),
+
+    // Input data schema
+    input_features: inputFeatures && inputFeatures.length > 0 ? inputFeatures : undefined,
+
+    // Risk and compliance
+    human_life_impact: getValues(model['Human life']),
+    mitigations: getValues(model['Mitigations']),
+    risks_and_harms: getValues(model['Risks and harms']),
+
+    // Timestamp when this snapshot was captured
+    captured_at: new Date().toISOString()
+  };
+}

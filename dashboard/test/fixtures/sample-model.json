@@ -1,0 +1,52 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": "test-model-checkpoint-123",
+  "name": "Test ML Model",
+  "description": "A sample machine learning model for testing",
+  "version": "1.0.0",
+  "dateCreated": "2024-01-01T00:00:00Z",
+  "author": {
+    "@type": "Organization",
+    "name": "Test Organization"
+  },
+  "fairSpecific": {
+    "modelType": "classification",
+    "framework": "scikit-learn",
+    "inputs": [
+      {
+        "name": "age",
+        "type": "number",
+        "description": "Patient age"
+      },
+      {
+        "name": "gender",
+        "type": "string",
+        "description": "Patient gender"
+      },
+      {
+        "name": "bmi",
+        "type": "number",
+        "description": "Body mass index"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "risk_score",
+        "type": "number",
+        "description": "Risk prediction score"
+      },
+      {
+        "name": "risk_category",
+        "type": "string",
+        "description": "Risk category (low/medium/high)"
+      }
+    ],
+    "performance": {
+      "accuracy": 0.92,
+      "precision": 0.89,
+      "recall": 0.91,
+      "f1_score": 0.90
+    }
+  }
+}

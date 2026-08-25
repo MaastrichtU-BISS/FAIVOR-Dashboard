@@ -1,0 +1,70 @@
+name: faivor
+
+services:
+  faivor-backend:
+    image: ghcr.io/maastrichtu-biss/faivor-ml-validator
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOCKER_HOST_INTERNAL=host.docker.internal
+
+  postgres:
+    image: postgres:17
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-faivor}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  migrate:
+    image: ghcr.io/maastrichtu-biss/faivor-dashboard:main
+    env_file:
+      - .env
+    command: sh -c "sleep 5 && DATABASE_URL='postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:${DB_PORT:-5432}/${DB_NAME:-faivor}' bunx node-pg-migrate up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dashboard:
+        condition: service_started
+
+  dashboard:
+    image: ghcr.io/maastrichtu-biss/faivor-dashboard:main
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=postgres
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  seed:
+    profiles:
+      - seed
+    image: postgres:17
+    env_file:
+      - .env
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-postgres}
+    command: psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-faivor} -f /seed-database/seed.sql
+    volumes:
+      - ./dashboard/seed-database:/seed-database
+
+volumes:
+  postgres_data:

@@ -1,0 +1,4 @@
+{
+	"window.title": "📊 FAIVOR - ${activeEditorShort}",
+	"postman.settings.dotenv-detection-notification-visibility": false
+}

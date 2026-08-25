@@ -1,0 +1,235 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import MaterialSymbolsAnalytics from '~icons/material-symbols/analytics';
+	import MaterialSymbolsDownload from '~icons/material-symbols/download';
+	import type { DatasetFolderFiles } from '$lib/types/validation';
+	import { CSVAnalysisService } from '$lib/services/csv-analysis-service';
+	import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
+	import { PDFExportService } from '$lib/services/pdf-export-service';
+	import DatasetOverview from './DatasetOverview.svelte';
+	import ColumnAnalysis from './ColumnAnalysis.svelte';
+
+	interface Props {
+		folderFiles: DatasetFolderFiles;
+		folderName: string;
+		onAnalysisComplete?: (analysis: DatasetAnalysis) => void;
+		existingAnalysis?: DatasetAnalysis;
+		modelName?: string;
+	}
+
+	let { folderFiles, folderName, onAnalysisComplete, existingAnalysis, modelName }: Props =
+		$props();
+
+	let datasetAnalysis = $state<DatasetAnalysis | null>(existingAnalysis || null);
+	let isAnalyzing = $state(!existingAnalysis);
+	let analysisError = $state<string | null>(null);
+	let gridColumns = $state(3);
+	let isExporting = $state(false);
+
+	// Use existing analysis if available, otherwise analyze the dataset
+	$effect(() => {
+		if (existingAnalysis) {
+			datasetAnalysis = existingAnalysis;
+			isAnalyzing = false;
+		} else if (folderFiles.data) {
+			analyzeDataset(folderFiles.data);
+		}
+	});
+
+	async function analyzeDataset(csvFile: File) {
+		try {
+			isAnalyzing = true;
+			analysisError = null;
+
+			const analysis = await CSVAnalysisService.analyzeCSV(csvFile);
+			datasetAnalysis = analysis;
+
+			// Emit the analysis results
+			if (onAnalysisComplete) {
+				onAnalysisComplete(analysis);
+			}
+		} catch (error) {
+			console.error('Dataset analysis failed:', error);
+			analysisError = error instanceof Error ? error.message : 'Failed to analyze dataset';
+		} finally {
+			isAnalyzing = false;
+		}
+	}
+
+	async function exportToPDF() {
+		if (!datasetAnalysis) return;
+
+		try {
+			isExporting = true;
+			await PDFExportService.exportAnalysisToPDF(datasetAnalysis, modelName);
+		} catch (error) {
+			console.error('PDF export failed:', error);
+			alert('Failed to export PDF. Please try again.');
+		} finally {
+			isExporting = false;
+		}
+	}
+</script>
+
+<div class="space-y-6">
+	{#if isAnalyzing}
+		<div class="card bg-base-100 shadow-xl">
+			<div class="card-body">
+				<div class="flex items-center justify-center gap-3 py-8">
+					<span class="loading loading-spinner loading-lg text-primary"></span>
+					<div class="text-center">
+						<h3 class="text-lg font-semibold">Analyzing Dataset</h3>
+						<p class="text-base-content/70 text-sm">
+							Processing {folderFiles.data?.name || 'CSV file'}...
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	{:else if analysisError}
+		<div class="alert alert-error shadow-lg">
+			<div>
+				<MaterialSymbolsAnalytics class="h-6 w-6 flex-shrink-0" />
+				<div>
+					<h3 class="font-bold">Analysis Failed</h3>
+					<div class="text-sm">{analysisError}</div>
+				</div>
+			</div>
+		</div>
+	{:else if datasetAnalysis}
+		<!-- Export Button -->
+		<div class="flex justify-end">
+			<button
+				class="btn btn-outline btn-sm gap-2"
+				onclick={exportToPDF}
+				disabled={isExporting}
+			>
+				{#if isExporting}
+					<span class="loading loading-spinner loading-xs"></span>
+					Exporting...
+				{:else}
+					<MaterialSymbolsDownload class="h-4 w-4" />
+					Export PDF
+				{/if}
+			</button>
+		</div>
+
+		<!-- Dataset Overview -->
+		<DatasetOverview analysis={datasetAnalysis} />
+
+		<!-- Column Analysis -->
+		<ColumnAnalysis columns={datasetAnalysis.columns} bind:gridColumns />
+
+		<!-- Analysis Summary -->
+		<div class="card bg-base-100 shadow-xl">
+			<div class="card-body">
+				<h2 class="card-title mb-4 text-xl">Analysis Summary</h2>
+				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+					<!-- Data Quality -->
+					<div>
+						<h3 class="mb-3 text-lg font-semibold">Data Quality</h3>
+						<div class="space-y-2">
+							<div class="flex justify-between">
+								<span>Completeness:</span>
+								<span
+									class="font-medium {datasetAnalysis.completeness >= 95
+										? 'text-success'
+										: datasetAnalysis.completeness >= 85
+											? 'text-warning'
+											: 'text-error'}"
+								>
+									{datasetAnalysis.completeness}%
+								</span>
+							</div>
+							<div class="flex justify-between">
+								<span>Missing Values:</span>
+								<span class="font-medium">
+									{datasetAnalysis.columns
+										.reduce((sum, col) => sum + col.nullValues, 0)
+										.toLocaleString()}
+								</span>
+							</div>
+							<div class="flex justify-between">
+								<span>Columns with Missing Data:</span>
+								<span class="font-medium">
+									{datasetAnalysis.columns.filter((c) => c.nullValues > 0).length} / {datasetAnalysis.totalColumns}
+								</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Data Types -->
+					<div>
+						<h3 class="mb-3 text-lg font-semibold">Data Types</h3>
+						<div class="space-y-2">
+							<div class="flex justify-between">
+								<span>Numerical Columns:</span>
+								<span class="text-primary font-medium">
+									{datasetAnalysis.columns.filter((c) => c.type === 'numerical').length}
+								</span>
+							</div>
+							<div class="flex justify-between">
+								<span>Categorical Columns:</span>
+								<span class="text-secondary font-medium">
+									{datasetAnalysis.columns.filter((c) => c.type === 'categorical').length}
+								</span>
+							</div>
+							<div class="flex justify-between">
+								<span>Average Unique Values:</span>
+								<span class="font-medium">
+									{Math.round(
+										datasetAnalysis.columns.reduce((sum, col) => sum + col.uniqueValues, 0) /
+											datasetAnalysis.totalColumns
+									)}
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Recommendations -->
+				<div class="mt-6">
+					<h3 class="mb-3 text-lg font-semibold">Recommendations</h3>
+					<div class="space-y-2">
+						{#if datasetAnalysis.completeness < 85}
+							<div class="alert alert-warning">
+								<span class="text-sm">
+									Consider addressing missing data before model training.
+									{datasetAnalysis.completeness < 70 ? 'High' : 'Moderate'} amount of missing values
+									detected.
+								</span>
+							</div>
+						{/if}
+
+						{#if datasetAnalysis.columns.some((c) => c.type === 'categorical' && c.uniqueValues > 50)}
+							<div class="alert alert-info">
+								<span class="text-sm">
+									Some categorical columns have high cardinality (>50 unique values). Consider
+									feature engineering or encoding strategies.
+								</span>
+							</div>
+						{/if}
+
+						{#if datasetAnalysis.totalRows < 100}
+							<div class="alert alert-warning">
+								<span class="text-sm">
+									Small dataset detected ({datasetAnalysis.totalRows} rows). Consider collecting more
+									data for robust model training.
+								</span>
+							</div>
+						{/if}
+
+						{#if datasetAnalysis.completeness >= 95 && datasetAnalysis.totalRows >= 1000}
+							<div class="alert alert-success">
+								<span class="text-sm">
+									Excellent data quality! High completeness and sufficient sample size for model
+									training.
+								</span>
+							</div>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+</div>

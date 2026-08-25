@@ -1,0 +1,146 @@
+{
+  "validation_name": "Sample Validation",
+  "dataset_info": {
+    "userName": "Dr. Smith",
+    "date": "2024-01-15T10:30:00Z",
+    "datasetName": "Patient Risk Dataset",
+    "description": "A dataset for testing patient risk prediction",
+    "characteristics": "Contains 1000 patient records with demographics and health metrics",
+    "folderUpload": {
+      "folderName": "patient-risk-data",
+      "fileCount": 3,
+      "totalSize": 524288,
+      "hasMetadata": true,
+      "hasData": true,
+      "hasColumnMetadata": true,
+      "fileDetails": {
+        "metadata": {
+          "name": "metadata.json",
+          "size": 2048,
+          "lastModified": 1705315800000
+        },
+        "data": {
+          "name": "data.csv",
+          "size": 512000,
+          "lastModified": 1705315800000
+        },
+        "columnMetadata": {
+          "name": "column_metadata.json",
+          "size": 10240,
+          "lastModified": 1705315800000
+        }
+      }
+    },
+    "datasetAnalysis": {
+      "totalRows": 1000,
+      "totalColumns": 5,
+      "columns": [
+        {
+          "name": "patient_id",
+          "type": "numerical",
+          "count": 1000,
+          "uniqueValues": 1000,
+          "nullValues": 0,
+          "min": 1,
+          "max": 1000
+        },
+        {
+          "name": "age",
+          "type": "numerical",
+          "count": 1000,
+          "uniqueValues": 65,
+          "nullValues": 0,
+          "min": 18,
+          "max": 85,
+          "mean": 52.3,
+          "median": 51,
+          "std": 15.2
+        },
+        {
+          "name": "gender",
+          "type": "categorical",
+          "count": 1000,
+          "uniqueValues": 2,
+          "nullValues": 0,
+          "values": ["M", "F"],
+          "mostCommon": {
+            "value": "F",
+            "count": 520
+          }
+        },
+        {
+          "name": "bmi",
+          "type": "numerical",
+          "count": 1000,
+          "uniqueValues": 234,
+          "nullValues": 5,
+          "min": 17.5,
+          "max": 45.8,
+          "mean": 26.7,
+          "median": 25.9,
+          "std": 5.3
+        },
+        {
+          "name": "risk_category",
+          "type": "categorical",
+          "count": 1000,
+          "uniqueValues": 3,
+          "nullValues": 0,
+          "values": ["low", "medium", "high"],
+          "mostCommon": {
+            "value": "medium",
+            "count": 450
+          }
+        }
+      ],
+      "completeness": 0.999,
+      "fileName": "data.csv",
+      "fileSize": 512000
+    }
+  },
+  "validation_result": {
+    "dataProvided": true,
+    "dataCharacteristics": true,
+    "metrics": true,
+    "published": false,
+    "metrics_description": "Standard classification metrics",
+    "performance_description": "Model shows good performance across all metrics",
+    "validation_results": {
+      "stage": "complete",
+      "csvValidation": {
+        "success": true,
+        "message": "CSV validation successful",
+        "details": {
+          "valid": true,
+          "csv_columns": ["patient_id", "age", "gender", "bmi", "risk_category"],
+          "model_input_columns": ["age", "gender", "bmi"],
+          "column_mapping": {
+            "age": "age",
+            "gender": "gender",
+            "bmi": "bmi"
+          }
+        }
+      },
+      "modelValidation": {
+        "success": true,
+        "message": "Model validation successful",
+        "details": {
+          "valid": true,
+          "compatible": true
+        }
+      }
+    },
+    "comprehensive_metrics": {
+      "model_info": {
+        "name": "Test ML Model",
+        "type": "classification"
+      },
+      "overall": {
+        "accuracy": 0.92,
+        "precision": 0.89,
+        "recall": 0.91,
+        "f1_score": 0.90
+      }
+    }
+  }
+}

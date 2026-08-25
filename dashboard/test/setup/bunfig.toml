@@ -1,0 +1,3 @@
+# Bun test configuration
+[test]
+preload = ["./test/setup/global-setup.ts"]
