@@ -13,7 +13,7 @@ export const GET: RequestHandler = async () => {
 
   try {
     // Use internal URL for server-side requests (Docker internal), fallback to localhost
-    const validatorUrl = env.VALIDATOR_URL_INTERNAL || 'http://localhost:8000';
+    const validatorUrl = env.VALIDATOR_INTERNAL_URL || 'http://localhost:8000';
     const response = await fetch(`${validatorUrl}/version`, {
       signal: AbortSignal.timeout(5000) // 5 second timeout
     });
