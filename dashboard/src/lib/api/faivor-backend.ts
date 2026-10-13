@@ -4,6 +4,11 @@ import { ValidationError, ValidationErrors, ValidationErrorCode } from '$lib/typ
 // SvelteKit public env import (dynamic for runtime configuration)
 import { env } from '$env/dynamic/public';
 
+// Default timeout for backend requests (ms). Prevents the UI from
+// freezing indefinitely when the validator backend is unreachable
+// (e.g. misconfigured / internal-only URL used from the browser).
+const DEFAULT_FETCH_TIMEOUT_MS = 20000;
+
 export interface CSVValidationResponse {
   valid: boolean;
   message?: string;
@@ -49,10 +54,62 @@ export interface HealthCheckResponse {
 }
 
 export class FaivorBackendAPI {
-  // Direct connection to FAIVOR backend with CORS enabled
+  /**
+   * Resolve the base URL for the FAIVOR validator backend.
+   *
+   * IMPORTANT: `FaivorBackendAPI` methods (validateCSV, validateModel, etc.)
+   * are called both from server-side code and directly from client-side
+   * Svelte components/services (e.g. dataset-step-service.ts running in
+   * the browser). The browser can only reach `PUBLIC_VALIDATOR_URL`
+   * (a value it is served, e.g. http://localhost:8000). It CANNOT reach
+   * an internal Docker network hostname such as `http://faivor-backend:8000`.
+   *
+   * If an internal-only URL is used for a browser-side fetch, the request
+   * hangs indefinitely (DNS/connect never resolves), which manifests as
+   * the whole app freezing after selecting a CSV file.
+   *
+   * To support both contexts safely:
+   *  - In the browser, ALWAYS use `PUBLIC_VALIDATOR_URL`.
+   *  - On the server, prefer an internal-only URL if provided
+   *    (`VALIDATOR_INTERNAL_URL`), falling back to `PUBLIC_VALIDATOR_URL`.
+   */
   private static get BASE_URL() {
-    return env.PUBLIC_VALIDATOR_URL || "http://localhost:8000";
+    const isServer = typeof window === 'undefined';
+
+    if (isServer) {
+      return env.VALIDATOR_INTERNAL_URL || env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
+    }
+
+    // Browser context: never use an internal-only URL here.
+    return env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
   }
+
+  /**
+   * Wrapper around fetch() that aborts the request after `timeoutMs`
+   * so callers fail fast (with a clear error) instead of hanging forever
+   * when the backend is unreachable.
+   */
+  private static async fetchWithTimeout(
+    input: string,
+    init: RequestInit = {},
+    timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(input, { ...init, signal: controller.signal });
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        throw ValidationErrors.serviceUnavailable(
+          'FAIVOR ML Validator',
+          `Request to ${input} timed out after ${timeoutMs / 1000}s. The validator backend may be unreachable or misconfigured.`
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
   /**
    * Parse error response from FAIVOR backend
@@ -213,7 +270,7 @@ export class FaivorBackendAPI {
    */
   static async healthCheck(): Promise<HealthCheckResponse> {
     try {
-      const response = await fetch(`${this.BASE_URL}/`);
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/`);
 
       if (!response.ok) {
         throw await this.parseErrorResponse(response);
@@ -240,7 +297,7 @@ export class FaivorBackendAPI {
     formData.append("csv_file", csvFile);
 
     try {
-      const response = await fetch(`${this.BASE_URL}/validate-csv/`, {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/validate-csv/`, {
         method: "POST",
         body: formData,
       });
@@ -274,10 +331,10 @@ export class FaivorBackendAPI {
     }
 
     try {
-      const response = await fetch(`${this.BASE_URL}/validate-model`, {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/validate-model`, {
         method: "POST",
         body: formData,
-      });
+      }, 60000); // model execution can take longer than default requests
 
       if (!response.ok) {
         throw await this.parseErrorResponse(response);
@@ -415,7 +472,7 @@ export class FaivorBackendAPI {
     }
 
     try {
-      const response = await fetch(`${this.BASE_URL}/retrieve-metrics`, {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/retrieve-metrics`, {
         method: "POST",
         body: formData,
       });
