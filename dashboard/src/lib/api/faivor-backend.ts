@@ -5,8 +5,8 @@ import { ValidationError, ValidationErrors, ValidationErrorCode } from '$lib/typ
 import { env } from '$env/dynamic/public';
 
 // Default timeout for backend requests (ms). Prevents the UI from
-// freezing indefinitely when the validator backend is unreachable
-// (e.g. misconfigured / internal-only URL used from the browser).
+// hanging indefinitely when the validator backend is unreachable
+// (e.g. misconfigured or internal-only URL used from the browser).
 const DEFAULT_FETCH_TIMEOUT_MS = 20000;
 
 export interface CSVValidationResponse {
@@ -57,21 +57,25 @@ export class FaivorBackendAPI {
   /**
    * Resolve the base URL for the FAIVOR validator backend.
    *
-   * IMPORTANT: `FaivorBackendAPI` methods (validateCSV, validateModel, etc.)
-   * are called both from server-side code and directly from client-side
-   * Svelte components/services (e.g. dataset-step-service.ts running in
-   * the browser). The browser can only reach `PUBLIC_VALIDATOR_URL`
-   * (a value it is served, e.g. http://localhost:8000). It CANNOT reach
-   * an internal Docker network hostname such as `http://faivor-backend:8000`.
+   * IMPORTANT: `FaivorBackendAPI` methods are called both from
+   * server-side code and directly from client-side Svelte
+   * components/services (e.g. dataset-step-service.ts, invoked from
+   * DatasetStep.svelte, which runs in the browser).
    *
-   * If an internal-only URL is used for a browser-side fetch, the request
-   * hangs indefinitely (DNS/connect never resolves), which manifests as
-   * the whole app freezing after selecting a CSV file.
+   * The browser can only reach `PUBLIC_VALIDATOR_URL` (a value it is
+   * actually served, e.g. http://localhost:8000). It CANNOT reach an
+   * internal-only Docker network hostname such as
+   * `http://faivor-backend:8000`. Using an internal URL for a
+   * browser-side fetch causes the request to hang indefinitely
+   * (DNS/connect never resolves), which can make the whole app appear
+   * frozen.
    *
    * To support both contexts safely:
    *  - In the browser, ALWAYS use `PUBLIC_VALIDATOR_URL`.
-   *  - On the server, prefer an internal-only URL if provided
-   *    (`VALIDATOR_INTERNAL_URL`), falling back to `PUBLIC_VALIDATOR_URL`.
+   *  - On the server (SSR, +server.ts, load functions), prefer
+   *    `VALIDATOR_INTERNAL_URL` if set (e.g. a Docker Compose service
+   *    name reachable only from within the network), falling back to
+   *    `PUBLIC_VALIDATOR_URL`.
    */
   private static get BASE_URL() {
     const isServer = typeof window === 'undefined';
@@ -86,8 +90,8 @@ export class FaivorBackendAPI {
 
   /**
    * Wrapper around fetch() that aborts the request after `timeoutMs`
-   * so callers fail fast (with a clear error) instead of hanging forever
-   * when the backend is unreachable.
+   * so callers fail fast (with a clear error) instead of hanging
+   * forever when the backend is unreachable.
    */
   private static async fetchWithTimeout(
     input: string,
@@ -110,6 +114,7 @@ export class FaivorBackendAPI {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
 
   /**
    * Parse error response from FAIVOR backend
@@ -334,7 +339,7 @@ export class FaivorBackendAPI {
       const response = await this.fetchWithTimeout(`${this.BASE_URL}/validate-model`, {
         method: "POST",
         body: formData,
-      }, 60000); // model execution can take longer than default requests
+      }, 60000); // model execution can take longer than the default timeout
 
       if (!response.ok) {
         throw await this.parseErrorResponse(response);

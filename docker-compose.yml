@@ -79,7 +79,10 @@ services:
       - DB_NAME=${DB_NAME:-faivor}
       - NODE_ENV=development
       - PUBLIC_VALIDATOR_URL=http://localhost:8000
-      - VALIDATOR_URL_INTERNAL=http://validator:8000
+      # NOTE: variable name must match VALIDATOR_INTERNAL_URL as read in
+      # dashboard/src/lib/api/faivor-backend.ts (server-side only; never
+      # used by the browser).
+      - VALIDATOR_INTERNAL_URL=http://validator:8000
       - PUBLIC_ORGANIZATION_NAME=${PUBLIC_ORGANIZATION_NAME:-FAIVOR}
       - PUBLIC_DASHBOARD_ORIGIN=${PUBLIC_DASHBOARD_ORIGIN:-http://localhost:5173}
     depends_on:
