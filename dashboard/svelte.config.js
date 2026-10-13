@@ -34,7 +34,7 @@ const config = {
 		// The reverse proxy should handle origin validation
 		// Security: Ensure your reverse proxy validates the Origin header
 		csrf: {
-			checkOrigin: false
+			trustedOrigins: ['*'] // Allow all origins (use with caution, ensure reverse proxy validation)
 		},
 
 		alias: {

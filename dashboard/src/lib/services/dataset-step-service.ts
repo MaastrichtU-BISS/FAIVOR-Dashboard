@@ -305,13 +305,21 @@ export class DatasetStepService {
     const inputs = model["Input data1"];
 
     const transformedInputs = inputs.map((input: JsonLdInputDataItem) => {
+      const rawRdfsLabel = input["Input feature"]?.["rdfs:label"];
+      const rdfsLabel: string =
+        typeof rawRdfsLabel === 'string'
+          ? rawRdfsLabel
+          : typeof (rawRdfsLabel as any)?.['@value'] === 'string'
+            ? (rawRdfsLabel as any)['@value']
+            : input["Input label"]?.["@value"] || "";
+
       const transformedInput: any = {
         "Input label": { "@value": input["Input label"]?.["@value"] || "" },
         "Description": { "@value": input.Description?.["@value"] || "" },
         "Type of input": { "@value": input["Type of input"]?.["@value"] === "c" ? "categorical" : "numerical" },
         "Input feature": {
           "@id": input["Input feature"]?.["@id"] || "",
-          "rdfs:label": input["Input feature"]?.["rdfs:label"] || input["Input label"]?.["@value"] || ""
+          "rdfs:label": rdfsLabel
         }
       };
       if (input["Type of input"]?.["@value"] === "n") {

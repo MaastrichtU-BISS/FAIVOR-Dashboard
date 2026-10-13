@@ -22,8 +22,12 @@
 	import MaterialSymbolsSettingsSuggestRounded from '~icons/material-symbols/settings-suggest-rounded';
 	import MaterialSymbolsAutoGraphRounded from '~icons/material-symbols/auto-graph-rounded';
 	import MaterialSymbolsVisibilityOutline from '~icons/material-symbols/visibility-outline';
+	import MaterialSymbolsDownload from '~icons/material-symbols/download';
 	import { onMount, onDestroy } from 'svelte';
 	import Dropdown from '$lib/components/ui/Dropdown.svelte';
+	import JsonLdExportDialog from '$lib/components/validation/JsonLdExportDialog.svelte';
+	import { JsonLdExportService } from '$lib/services/jsonld-export-service';
+	import type { JsonLdExportOptions } from '$lib/types/jsonld-export';
 
 	interface Props {
 		data: PageData; // PageData likely contains the initial model data
@@ -61,6 +65,8 @@
 	let showValidationModal = $state(false);
 	let selectedValidation: UiValidationJob | null = $state(null);
 	let currentValidationJob: UiValidationJob | null = $state(null);
+	let exportValidationJob: UiValidationJob | null = $state(null);
+	let showJsonLdDialog = $state(false);
 	let refreshInterval: number | null = null;
 
 	// Auto-refresh validations while any are running
@@ -182,6 +188,43 @@
 	function openResults(validation: UiValidationJob) {
 		currentValidationJob = validation;
 		showResultsModal = true;
+	}
+
+	function openJsonLdExport(validation: UiValidationJob) {
+		exportValidationJob = validation;
+		showJsonLdDialog = true;
+	}
+
+	function closeJsonLdExportDialog() {
+		showJsonLdDialog = false;
+		exportValidationJob = null;
+	}
+
+	function exportValidationJsonLd(options: JsonLdExportOptions) {
+		if (!exportValidationJob) return;
+
+		try {
+			const result = JsonLdExportService.buildValidationExport(
+				{
+					validationJob: exportValidationJob,
+					model: modelData
+				},
+				options
+			);
+
+			JsonLdExportService.downloadJsonLd(result.document, result.fileName);
+			toast.success('Validation JSON-LD exported');
+
+			if (result.warnings.length > 0) {
+				toast(`JSON-LD exported with ${result.warnings.length} warning(s).`);
+				console.warn('JSON-LD export warnings:', result.warnings);
+			}
+		} catch (error) {
+			console.error('JSON-LD export failed:', error);
+			toast.error('Failed to export JSON-LD. Please try again.');
+		} finally {
+			closeJsonLdExportDialog();
+		}
 	}
 
 	async function refreshModelData() {
@@ -360,13 +403,16 @@
 					<th>Data provided</th>
 					<th>Data characteristics</th>
 					<th>Validation status</th>
+					<th>View</th>
+					<th>Export</th>
+					<th>Results</th>
 					<th></th>
 				</tr>
 			</thead>
 			<tbody>
 				{#if validationJobs.length === 0}
 					<tr>
-						<td colspan="6" class="text-base-content/70 text-center">
+						<td colspan="9" class="text-base-content/70 text-center">
 							No validations yet. Click the button below to start a new validation.
 						</td>
 					</tr>
@@ -432,6 +478,11 @@
 								</button>
 							</td>
 							<td>
+								<button class="btn" onclick={() => openJsonLdExport(job)}>
+									<MaterialSymbolsDownload /> Export
+								</button>
+							</td>
+							<td>
 								<button
 									class="btn"
 									onclick={() => openResults(job)}
@@ -491,4 +542,13 @@
 			on:close={() => (showResultsModal = false)}
 		/>
 	{/if}
+
+	<JsonLdExportDialog
+		isOpen={showJsonLdDialog}
+		availableSections={['combined', 'validationResults', 'dataCharacteristics']}
+		defaultSection="combined"
+		title="Export Validation JSON-LD"
+		on:confirm={(event) => exportValidationJsonLd(event.detail)}
+		on:cancel={closeJsonLdExportDialog}
+	/>
 </div>
