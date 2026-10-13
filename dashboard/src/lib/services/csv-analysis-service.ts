@@ -43,7 +43,7 @@ export class CSVAnalysisService {
   static async analyzeCSV(csvFile: File): Promise<DatasetAnalysis> {
     try {
       const text = await csvFile.text();
-      const lines = text.split('\n').filter(line => line.trim());
+      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(line => line.trim());
 
       if (lines.length === 0) {
         throw new Error('CSV file is empty');
