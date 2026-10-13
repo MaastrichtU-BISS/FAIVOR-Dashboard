@@ -1,6 +1,6 @@
 {
   "name": "faivor",
-  "version": "1.15.10",
+  "version": "1.15.11",
   "private": true,
   "scripts": {
     "dev": "vite dev",
