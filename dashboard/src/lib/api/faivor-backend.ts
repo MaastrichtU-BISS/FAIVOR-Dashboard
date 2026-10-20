@@ -53,6 +53,30 @@ export interface HealthCheckResponse {
   message: string;
 }
 
+export interface CalibrationCurveData {
+  mean_predicted_value: number[];
+  fraction_of_positives: number[];
+  bin_counts?: number[];
+}
+
+export interface CalibrationModelResult {
+  model_id: string;
+  log_likelihood: number;
+  auc: number;
+  calibration_curve: CalibrationCurveData;
+}
+
+export interface CalibrationResponse {
+  predictions: Record<string, number[]>;
+  log_likelihoods: Record<string, number>;
+  model_selection: {
+    selected_model: string;
+    reason?: string;
+  };
+  roc_metrics: Record<string, { fpr: number[]; tpr: number[]; thresholds: number[]; auc: number }>;
+  models?: CalibrationModelResult[];
+}
+
 export class FaivorBackendAPI {
   /**
    * Resolve the base URL for the FAIVOR validator backend.
@@ -532,15 +556,22 @@ export class FaivorBackendAPI {
       formData.append("column_metadata", JSON.stringify(columnMetadata));
     }
 
-    const response = await fetch(`${this.BASE_URL}/calibrate-model`, {
-      method: "POST",
-      body: formData,
-    });
+    try {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/calibrate-model`, {
+        method: "POST",
+        body: formData,
+      }, 60000); // calibration can be compute-heavy
 
-    if (!response.ok) {
-      throw await this.parseErrorResponse(response);
+      if (!response.ok) {
+        throw await this.parseErrorResponse(response);
+      }
+      return await response.json();
+    } catch (error: any) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw ValidationErrors.serviceUnavailable('FAIVOR ML Validator', error?.message || 'Model calibration failed');
     }
-    return await response.json();
   }
 
   /**
