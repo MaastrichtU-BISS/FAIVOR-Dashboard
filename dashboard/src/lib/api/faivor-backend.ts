@@ -517,6 +517,33 @@ export class FaivorBackendAPI {
   }
 
   /**
+   * Performs model calibration according the closed testing approach
+   * This only uses data that comes from the backend, no mock data generation
+   */
+  static async calibrateModel(
+    modelMetadata: any,
+    csvFile: File,
+    columnMetadata: Record<string, any> | null = null
+  ): Promise<CalibrationResponse> {
+    const formData = new FormData();
+    formData.append("model_metadata", JSON.stringify(modelMetadata));
+    formData.append("csv_file", csvFile);
+    if (columnMetadata !== null) {
+      formData.append("column_metadata", JSON.stringify(columnMetadata));
+    }
+
+    const response = await fetch(`${this.BASE_URL}/calibrate-model`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw await this.parseErrorResponse(response);
+    }
+    return await response.json();
+  }
+
+  /**
    * Convert basic metrics response to comprehensive format
    * This only uses data that comes from the backend, no mock data generation
    */
