@@ -44,6 +44,14 @@ export interface ComprehensiveMetricsResponse {
       thresholds: number[];
       average_precision: number;
     };
+    calibration_curve?: {
+      prob_true: number[];
+      prob_pred: number[];
+      bin_counts?: number[];
+      n_bins: number;
+      brier_score?: number;
+      strategy?: 'uniform' | 'quantile';
+    };
     threshold_metrics: Record<string, any>;
   };
   subgroups?: Record<string, any>;

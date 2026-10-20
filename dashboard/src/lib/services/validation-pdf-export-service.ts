@@ -15,6 +15,7 @@ export interface ChartImages {
   radarChart?: string;
   rocChart?: string;
   prChart?: string;
+  calibrationChart?: string;
   subgroupCharts?: Record<string, string>;
 }
 
@@ -556,6 +557,22 @@ export class ValidationPDFExportService {
           this.CHART_HEIGHT
         );
       }
+    }
+
+    // Add calibration curve
+    if (chartImages.calibrationChart) {
+      if (yPosition > this.PAGE_HEIGHT - this.CHART_HEIGHT - 30) {
+        doc.addPage();
+        yPosition = this.MARGIN;
+      }
+      yPosition = this.addChartImage(
+        doc,
+        chartImages.calibrationChart,
+        'Calibration Curve',
+        yPosition,
+        this.CONTENT_WIDTH,
+        this.CHART_HEIGHT
+      );
     }
 
     // Add subgroup charts

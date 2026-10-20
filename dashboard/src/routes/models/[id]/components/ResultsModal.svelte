@@ -5,6 +5,7 @@
 	import type { FullJsonLdModel } from '$lib/stores/models/types';
 	import ROCCurveChart from '$lib/components/charts/ROCCurveChart.svelte';
 	import PRCurveChart from '$lib/components/charts/PRCurveChart.svelte';
+	import CalibrationCurveChart from '$lib/components/charts/CalibrationCurveChart.svelte';
 	import MetricsRadarChart from '$lib/components/charts/MetricsRadarChart.svelte';
 	import SubgroupComparisonChart from '$lib/components/charts/SubgroupComparisonChart.svelte';
 	import MaterialSymbolsDownload from '~icons/material-symbols/download';
@@ -56,6 +57,7 @@
 	let radarChartRef: MetricsRadarChart;
 	let rocChartRef: ROCCurveChart;
 	let prChartRef: PRCurveChart;
+	let calibrationChartRef: CalibrationCurveChart;
 	let subgroupChartRefs: Record<string, SubgroupComparisonChart> = {};
 
 	// Get model name for PDF
@@ -95,6 +97,14 @@
 					const prImage = prChartRef.getImageData();
 					if (prImage) {
 						chartImages.prChart = prImage;
+					}
+				}
+
+				// Capture calibration curve
+				if (calibrationChartRef) {
+					const calibrationImage = calibrationChartRef.getImageData();
+					if (calibrationImage) {
+						chartImages.calibrationChart = calibrationImage;
 					}
 				}
 
@@ -631,6 +641,19 @@
 												recall={parsedMetrics.threshold_metrics.pr_curve.recall}
 												averagePrecision={parsedMetrics.threshold_metrics.pr_curve
 													.average_precision}
+												height={350}
+											/>
+										</div>
+									{/if}
+
+									<!-- Calibration Curve -->
+									{#if parsedMetrics.threshold_metrics.calibration_curve}
+										<div class="border-base-300 rounded-xl border p-6">
+											<CalibrationCurveChart
+												bind:this={calibrationChartRef}
+												probTrue={parsedMetrics.threshold_metrics.calibration_curve.prob_true}
+												probPred={parsedMetrics.threshold_metrics.calibration_curve.prob_pred}
+												brierScore={parsedMetrics.threshold_metrics.calibration_curve.brier_score}
 												height={350}
 											/>
 										</div>
