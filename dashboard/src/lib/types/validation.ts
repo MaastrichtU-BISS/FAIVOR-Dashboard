@@ -85,6 +85,9 @@ export interface ValidationData {
     };
   };
 
+  // Calibration / model-update analysis (supplementary)
+  calibration?: import('$lib/api/faivor-backend').CalibrationResponse;
+
   // Validation results and metrics
   validation_result?: {
     dataProvided?: boolean;

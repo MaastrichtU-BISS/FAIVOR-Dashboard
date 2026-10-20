@@ -12,6 +12,7 @@
 	import JsonLdExportDialog from '$lib/components/validation/JsonLdExportDialog.svelte';
 	import { JsonLdExportService } from '$lib/services/jsonld-export-service';
 	import type { JsonLdExportOptions } from '$lib/types/jsonld-export';
+	import CalibrationResults from './CalibrationResults.svelte';
 	import toast from 'svelte-french-toast';
 
 	const dispatch = createEventDispatcher<{
@@ -28,6 +29,11 @@
 
 	// Modal ref
 	let dialogElement: HTMLDialogElement;
+
+	// Calibration data stored with the validation (supplementary analysis)
+	const calibrationData = $derived(
+		(validationJob?.originalEvaluationData as any)?.data?.calibration ?? null
+	);
 
 	// Metrics state
 	let metricsData = $state<ComprehensiveMetricsResponse | null>(null);
@@ -942,6 +948,10 @@
 						</span>
 					</div>
 				</div>
+			{/if}
+
+			{#if calibrationData}
+				<CalibrationResults calibration={calibrationData} />
 			{/if}
 		</div>
 

@@ -208,6 +208,19 @@
 			const comprehensiveMetrics = await FaivorBackendAPI.convertToComprehensiveFormat(validationResult, metadata);
 			console.log('📊 Comprehensive metrics to store:', comprehensiveMetrics);
 
+			// Calibration is supplementary: failures must not fail the validation
+			let calibration: Awaited<ReturnType<typeof FaivorBackendAPI.calibrateModel>> | undefined;
+			try {
+				console.log('📈 Running calibration analysis in background');
+				calibration = await FaivorBackendAPI.calibrateModel(
+					metadata,
+					uploadedFolder.data,
+					columnMetadata
+				);
+			} catch (calibrationError) {
+				console.error('⚠️ Calibration analysis failed (validation continues):', calibrationError);
+			}
+
 			// Update validation with results (including docker image SHA256 if available)
 			const completeResponse = await fetch(`/api/validations/${validationId}/complete`, {
 				method: 'PATCH',
@@ -215,7 +228,8 @@
 				body: JSON.stringify({
 					status: 'completed',
 					metrics: comprehensiveMetrics,
-					docker_image_sha256: validationResult.docker_image_sha256
+					docker_image_sha256: validationResult.docker_image_sha256,
+					calibration
 				})
 			});
 

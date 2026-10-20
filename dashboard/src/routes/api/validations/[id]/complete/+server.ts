@@ -10,7 +10,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     }
 
     const { id } = params;
-    const { status, metrics, docker_image_sha256 } = await request.json();
+    const { status, metrics, docker_image_sha256, calibration } = await request.json();
 
     console.log(`Completing validation ${id} with metrics:`, metrics);
     console.log(`Docker image SHA256 received:`, docker_image_sha256 ?? 'NOT PROVIDED');
@@ -53,7 +53,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
           ),
           '{model_metadata,docker_image_sha256}',
           ${sql.json(docker_image_sha256 || null)}
-        )
+        ) || ${sql.json(calibration ? { calibration } : {})}::jsonb
       WHERE val_id = ${id}
       AND user_id = ${session.user.id}
       RETURNING *

@@ -26,6 +26,9 @@ export enum ValidationErrorCode {
   SERVICE_TIMEOUT = 'SERVICE_TIMEOUT',
   CONNECTION_FAILED = 'CONNECTION_FAILED',
   
+  // Calibration errors
+  CALIBRATION_FAILED = 'CALIBRATION_FAILED',
+
   // General validation errors
   VALIDATION_FAILED = 'VALIDATION_FAILED',
   UNKNOWN_ERROR = 'UNKNOWN_ERROR'

@@ -44,6 +44,40 @@ export interface ComprehensiveMetricsResponse {
   subgroups?: Record<string, any>;
 }
 
+export type CalibrationModelKey = 'm0' | 'm1' | 'm2' | 'm3';
+
+export interface CalibrationRocMetrics {
+  fpr: number[];
+  tpr: number[];
+  thresholds: number[];
+  auc: number;
+}
+
+export interface CalibrationResponse {
+  predictions: Record<`${CalibrationModelKey}_pred`, number[]>;
+  log_likelihoods: { ll0: number; ll1: number; ll2: number; ll3: number };
+  model_selection: {
+    selected_model: CalibrationModelKey;
+    statistics: {
+      ll0: number;
+      ll1: number;
+      ll2: number;
+      ll3: number;
+      dev_original: number;
+      dev_intercept: number;
+      dev_recalibration: number;
+      test1_p_value: number;
+      test2_p_value: number;
+      test3_p_value: number;
+      test1_result: boolean;
+      test2_result: boolean;
+      test3_result: boolean;
+      selected_model: CalibrationModelKey;
+    };
+  };
+  roc_metrics: Record<CalibrationModelKey, CalibrationRocMetrics>;
+}
+
 export interface HealthCheckResponse {
   message: string;
 }
@@ -106,6 +140,12 @@ export class FaivorBackendAPI {
           break;
         case 'MISSING_REQUIRED_COLUMNS':
           validationErrorCode = ValidationErrorCode.MISSING_REQUIRED_COLUMNS;
+          break;
+        case 'CALIBRATION_ERROR':
+          validationErrorCode = ValidationErrorCode.CALIBRATION_FAILED;
+          break;
+        case 'INVALID_COLUMN_METADATA_JSON':
+          validationErrorCode = ValidationErrorCode.MODEL_METADATA_INVALID;
           break;
         default:
           validationErrorCode = ValidationErrorCode.VALIDATION_FAILED;
@@ -203,6 +243,8 @@ export class FaivorBackendAPI {
         return 'The CSV file format is invalid. Check for proper formatting, headers, and encoding.';
       case ValidationErrorCode.MISSING_REQUIRED_COLUMNS:
         return 'Your CSV is missing required columns. Ensure all expected columns are present with exact names.';
+      case ValidationErrorCode.CALIBRATION_FAILED:
+        return 'The calibration analysis failed. Check that the data contains the outcome column and enough samples of both classes. The validation itself is not affected.';
       default:
         return 'An unexpected error occurred. Please try again or contact support.';
     }
@@ -294,6 +336,40 @@ export class FaivorBackendAPI {
         throw ValidationErrors.modelExecutionFailed(modelMetadata.name || 'Unknown Model', errorMessage);
       }
       throw ValidationErrors.serviceUnavailable('FAIVOR ML Validator', errorMessage || 'Model validation failed');
+    }
+  }
+
+  /**
+   * Run calibration / model-update analysis (methods m0-m3)
+   */
+  static async calibrateModel(
+    modelMetadata: any,
+    csvFile: File,
+    columnMetadata: Record<string, any> | null = null
+  ): Promise<CalibrationResponse> {
+    const formData = new FormData();
+    formData.append("model_metadata", JSON.stringify(modelMetadata));
+    formData.append("csv_file", csvFile);
+    if (columnMetadata !== null) {
+      formData.append("column_metadata", JSON.stringify(columnMetadata));
+    }
+
+    try {
+      const response = await fetch(`${this.BASE_URL}/calibrate-model`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw await this.parseErrorResponse(response);
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw ValidationErrors.serviceUnavailable('FAIVOR ML Validator', error?.message || 'Calibration analysis failed');
     }
   }
 
