@@ -6,6 +6,7 @@ import {
   createDefaultValidationData,
   legacyToValidationData,
 } from '../../../src/lib/utils/validation-transform';
+import { validationFormStore } from '../../../src/lib/stores/models/validation.store';
 import { createValidationFormData, createValidationData, resetCounters } from '../../helpers/test-factories';
 import type { ValidationData } from '../../../src/lib/types/validation';
 
@@ -84,6 +85,18 @@ describe('validation-transform', () => {
       expect(result.validation_result?.dataProvided).toBe(false);
       expect(result.validation_result?.dataCharacteristics).toBe(false);
       expect(result.validation_result?.metrics).toBe(false);
+    });
+  });
+
+  describe('calibration persistence', () => {
+    test('includes calibration only when the user ran it', () => {
+      validationFormStore.reset();
+      expect(formDataToValidationData(createValidationFormData()).validation_result?.calibration).toBeUndefined();
+
+      const calibration = { calibration_curve: [] } as any;
+      validationFormStore.setCalibrationResults(calibration);
+      expect(formDataToValidationData(createValidationFormData()).validation_result?.calibration).toEqual(calibration);
+      validationFormStore.reset();
     });
   });
 

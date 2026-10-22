@@ -4,6 +4,12 @@ import { ValidationError, ValidationErrors, ValidationErrorCode } from '$lib/typ
 // SvelteKit public env import (dynamic for runtime configuration)
 import { env } from '$env/dynamic/public';
 
+
+// Default timeout for backend requests (ms). Prevents the UI from
+// hanging indefinitely when the validator backend is unreachable
+// (e.g. misconfigured or internal-only URL used from the browser).
+const DEFAULT_FETCH_TIMEOUT_MS = 20000;
+
 export interface CSVValidationResponse {
   valid: boolean;
   message?: string;
@@ -48,10 +54,133 @@ export interface HealthCheckResponse {
   message: string;
 }
 
+export interface CalibrationCurveData {
+  mean_predicted_value: number[];
+  fraction_of_positives: number[];
+  bin_counts?: number[];
+}
+
+export interface CalibrationModelResult {
+  model_id: string;
+  log_likelihood: number;
+  auc: number;
+  calibration_curve: CalibrationCurveData;
+}
+
+export type CalibrationModelId = 'm0' | 'm1' | 'm2' | 'm3';
+
+export interface CalibrationModelCurve {
+  observed_probability: number[];
+  predicted_probability: number[];
+}
+
+export interface CalibrationCoefficients {
+  m1?: { intercept: number | null };
+  m2?: { intercept: number | null; slope: number | null };
+  m3?: { intercept: number | null; covariates: Record<string, number | null> };
+}
+
+export interface CalibrationModelSelectionStatistics {
+  selected_model?: string;
+  test1_pvalue?: number | null;
+  test2_pvalue?: number | null;
+  test3_pvalue?: number | null;
+  test1_result?: string;
+  test2_result?: string;
+  test3_result?: string;
+  ll0?: number | null;
+  ll1?: number | null;
+  ll2?: number | null;
+  ll3?: number | null;
+  deviance0?: number | null;
+  deviance1?: number | null;
+  deviance2?: number | null;
+  deviance3?: number | null;
+  [key: string]: unknown;
+}
+
+export interface CalibrationResponse {
+  predictions: Record<string, number[]>;
+  log_likelihoods: Record<string, number>;
+  model_selection: {
+    selected_model: string;
+    reason?: string;
+    statistics?: CalibrationModelSelectionStatistics;
+  };
+  roc_metrics: Record<string, { fpr: number[]; tpr: number[]; thresholds: number[]; auc: number }>;
+  calibration_curve?: Record<CalibrationModelId, CalibrationModelCurve>;
+  coefficients?: CalibrationCoefficients;
+  /** Legacy per-model summaries (kept for backward compatibility) */
+  models?: CalibrationModelResult[];
+}
+
 export class FaivorBackendAPI {
-  // Direct connection to FAIVOR backend with CORS enabled
+  /**
+   * Resolve the base URL for the FAIVOR validator backend.
+   *
+   * IMPORTANT: `FaivorBackendAPI` methods are called both from
+   * server-side code and directly from client-side Svelte
+   * components/services (e.g. dataset-step-service.ts, invoked from
+   * DatasetStep.svelte, which runs in the browser).
+   *
+   * The browser can only reach `PUBLIC_VALIDATOR_URL` (a value it is
+   * actually served, e.g. http://localhost:8000). It CANNOT reach an
+   * internal-only Docker network hostname such as
+   * `http://faivor-backend:8000`. Using an internal URL for a
+   * browser-side fetch causes the request to hang indefinitely
+   * (DNS/connect never resolves), which can make the whole app appear
+   * frozen.
+   *
+   * To support both contexts safely:
+   *  - In the browser, ALWAYS use `PUBLIC_VALIDATOR_URL`.
+   *  - On the server (SSR, +server.ts, load functions), prefer
+   *    `VALIDATOR_INTERNAL_URL` if set (e.g. a Docker Compose service
+   *    name reachable only from within the network), falling back to
+   *    `PUBLIC_VALIDATOR_URL`.
+   */
   private static get BASE_URL() {
-    return env.PUBLIC_VALIDATOR_URL || "http://localhost:8000";
+    const isServer = typeof window === 'undefined';
+
+    if (isServer) {
+      // Use plain process.env here (not $env/dynamic/private) because this
+      // module is also imported by client-side Svelte components
+      // (e.g. ValidationModal.svelte), and SvelteKit statically forbids
+      // importing $env/dynamic/private into any module reachable from the
+      // browser bundle, even behind an isServer runtime guard.
+      const internalUrl = typeof process !== 'undefined' ? process.env.VALIDATOR_INTERNAL_URL : undefined;
+      return internalUrl || env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
+    }
+
+    // Browser context: never use an internal-only URL here.
+    return env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
+  }
+
+  /**
+   * Wrapper around fetch() that aborts the request after `timeoutMs`
+   * so callers fail fast (with a clear error) instead of hanging
+   * forever when the backend is unreachable.
+   */
+  private static async fetchWithTimeout(
+    input: string,
+    init: RequestInit = {},
+    timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(input, { ...init, signal: controller.signal });
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        throw ValidationErrors.serviceUnavailable(
+          'FAIVOR ML Validator',
+          `Request to ${input} timed out after ${timeoutMs / 1000}s. The validator backend may be unreachable or misconfigured.`
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   /**
@@ -213,7 +342,7 @@ export class FaivorBackendAPI {
    */
   static async healthCheck(): Promise<HealthCheckResponse> {
     try {
-      const response = await fetch(`${this.BASE_URL}/`);
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/`);
 
       if (!response.ok) {
         throw await this.parseErrorResponse(response);
@@ -240,7 +369,7 @@ export class FaivorBackendAPI {
     formData.append("csv_file", csvFile);
 
     try {
-      const response = await fetch(`${this.BASE_URL}/validate-csv/`, {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/validate-csv/`, {
         method: "POST",
         body: formData,
       });
@@ -274,10 +403,10 @@ export class FaivorBackendAPI {
     }
 
     try {
-      const response = await fetch(`${this.BASE_URL}/validate-model`, {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/validate-model`, {
         method: "POST",
         body: formData,
-      });
+      }, 60000); // model execution can take longer than the default timeout
 
       if (!response.ok) {
         throw await this.parseErrorResponse(response);
@@ -415,7 +544,7 @@ export class FaivorBackendAPI {
     }
 
     try {
-      const response = await fetch(`${this.BASE_URL}/retrieve-metrics`, {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/retrieve-metrics`, {
         method: "POST",
         body: formData,
       });
@@ -452,6 +581,40 @@ export class FaivorBackendAPI {
       threshold_metrics: undefined,
       subgroups: undefined
     };
+  }
+
+  /**
+   * Performs model calibration according the closed testing approach
+   * This only uses data that comes from the backend, no mock data generation
+   */
+  static async calibrateModel(
+    modelMetadata: any,
+    csvFile: File,
+    columnMetadata: Record<string, any> | null = null
+  ): Promise<CalibrationResponse> {
+    const formData = new FormData();
+    formData.append("model_metadata", JSON.stringify(modelMetadata));
+    formData.append("csv_file", csvFile);
+    if (columnMetadata !== null) {
+      formData.append("column_metadata", JSON.stringify(columnMetadata));
+    }
+
+    try {
+      const response = await this.fetchWithTimeout(`${this.BASE_URL}/calibrate-model`, {
+        method: "POST",
+        body: formData,
+      }, 60000); // calibration can be compute-heavy
+
+      if (!response.ok) {
+        throw await this.parseErrorResponse(response);
+      }
+      return await response.json();
+    } catch (error: any) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw ValidationErrors.serviceUnavailable('FAIVOR ML Validator', error?.message || 'Model calibration failed');
+    }
   }
 
   /**

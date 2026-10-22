@@ -1,3 +1,4 @@
+import type { CalibrationResponse } from '$lib/api/faivor-backend';
 import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
 import type { FullJsonLdModel, JsonLdEvaluationResultItem, UiValidationJob } from '$lib/stores/models/types';
 import type {
@@ -176,7 +177,12 @@ export class JsonLdExportService {
       options.section === 'dataCharacteristics' || options.section === 'combined';
 
     if (includeValidation) {
-      const validationResult = this.buildValidationResultSection(input.validationJob, evalData, input.metricsData);
+      const validationResult = this.buildValidationResultSection(
+        input.validationJob,
+        evalData,
+        input.metricsData,
+        input.calibrationData
+      );
       doc.validationResult = validationResult.section;
       warnings.push(...validationResult.warnings);
     }
@@ -272,7 +278,8 @@ export class JsonLdExportService {
   private static buildValidationResultSection(
     job: UiValidationJob,
     evalData: JsonLdEvaluationResultItem & { data?: Record<string, any>; validation_error?: Record<string, any> },
-    metricsData?: Record<string, unknown> | null
+    metricsData?: Record<string, unknown> | null,
+    calibrationData?: CalibrationResponse | null
   ): { section: Record<string, unknown>; warnings: JsonLdValidationWarning[] } {
     const warnings: JsonLdValidationWarning[] = [];
 
@@ -282,6 +289,9 @@ export class JsonLdExportService {
       storedValidationResult?.comprehensive_metrics ||
       storedValidationResult?.validation_results?.modelValidation?.details ||
       null;
+
+    const storedCalibration = (storedValidationResult?.calibration as CalibrationResponse | undefined) || null;
+    const calibration = this.buildCalibrationSection(calibrationData || storedCalibration);
 
     const fallbackMetrics = (evalData['Performance metric'] || []).map((metric) => ({
       label: metric['Metric Label']?.['rdfs:label'] || metric['Metric Label']?.['@id'] || 'unknown_metric',
@@ -317,6 +327,7 @@ export class JsonLdExportService {
         status: job.validation_status,
         hasMetrics: Boolean(comprehensiveMetrics || fallbackMetrics.length > 0),
         metrics: comprehensiveMetrics,
+        ...(calibration ? { calibration } : {}),
         fallbackMetrics,
         failure: failure
           ? {
@@ -328,6 +339,32 @@ export class JsonLdExportService {
           : null
       },
       warnings
+    };
+  }
+
+  private static buildCalibrationSection(
+    calibrationData?: CalibrationResponse | null
+  ): Record<string, unknown> | null {
+    if (!calibrationData) return null;
+
+    const modelIds = Array.from(
+      new Set([
+        ...Object.keys(calibrationData.log_likelihoods ?? {}),
+        ...Object.keys(calibrationData.roc_metrics ?? {})
+      ])
+    ).sort();
+
+    if (modelIds.length === 0) return null;
+
+    return {
+      selectedModel: calibrationData.model_selection?.selected_model ?? null,
+      selectionReason: calibrationData.model_selection?.reason ?? null,
+      coefficients: calibrationData.coefficients ?? null,
+      models: modelIds.map((modelId) => ({
+        modelId,
+        logLikelihood: calibrationData.log_likelihoods?.[modelId] ?? null,
+        auc: calibrationData.roc_metrics?.[modelId]?.auc ?? null
+      }))
     };
   }
 
