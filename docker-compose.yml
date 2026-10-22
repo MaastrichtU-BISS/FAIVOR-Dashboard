@@ -5,7 +5,7 @@ name: faivor
 services:
   # Pre-built backend image (default)
   faivor-backend:
-    image: ghcr.io/maastrichtu-biss/faivor-ml-validator@sha256:e194b52ecdd3fe1082da74e66e0f3cf80f2ac4162527989584c82f5f4a7a2eb3
+    image: ghcr.io/maastrichtu-biss/faivor-ml-validator@sha256:3456984f6a6504a43955e2b88bb5a29777100af8debde919b69fb88faa539644
     restart: always
     ports:
       - "8000:8000"
