@@ -4,6 +4,7 @@ import { ValidationError, ValidationErrors, ValidationErrorCode } from '$lib/typ
 // SvelteKit public env import (dynamic for runtime configuration)
 import { env } from '$env/dynamic/public';
 
+
 // Default timeout for backend requests (ms). Prevents the UI from
 // hanging indefinitely when the validator backend is unreachable
 // (e.g. misconfigured or internal-only URL used from the browser).
@@ -105,7 +106,13 @@ export class FaivorBackendAPI {
     const isServer = typeof window === 'undefined';
 
     if (isServer) {
-      return env.VALIDATOR_INTERNAL_URL || env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
+      // Use plain process.env here (not $env/dynamic/private) because this
+      // module is also imported by client-side Svelte components
+      // (e.g. ValidationModal.svelte), and SvelteKit statically forbids
+      // importing $env/dynamic/private into any module reachable from the
+      // browser bundle, even behind an isServer runtime guard.
+      const internalUrl = typeof process !== 'undefined' ? process.env.VALIDATOR_INTERNAL_URL : undefined;
+      return internalUrl || env.PUBLIC_VALIDATOR_URL || 'http://localhost:8000';
     }
 
     // Browser context: never use an internal-only URL here.
