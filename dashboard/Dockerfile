@@ -3,7 +3,9 @@ FROM oven/bun:1
 
 # FROM node:24-bookworm
 
-RUN apt update && apt upgrade -y
+RUN apt update && apt upgrade -y && \
+    apt install -y python3 make g++ && \
+    ln -sf /usr/bin/python3 /usr/bin/python
 
 
 WORKDIR /app
