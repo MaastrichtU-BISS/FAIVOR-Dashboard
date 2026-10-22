@@ -67,14 +67,50 @@ export interface CalibrationModelResult {
   calibration_curve: CalibrationCurveData;
 }
 
+export type CalibrationModelId = 'm0' | 'm1' | 'm2' | 'm3';
+
+export interface CalibrationModelCurve {
+  observed_probability: number[];
+  predicted_probability: number[];
+}
+
+export interface CalibrationCoefficients {
+  m1?: { intercept: number | null };
+  m2?: { intercept: number | null; slope: number | null };
+  m3?: { intercept: number | null; covariates: Record<string, number | null> };
+}
+
+export interface CalibrationModelSelectionStatistics {
+  selected_model?: string;
+  test1_pvalue?: number | null;
+  test2_pvalue?: number | null;
+  test3_pvalue?: number | null;
+  test1_result?: string;
+  test2_result?: string;
+  test3_result?: string;
+  ll0?: number | null;
+  ll1?: number | null;
+  ll2?: number | null;
+  ll3?: number | null;
+  deviance0?: number | null;
+  deviance1?: number | null;
+  deviance2?: number | null;
+  deviance3?: number | null;
+  [key: string]: unknown;
+}
+
 export interface CalibrationResponse {
   predictions: Record<string, number[]>;
   log_likelihoods: Record<string, number>;
   model_selection: {
     selected_model: string;
     reason?: string;
+    statistics?: CalibrationModelSelectionStatistics;
   };
   roc_metrics: Record<string, { fpr: number[]; tpr: number[]; thresholds: number[]; auc: number }>;
+  calibration_curve?: Record<CalibrationModelId, CalibrationModelCurve>;
+  coefficients?: CalibrationCoefficients;
+  /** Legacy per-model summaries (kept for backward compatibility) */
   models?: CalibrationModelResult[];
 }
 
