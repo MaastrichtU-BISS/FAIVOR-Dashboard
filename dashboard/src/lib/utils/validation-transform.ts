@@ -9,6 +9,7 @@ import type {
   DatasetFolderFiles,
   ModelMetadataSnapshot
 } from '$lib/types/validation';
+import type { CalibrationResponse } from '$lib/api/faivor-backend';
 import type { UiValidationJob, JsonLdPerformanceMetricItem, FullJsonLdModel } from '$lib/stores/models/types'; // Import new types
 import { getFileSizesFromStore, validationFormStore, type ValidationResults } from '$lib/stores/models/validation.store';
 
@@ -22,9 +23,11 @@ export function formDataToValidationData(formData: ValidationFormData, comprehen
   const fileSizes = getFileSizesFromStore();
   let validationResults: ValidationResults | undefined;
   let datasetAnalysis: any = undefined;
+  let calibrationResults: CalibrationResponse | undefined = undefined;
   const unsubscribe = validationFormStore.subscribe(state => {
     validationResults = state.validationResults;
     datasetAnalysis = state.datasetAnalysis;
+    calibrationResults = state.calibrationResults;
   });
   unsubscribe();
 
@@ -95,7 +98,8 @@ export function formDataToValidationData(formData: ValidationFormData, comprehen
       dataCharacteristics: Boolean(formData.datasetDescription || formData.datasetCharacteristics),
       metrics: Boolean(formData.metricsDescription || comprehensiveMetrics),
       validation_results: validationResults && validationResults.stage !== 'none' ? validationResults : undefined,
-      comprehensive_metrics: comprehensiveMetrics || undefined
+      comprehensive_metrics: comprehensiveMetrics || undefined,
+      calibration: calibrationResults || undefined
     },
     // Capture model metadata snapshot if model is provided
     model_metadata: model ? extractModelMetadataSnapshot(model) : undefined
