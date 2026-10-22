@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { get } from 'svelte/store';
 	import { createEventDispatcher } from 'svelte';
 	import {
 		validationStore,
@@ -69,7 +70,7 @@
 				// For UiValidationJob, pass it directly to validationJobToFormData
 				validationJobToFormData(currentValidation as any).then(formDataWithResults => {
 					// Extract validation results and dataset analysis if present
-					const { validationResults, datasetAnalysis, ...formData } = formDataWithResults;
+					const { validationResults, datasetAnalysis, calibrationResults, ...formData } = formDataWithResults;
 					
 					validationFormStore.loadFormData({ ...formData, modelId: modelId });
 					initialFormData = { ...formData, modelId: modelId };
@@ -82,6 +83,10 @@
 						console.log('⚠️ No validation results found in loaded data');
 					}
 					
+					if (calibrationResults) {
+						validationFormStore.setCalibrationResults(calibrationResults);
+					}
+
 					// Set dataset analysis if it was included
 					if (datasetAnalysis) {
 						console.log('📊 Setting dataset analysis in modal:', datasetAnalysis);
@@ -217,7 +222,9 @@
 				body: JSON.stringify({
 					status: 'completed',
 					metrics: comprehensiveMetrics,
-					docker_image_sha256: validationResult.docker_image_sha256
+					docker_image_sha256: validationResult.docker_image_sha256,
+					// Forward only calibration the user already ran; never trigger a new run here
+					calibration: get(validationFormStore).calibrationResults ?? undefined
 				})
 			});
 
