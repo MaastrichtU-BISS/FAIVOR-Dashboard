@@ -359,6 +359,7 @@ export class JsonLdExportService {
     return {
       selectedModel: calibrationData.model_selection?.selected_model ?? null,
       selectionReason: calibrationData.model_selection?.reason ?? null,
+      coefficients: calibrationData.coefficients ?? null,
       models: modelIds.map((modelId) => ({
         modelId,
         logLikelihood: calibrationData.log_likelihoods?.[modelId] ?? null,

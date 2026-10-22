@@ -1,6 +1,7 @@
 // src/lib/services/validation-pdf-export-service.ts
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { calibrationModelLabel, getCoefficientRows } from '$lib/utils/calibration';
 import type { ComprehensiveMetricsResponse, CalibrationResponse } from '$lib/api/faivor-backend';
 import type { UiValidationJob } from '$lib/stores/models/types';
 
@@ -557,6 +558,38 @@ export class ValidationPDFExportService {
       yPosition = doc.lastAutoTable.finalY + 8;
     }
 
+    const coefficientRows = getCoefficientRows(calibrationData.coefficients);
+    if (coefficientRows.length > 0) {
+      if (yPosition > this.PAGE_HEIGHT - 60) {
+        doc.addPage();
+        yPosition = this.MARGIN;
+      }
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Model Coefficients', this.MARGIN, yPosition);
+      yPosition += 6;
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Method', 'Term', 'Coefficient']],
+        body: coefficientRows.map((r) => [calibrationModelLabel(r.method), r.term, r.value]),
+        theme: 'striped',
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: {
+          fillColor: [46, 134, 193],
+          textColor: 255,
+          fontStyle: 'bold'
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold' },
+          2: { halign: 'right', font: 'courier' }
+        },
+        margin: { left: this.MARGIN, right: this.MARGIN }
+      });
+
+      yPosition = doc.lastAutoTable.finalY + 8;
+    }
+
     return yPosition;
   }
 
@@ -675,7 +708,7 @@ export class ValidationPDFExportService {
         yPosition = this.addChartImage(
           doc,
           imageData,
-          `Calibration Curve: ${modelId}`,
+          `Calibration Curve: ${calibrationModelLabel(modelId)}`,
           yPosition,
           this.CONTENT_WIDTH,
           this.CHART_HEIGHT
