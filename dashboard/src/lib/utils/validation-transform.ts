@@ -9,6 +9,7 @@ import type {
   DatasetFolderFiles,
   ModelMetadataSnapshot
 } from '$lib/types/validation';
+import type { CalibrationResponse } from '$lib/api/faivor-backend';
 import type { UiValidationJob, JsonLdPerformanceMetricItem, FullJsonLdModel } from '$lib/stores/models/types'; // Import new types
 import { getFileSizesFromStore, validationFormStore, type ValidationResults } from '$lib/stores/models/validation.store';
 
@@ -22,9 +23,11 @@ export function formDataToValidationData(formData: ValidationFormData, comprehen
   const fileSizes = getFileSizesFromStore();
   let validationResults: ValidationResults | undefined;
   let datasetAnalysis: any = undefined;
+  let calibrationResults: CalibrationResponse | undefined = undefined;
   const unsubscribe = validationFormStore.subscribe(state => {
     validationResults = state.validationResults;
     datasetAnalysis = state.datasetAnalysis;
+    calibrationResults = state.calibrationResults;
   });
   unsubscribe();
 
@@ -95,7 +98,8 @@ export function formDataToValidationData(formData: ValidationFormData, comprehen
       dataCharacteristics: Boolean(formData.datasetDescription || formData.datasetCharacteristics),
       metrics: Boolean(formData.metricsDescription || comprehensiveMetrics),
       validation_results: validationResults && validationResults.stage !== 'none' ? validationResults : undefined,
-      comprehensive_metrics: comprehensiveMetrics || undefined
+      comprehensive_metrics: comprehensiveMetrics || undefined,
+      calibration: calibrationResults || undefined
     },
     // Capture model metadata snapshot if model is provided
     model_metadata: model ? extractModelMetadataSnapshot(model) : undefined
@@ -132,7 +136,7 @@ export function validationRowToJob(row: ValidationRow): any {
 /**
  * Transform UiValidationJob (derived from JSON-LD) to form data for editing.
  */
-export async function validationJobToFormData(job: UiValidationJob): Promise<ValidationFormData & { validationResults?: ValidationResults; datasetAnalysis?: any }> {
+export async function validationJobToFormData(job: UiValidationJob): Promise<ValidationFormData & { validationResults?: ValidationResults; datasetAnalysis?: any; calibrationResults?: CalibrationResponse }> {
   const evalData = job.originalEvaluationData;
 
   let reconstructedFolderFiles: Partial<DatasetFolderFiles> | undefined = undefined;
@@ -212,8 +216,12 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
 
   // Check if we have stored validation results in the data
   let storedValidationResults: ValidationResults | undefined;
+  let storedCalibration: CalibrationResponse | undefined;
   if ('data' in job && job.data && typeof job.data === 'object' && 'validation_result' in job.data) {
     const validationResult = (job.data as any).validation_result;
+    if (validationResult?.calibration) {
+      storedCalibration = validationResult.calibration;
+    }
     if (validationResult?.validation_results) {
       storedValidationResults = validationResult.validation_results;
       console.log('📊 Restored validation results from storage:', storedValidationResults);
@@ -280,7 +288,8 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
     performanceMetrics: performanceMetricsSummary,
     modelId: '', // This should be set from the page context (e.g., modelData['@id'] or checkpoint_id)
     validationResults: reconstructedResults, // Include the validation results
-    datasetAnalysis: datasetAnalysis // Include the dataset analysis
+    datasetAnalysis: datasetAnalysis, // Include the dataset analysis
+    calibrationResults: storedCalibration // Include stored calibration, if any
   };
 }
 
