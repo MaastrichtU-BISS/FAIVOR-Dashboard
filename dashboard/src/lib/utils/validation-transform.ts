@@ -136,7 +136,7 @@ export function validationRowToJob(row: ValidationRow): any {
 /**
  * Transform UiValidationJob (derived from JSON-LD) to form data for editing.
  */
-export async function validationJobToFormData(job: UiValidationJob): Promise<ValidationFormData & { validationResults?: ValidationResults; datasetAnalysis?: any }> {
+export async function validationJobToFormData(job: UiValidationJob): Promise<ValidationFormData & { validationResults?: ValidationResults; datasetAnalysis?: any; calibrationResults?: CalibrationResponse }> {
   const evalData = job.originalEvaluationData;
 
   let reconstructedFolderFiles: Partial<DatasetFolderFiles> | undefined = undefined;
@@ -216,8 +216,12 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
 
   // Check if we have stored validation results in the data
   let storedValidationResults: ValidationResults | undefined;
+  let storedCalibration: CalibrationResponse | undefined;
   if ('data' in job && job.data && typeof job.data === 'object' && 'validation_result' in job.data) {
     const validationResult = (job.data as any).validation_result;
+    if (validationResult?.calibration) {
+      storedCalibration = validationResult.calibration;
+    }
     if (validationResult?.validation_results) {
       storedValidationResults = validationResult.validation_results;
       console.log('📊 Restored validation results from storage:', storedValidationResults);
@@ -284,7 +288,8 @@ export async function validationJobToFormData(job: UiValidationJob): Promise<Val
     performanceMetrics: performanceMetricsSummary,
     modelId: '', // This should be set from the page context (e.g., modelData['@id'] or checkpoint_id)
     validationResults: reconstructedResults, // Include the validation results
-    datasetAnalysis: datasetAnalysis // Include the dataset analysis
+    datasetAnalysis: datasetAnalysis, // Include the dataset analysis
+    calibrationResults: storedCalibration // Include stored calibration, if any
   };
 }
 
