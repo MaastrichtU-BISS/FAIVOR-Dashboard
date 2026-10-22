@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import type { ValidationJob, ValidationFormData, DatasetFolderFiles } from '$lib/types/validation';
 import type { UiValidationJob } from '../types';
-import type { CSVValidationResponse, ModelValidationResponse, ComprehensiveMetricsResponse } from '$lib/api/faivor-backend';
+import type { CSVValidationResponse, ModelValidationResponse, ComprehensiveMetricsResponse, CalibrationResponse } from '$lib/api/faivor-backend';
 import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
 
 
@@ -109,6 +109,8 @@ interface ValidationFormState extends ValidationFormData {
   comprehensiveMetrics?: ComprehensiveMetricsResponse;
   // Add dataset analysis data
   datasetAnalysis?: DatasetAnalysis;
+  // Add calibration results (from the calibration step)
+  calibrationResults?: CalibrationResponse;
 }
 
 const formInitialState: ValidationFormState = {
@@ -274,6 +276,14 @@ function createValidationFormStore() {
       update(state => ({
         ...state,
         comprehensiveMetrics: undefined
+      }));
+    },
+
+    // Set calibration results
+    setCalibrationResults: (calibration: CalibrationResponse | undefined) => {
+      update(state => ({
+        ...state,
+        calibrationResults: calibration
       }));
     },
 

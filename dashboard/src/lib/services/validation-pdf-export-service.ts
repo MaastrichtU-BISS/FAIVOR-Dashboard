@@ -1,7 +1,7 @@
 // src/lib/services/validation-pdf-export-service.ts
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { ComprehensiveMetricsResponse } from '$lib/api/faivor-backend';
+import type { ComprehensiveMetricsResponse, CalibrationResponse } from '$lib/api/faivor-backend';
 import type { UiValidationJob } from '$lib/stores/models/types';
 
 // Extend jsPDF type to include autoTable
@@ -16,6 +16,7 @@ export interface ChartImages {
   rocChart?: string;
   prChart?: string;
   subgroupCharts?: Record<string, string>;
+  calibrationCharts?: Record<string, string>;
 }
 
 export class ValidationPDFExportService {
@@ -33,7 +34,8 @@ export class ValidationPDFExportService {
     validationJob: UiValidationJob,
     metricsData: ComprehensiveMetricsResponse | null,
     modelName?: string,
-    chartImages?: ChartImages
+    chartImages?: ChartImages,
+    calibrationData?: CalibrationResponse | null
   ): Promise<void> {
     const doc = new jsPDF();
     let yPosition = this.MARGIN;
@@ -65,6 +67,15 @@ export class ValidationPDFExportService {
     // Add subgroup analysis
     if (parsedMetrics?.subgroups && Object.keys(parsedMetrics.subgroups).length > 0) {
       yPosition = this.addSubgroupAnalysis(doc, parsedMetrics.subgroups, yPosition);
+    }
+
+    // Add calibration analysis
+    if (
+      calibrationData &&
+      (Object.keys(calibrationData.log_likelihoods ?? {}).length > 0 ||
+        (calibrationData.models ?? []).length > 0)
+    ) {
+      yPosition = this.addCalibrationSection(doc, calibrationData, yPosition);
     }
 
     // Add charts section if chart images are provided
@@ -475,6 +486,81 @@ export class ValidationPDFExportService {
   }
 
   /**
+   * Add calibration analysis section
+   */
+  private static addCalibrationSection(
+    doc: jsPDF,
+    calibrationData: CalibrationResponse,
+    yPosition: number
+  ): number {
+    if (yPosition > this.PAGE_HEIGHT - 60) {
+      doc.addPage();
+      yPosition = this.MARGIN;
+    }
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Calibration Analysis', this.MARGIN, yPosition);
+    yPosition += 10;
+
+    const selected = calibrationData.model_selection?.selected_model;
+    if (selected) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      const reason = calibrationData.model_selection?.reason;
+      const summary = `Selected model: ${selected}${reason ? ` - ${reason}` : ''}`;
+      const lines = doc.splitTextToSize(summary, this.CONTENT_WIDTH);
+      doc.text(lines, this.MARGIN, yPosition);
+      yPosition += lines.length * 5 + 4;
+    }
+
+    const modelIds = Array.from(
+      new Set([
+        ...Object.keys(calibrationData.log_likelihoods ?? {}),
+        ...Object.keys(calibrationData.roc_metrics ?? {})
+      ])
+    ).sort();
+
+    const fmt = (v: number | undefined) => (typeof v === 'number' ? v.toFixed(4) : 'N/A');
+    const body = modelIds.map((id) => [
+      id === selected ? `${id} (selected)` : id,
+      fmt(calibrationData.log_likelihoods?.[id]),
+      fmt(calibrationData.roc_metrics?.[id]?.auc)
+    ]);
+
+    if (body.length > 0) {
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Model', 'Log-likelihood', 'AUC']],
+        body,
+        theme: 'striped',
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: {
+          fillColor: [46, 134, 193],
+          textColor: 255,
+          fontStyle: 'bold'
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold' },
+          1: { halign: 'right', font: 'courier' },
+          2: { halign: 'right', font: 'courier' }
+        },
+        didParseCell: (data) => {
+          if (data.section === 'body' && modelIds[data.row.index] === selected) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [214, 234, 248];
+          }
+        },
+        margin: { left: this.MARGIN, right: this.MARGIN }
+      });
+
+      yPosition = doc.lastAutoTable.finalY + 8;
+    }
+
+    return yPosition;
+  }
+
+  /**
    * Add charts section to PDF
    */
   private static addChartsSection(
@@ -571,6 +657,25 @@ export class ValidationPDFExportService {
           doc,
           imageData,
           `Subgroup Analysis: ${featureName}`,
+          yPosition,
+          this.CONTENT_WIDTH,
+          this.CHART_HEIGHT
+        );
+      }
+    }
+
+    // Add calibration curve charts
+    if (chartImages.calibrationCharts && Object.keys(chartImages.calibrationCharts).length > 0) {
+      for (const [modelId, imageData] of Object.entries(chartImages.calibrationCharts)) {
+        if (yPosition > this.PAGE_HEIGHT - this.CHART_HEIGHT - 30) {
+          doc.addPage();
+          yPosition = this.MARGIN;
+        }
+
+        yPosition = this.addChartImage(
+          doc,
+          imageData,
+          `Calibration Curve: ${modelId}`,
           yPosition,
           this.CONTENT_WIDTH,
           this.CHART_HEIGHT

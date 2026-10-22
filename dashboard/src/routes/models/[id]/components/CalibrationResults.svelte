@@ -23,6 +23,20 @@
 		)
 	);
 
+	let chartRefs: Record<string, CalibrationCurveChart> = {};
+
+	// Export function to get calibration chart images keyed by model id
+	export function getImageData(): Record<string, string> {
+		const images: Record<string, string> = {};
+		for (const [modelId, chartRef] of Object.entries(chartRefs)) {
+			const image = chartRef?.getImageData();
+			if (image) {
+				images[modelId] = image;
+			}
+		}
+		return images;
+	}
+
 	const fmt = (v: number | undefined) => (typeof v === 'number' ? v.toFixed(4) : '—');
 </script>
 
@@ -62,6 +76,7 @@
 			{#each curves as m}
 				<div class="border-base-300 rounded-xl border p-4">
 					<CalibrationCurveChart
+						bind:this={chartRefs[m.model_id]}
 						meanPredictedValue={m.calibration_curve.mean_predicted_value}
 						fractionOfPositives={m.calibration_curve.fraction_of_positives}
 						title={`Calibration curve (${m.model_id})`}

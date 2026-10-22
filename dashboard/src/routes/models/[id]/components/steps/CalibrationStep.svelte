@@ -12,7 +12,7 @@
 
 	let { readonly = false, model }: Props = $props();
 
-	let calibration = $state<CalibrationResponse | null>(null);
+	let calibration = $state<CalibrationResponse | null>($validationFormStore.calibrationResults ?? null);
 	let isCalibrating = $state(false);
 	let calibrationError = $state<string | null>(null);
 	let calibrationErrorDetails = $state<any>(null);
@@ -36,6 +36,7 @@
 				throw new Error('No model metadata available for calibration');
 			}
 			calibration = await CalibrationService.run(modelMetadata, uploadedFolder);
+			validationFormStore.setCalibrationResults(calibration);
 		} catch (error: any) {
 			console.error('❌ Calibration failed:', error);
 			if (error instanceof CalibrationRequestError) {
