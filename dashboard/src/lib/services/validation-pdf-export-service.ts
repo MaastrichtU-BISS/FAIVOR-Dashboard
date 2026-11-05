@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { ComprehensiveMetricsResponse } from '$lib/api/faivor-backend';
 import type { UiValidationJob } from '$lib/stores/models/types';
+import { getThresholdMetricTable } from '$lib/utils/threshold-metrics';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
@@ -350,21 +351,16 @@ export class ValidationPDFExportService {
 
     // Threshold metrics table
     if (thresholdData.threshold_metrics) {
-      const sampleThresholds = ['0.3', '0.5', '0.7'];
-      const thresholdBody: string[][] = [];
-
-      for (const threshold of sampleThresholds) {
-        const metrics = thresholdData.threshold_metrics[threshold];
-        if (metrics) {
-          thresholdBody.push([
-            threshold,
-            metrics.accuracy?.toFixed(3) || 'N/A',
-            metrics.precision?.toFixed(3) || 'N/A',
-            metrics.recall?.toFixed(3) || 'N/A',
-            metrics.f1_score?.toFixed(3) || 'N/A'
-          ]);
-        }
-      }
+      const thresholdTable = getThresholdMetricTable(thresholdData.threshold_metrics);
+      const thresholdBody = thresholdTable.rows.map(({ threshold, values }) => [
+        threshold,
+        ...thresholdTable.metricNames.map((name) => {
+          const value = values[name];
+          if (typeof value === 'number') return value.toFixed(3);
+          if (value === null || value === undefined) return 'N/A';
+          return typeof value === 'object' ? JSON.stringify(value) : String(value);
+        })
+      ]);
 
       if (thresholdBody.length > 0) {
         doc.setFontSize(11);
@@ -374,7 +370,7 @@ export class ValidationPDFExportService {
 
         autoTable(doc, {
           startY: yPosition,
-          head: [['Threshold', 'Accuracy', 'Precision', 'Recall', 'F1 Score']],
+          head: [['Threshold', ...thresholdTable.metricNames.map((name) => name.replace(/[._]/g, ' '))]],
           body: thresholdBody,
           theme: 'striped',
           styles: { fontSize: 9, cellPadding: 3 },
@@ -385,10 +381,9 @@ export class ValidationPDFExportService {
           },
           columnStyles: {
             0: { fontStyle: 'bold' },
-            1: { halign: 'right', font: 'courier' },
-            2: { halign: 'right', font: 'courier' },
-            3: { halign: 'right', font: 'courier' },
-            4: { halign: 'right', font: 'courier' }
+            ...Object.fromEntries(
+              thresholdTable.metricNames.map((_, i) => [i + 1, { halign: 'right', font: 'courier' }])
+            )
           },
           margin: { left: this.MARGIN, right: this.MARGIN }
         });

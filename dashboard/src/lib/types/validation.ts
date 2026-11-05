@@ -138,7 +138,10 @@ export interface ValidationData {
           thresholds: number[];
           average_precision: number;
         };
-        threshold_metrics: Record<string, any>;
+        threshold_metrics: {
+          threshold?: number[];
+          [metricName: string]: unknown;
+        };
       };
       subgroups?: Record<string, any>;
     };
