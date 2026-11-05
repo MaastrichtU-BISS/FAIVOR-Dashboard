@@ -13,6 +13,7 @@
 	import JsonLdExportDialog from '$lib/components/validation/JsonLdExportDialog.svelte';
 	import { JsonLdExportService } from '$lib/services/jsonld-export-service';
 	import type { JsonLdExportOptions } from '$lib/types/jsonld-export';
+	import { getThresholdMetricTable } from '$lib/utils/threshold-metrics';
 	import toast from 'svelte-french-toast';
 
 	const dispatch = createEventDispatcher<{
@@ -756,7 +757,7 @@
 
 							<!-- Sample Threshold Metrics -->
 							{#if thresholdData.threshold_metrics}
-								{@const sampleThresholds = ['0.3', '0.5', '0.7']}
+								{@const thresholdTable = getThresholdMetricTable(thresholdData.threshold_metrics)}
 								<div class="mt-6">
 									<h4 class="mb-3 text-base font-semibold">Sample Threshold Performance</h4>
 									<div class="overflow-x-auto">
@@ -764,24 +765,19 @@
 											<thead>
 												<tr>
 													<th>Threshold</th>
-													<th>Accuracy</th>
-													<th>Precision</th>
-													<th>Recall</th>
-													<th>F1 Score</th>
+													{#each thresholdTable.metricNames as metricName}
+														<th>{metricName.replace(/[._]/g, ' ')}</th>
+													{/each}
 												</tr>
 											</thead>
 											<tbody>
-												{#each sampleThresholds as threshold}
-													{#if thresholdData.threshold_metrics[threshold]}
-														{@const metrics = thresholdData.threshold_metrics[threshold]}
-														<tr>
-															<td class="font-mono">{threshold}</td>
-															<td class="font-mono">{metrics.accuracy?.toFixed(3) || 'N/A'}</td>
-															<td class="font-mono">{metrics.precision?.toFixed(3) || 'N/A'}</td>
-															<td class="font-mono">{metrics.recall?.toFixed(3) || 'N/A'}</td>
-															<td class="font-mono">{metrics.f1_score?.toFixed(3) || 'N/A'}</td>
-														</tr>
-													{/if}
+												{#each thresholdTable.rows as row}
+													<tr>
+														<td class="font-mono">{row.threshold}</td>
+														{#each thresholdTable.metricNames as metricName}
+															<td class="font-mono">{formatMetricValue(row.values[metricName])}</td>
+														{/each}
+													</tr>
 												{/each}
 											</tbody>
 										</table>
