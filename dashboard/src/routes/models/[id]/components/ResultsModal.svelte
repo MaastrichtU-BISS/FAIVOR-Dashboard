@@ -6,6 +6,12 @@
 	import ROCCurveChart from '$lib/components/charts/ROCCurveChart.svelte';
 	import PRCurveChart from '$lib/components/charts/PRCurveChart.svelte';
 	import MetricsRadarChart from '$lib/components/charts/MetricsRadarChart.svelte';
+	import ThresholdMetricsChart from '$lib/components/charts/ThresholdMetricsChart.svelte';
+	import {
+		buildThresholdTable,
+		formatMetricLabel,
+		formatThresholdValue
+	} from '$lib/utils/threshold-metrics';
 	import SubgroupComparisonChart from '$lib/components/charts/SubgroupComparisonChart.svelte';
 	import MaterialSymbolsDownload from '~icons/material-symbols/download';
 	import { ValidationPDFExportService, type ChartImages } from '$lib/services/validation-pdf-export-service';
@@ -66,6 +72,8 @@
 			undefined
 	);
 
+	let thresholdChartRef: ThresholdMetricsChart;
+
 	async function exportToPDF() {
 		try {
 			isExporting = true;
@@ -87,6 +95,13 @@
 					const rocImage = rocChartRef.getImageData();
 					if (rocImage) {
 						chartImages.rocChart = rocImage;
+					}
+				}
+
+				if (thresholdChartRef) {
+					const thresholdImage = thresholdChartRef.getImageData();
+					if (thresholdImage) {
+						chartImages.thresholdChart = thresholdImage;
 					}
 				}
 
@@ -610,7 +625,7 @@
 								<!-- ROC and PR Curves -->
 								{#if parsedMetrics.threshold_metrics}
 									<!-- ROC Curve -->
-									{#if parsedMetrics.threshold_metrics.roc_curve}
+									{#if parsedMetrics.threshold_metrics.roc_curve?.fpr}
 										<div class="border-base-300 rounded-xl border p-6">
 											<ROCCurveChart
 												bind:this={rocChartRef}
@@ -623,7 +638,7 @@
 									{/if}
 
 									<!-- PR Curve -->
-									{#if parsedMetrics.threshold_metrics.pr_curve}
+									{#if parsedMetrics.threshold_metrics.pr_curve?.precision}
 										<div class="border-base-300 rounded-xl border p-6">
 											<PRCurveChart
 												bind:this={prChartRef}
@@ -694,7 +709,7 @@
 
 							<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 								<!-- ROC Curve Info -->
-								{#if thresholdData.roc_curve}
+								{#if typeof thresholdData.roc_curve?.auc === 'number'}
 									<div class="card bg-base-200">
 										<div class="card-body">
 											<h4 class="card-title text-base">ROC Curve</h4>
@@ -711,7 +726,7 @@
 								{/if}
 
 								<!-- Precision-Recall Curve Info -->
-								{#if thresholdData.pr_curve}
+								{#if typeof thresholdData.pr_curve?.average_precision === 'number'}
 									<div class="card bg-base-200">
 										<div class="card-body">
 											<h4 class="card-title text-base">Precision-Recall Curve</h4>
@@ -728,39 +743,62 @@
 								{/if}
 							</div>
 
-							<!-- Sample Threshold Metrics -->
-							{#if thresholdData.threshold_metrics}
-								{@const sampleThresholds = ['0.3', '0.5', '0.7']}
-								<div class="mt-6">
-									<h4 class="mb-3 text-base font-semibold">Sample Threshold Performance</h4>
-									<div class="overflow-x-auto">
-										<table class="table-compact table w-full">
-											<thead>
-												<tr>
-													<th>Threshold</th>
-													<th>Accuracy</th>
-													<th>Precision</th>
-													<th>Recall</th>
-													<th>F1 Score</th>
-												</tr>
-											</thead>
-											<tbody>
-												{#each sampleThresholds as threshold}
-													{#if thresholdData.threshold_metrics[threshold]}
-														{@const metrics = thresholdData.threshold_metrics[threshold]}
-														<tr>
-															<td class="font-mono">{threshold}</td>
-															<td class="font-mono">{metrics.accuracy?.toFixed(3) || 'N/A'}</td>
-															<td class="font-mono">{metrics.precision?.toFixed(3) || 'N/A'}</td>
-															<td class="font-mono">{metrics.recall?.toFixed(3) || 'N/A'}</td>
-															<td class="font-mono">{metrics.f1_score?.toFixed(3) || 'N/A'}</td>
-														</tr>
-													{/if}
-												{/each}
-											</tbody>
-										</table>
-									</div>
+							{#if thresholdData.error || thresholdData.status === 'error'}
+								<div class="alert alert-warning mt-4">
+									<span class="text-sm">
+										{thresholdData.error || thresholdData.message || 'Threshold analysis failed'}
+									</span>
 								</div>
+							{/if}
+
+							{#if thresholdData.threshold_metrics}
+								{@const table = buildThresholdTable(thresholdData.threshold_metrics)}
+								{@const rows = table.rows}
+								{@const columns = [...table.scalarKeys, ...table.nestedKeys]}
+								{#if showCharts}
+									<div class="mt-6">
+										<ThresholdMetricsChart
+											bind:this={thresholdChartRef}
+											thresholds={rows.map((r) => r.threshold)}
+											series={Object.fromEntries(
+												table.scalarKeys.map((key) => [
+													formatMetricLabel(key),
+													rows.map((r) => r.values[key] ?? null)
+												])
+											)}
+											title="Metrics by Threshold"
+											height={350}
+										/>
+									</div>
+								{/if}
+
+								{#if showTables}
+									<div class="mt-6">
+										<h4 class="mb-3 text-base font-semibold">Threshold Performance</h4>
+										<div class="max-h-96 overflow-auto">
+											<table class="table-compact table-pin-rows table w-full">
+												<thead>
+													<tr>
+														<th>Threshold</th>
+														{#each columns as col}
+															<th>{formatMetricLabel(col)}</th>
+														{/each}
+													</tr>
+												</thead>
+												<tbody>
+													{#each rows as { threshold, values }}
+														<tr>
+															<td class="font-mono">{threshold.toFixed(2)}</td>
+															{#each columns as col}
+																<td class="font-mono">{formatThresholdValue(values[col])}</td>
+															{/each}
+														</tr>
+													{/each}
+												</tbody>
+											</table>
+										</div>
+									</div>
+								{/if}
 							{/if}
 						</div>
 					{/if}
