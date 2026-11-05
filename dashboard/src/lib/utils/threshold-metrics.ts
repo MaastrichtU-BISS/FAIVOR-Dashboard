@@ -1,54 +1,71 @@
-export interface ThresholdMetricTable {
-  metricNames: string[];
-  rows: Array<{
-    threshold: string;
-    values: Record<string, unknown>;
-  }>;
+export interface ThresholdRow {
+  threshold: number;
+  values: Record<string, number | null>;
 }
 
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+export interface ThresholdTable {
+  rows: ThresholdRow[];
+  /** Rate-style metrics (scalar values per threshold), suitable for a 0-1 chart */
+  scalarKeys: string[];
+  /** Flattened nested metrics such as confusion_matrix.tp */
+  nestedKeys: string[];
 }
 
-function formatThreshold(value: number): string {
-  return String(Number(value.toPrecision(8)));
+const PREFERRED_ORDER = ['accuracy', 'precision', 'recall', 'specificity', 'f1_score', 'fpr'];
+
+export function formatMetricLabel(key: string): string {
+  return key
+    .split('.')
+    .pop()!
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function getThresholdMetricTable(data: unknown): ThresholdMetricTable {
-  if (!isRecord(data)) {
-    return { metricNames: [], rows: [] };
+export function formatThresholdValue(value: number | null | undefined): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 'N/A';
+  return Number.isInteger(value) ? String(value) : value.toFixed(3);
+}
+
+/**
+ * Build a table from every metric present in threshold_metrics.threshold_metrics,
+ * rather than a fixed set of metric names.
+ */
+export function buildThresholdTable(thresholdMetrics: unknown): ThresholdTable {
+  const empty: ThresholdTable = { rows: [], scalarKeys: [], nestedKeys: [] };
+  if (!thresholdMetrics || typeof thresholdMetrics !== 'object') return empty;
+
+  const scalar = new Set<string>();
+  const nested = new Set<string>();
+  const rows: ThresholdRow[] = [];
+
+  for (const [key, entry] of Object.entries(thresholdMetrics as Record<string, any>)) {
+    const threshold = parseFloat(key);
+    if (!Number.isFinite(threshold) || !entry || typeof entry !== 'object' || entry.error) continue;
+
+    const values: Record<string, number | null> = {};
+    for (const [name, v] of Object.entries(entry)) {
+      if (v && typeof v === 'object') {
+        for (const [sub, sv] of Object.entries(v as Record<string, unknown>)) {
+          const flat = `${name}.${sub}`;
+          nested.add(flat);
+          values[flat] = typeof sv === 'number' ? sv : null;
+        }
+      } else if (typeof v === 'number' || v === null) {
+        scalar.add(name);
+        values[name] = v as number | null;
+      }
+    }
+    rows.push({ threshold, values });
   }
 
-  if (Array.isArray(data.threshold)) {
-    const metricSeries = Object.entries(data).filter(
-      ([name, values]) => name !== 'threshold' && Array.isArray(values)
-    );
-    const metricNames = metricSeries.map(([name]) => name);
-    const rows = data.threshold.flatMap((value, index) =>
-      typeof value === 'number' && Number.isFinite(value)
-        ? [{
-            threshold: formatThreshold(value),
-            values: Object.fromEntries(
-              metricSeries.map(([name, values]) => [name, (values as unknown[])[index]])
-            )
-          }]
-        : []
-    );
-
-    return { metricNames, rows };
-  }
-
-  const entries = Object.entries(data).flatMap(([threshold, value]) => {
-    const numericThreshold = Number(threshold);
-    return Number.isFinite(numericThreshold) && isRecord(value)
-      ? [{ threshold: numericThreshold, values: value }]
-      : [];
-  });
-  const metricNames = [...new Set(entries.flatMap(({ values }) => Object.keys(values)))];
-  const rows = entries
-    .sort((x, y) => x.threshold - y.threshold)
-    .map(({ threshold, values }) => ({ threshold: formatThreshold(threshold), values }));
-
-  return { metricNames, rows };
+  rows.sort((a, b) => a.threshold - b.threshold);
+  const rank = (k: string) => {
+    const i = PREFERRED_ORDER.indexOf(k);
+    return i === -1 ? PREFERRED_ORDER.length : i;
+  };
+  return {
+    rows,
+    scalarKeys: [...scalar].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)),
+    nestedKeys: [...nested].sort()
+  };
 }

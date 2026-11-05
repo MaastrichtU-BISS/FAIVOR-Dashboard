@@ -1,4 +1,5 @@
 // src/lib/services/validation-pdf-export-service.ts
+import { buildThresholdTable, formatMetricLabel, formatThresholdValue } from '$lib/utils/threshold-metrics';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { calibrationModelLabel, getCoefficientRows } from '$lib/utils/calibration';
@@ -17,6 +18,7 @@ export interface ChartImages {
   radarChart?: string;
   rocChart?: string;
   prChart?: string;
+  thresholdChart?: string;
   subgroupCharts?: Record<string, string>;
   calibrationCharts?: Record<string, string>;
 }
@@ -361,42 +363,37 @@ export class ValidationPDFExportService {
       yPosition = doc.lastAutoTable.finalY + 8;
     }
 
-    // Threshold metrics table
+    // Threshold metrics table: every metric present in threshold_metrics
     if (thresholdData.threshold_metrics) {
-      const thresholdTable = getThresholdMetricTable(thresholdData.threshold_metrics);
-      const thresholdBody = thresholdTable.rows.map(({ threshold, values }) => [
-        threshold,
-        ...thresholdTable.metricNames.map((name) => {
-          const value = values[name];
-          if (typeof value === 'number') return value.toFixed(3);
-          if (value === null || value === undefined) return 'N/A';
-          return typeof value === 'object' ? JSON.stringify(value) : String(value);
-        })
-      ]);
+      const table = buildThresholdTable(thresholdData.threshold_metrics);
+      const columns = [...table.scalarKeys, ...table.nestedKeys];
 
-      if (thresholdBody.length > 0) {
+      if (table.rows.length > 0 && columns.length > 0) {
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
-        doc.text('Sample Threshold Performance', this.MARGIN, yPosition);
+        doc.text('Threshold Performance', this.MARGIN, yPosition);
         yPosition += 6;
+
+        const columnStyles: Record<number, any> = { 0: { fontStyle: 'bold' } };
+        columns.forEach((_, i) => {
+          columnStyles[i + 1] = { halign: 'right', font: 'courier' };
+        });
 
         autoTable(doc, {
           startY: yPosition,
-          head: [['Threshold', ...thresholdTable.metricNames.map((name) => name.replace(/[._]/g, ' '))]],
-          body: thresholdBody,
+          head: [['Threshold', ...columns.map(formatMetricLabel)]],
+          body: table.rows.map((r) => [
+            r.threshold.toFixed(2),
+            ...columns.map((c) => formatThresholdValue(r.values[c]))
+          ]),
           theme: 'striped',
-          styles: { fontSize: 9, cellPadding: 3 },
+          styles: { fontSize: columns.length > 7 ? 6 : 8, cellPadding: 2 },
           headStyles: {
             fillColor: [52, 73, 94],
             textColor: 255,
             fontStyle: 'bold'
           },
-          columnStyles: {
-            0: { fontStyle: 'bold' },
-            ...Object.fromEntries(
-              thresholdTable.metricNames.map((_, i) => [i + 1, { halign: 'right', font: 'courier' }])
-            )
-          },
+          columnStyles,
           margin: { left: this.MARGIN, right: this.MARGIN }
         });
 
@@ -670,6 +667,21 @@ export class ValidationPDFExportService {
           this.CHART_HEIGHT
         );
       }
+    }
+
+    if (chartImages.thresholdChart) {
+      if (yPosition > this.PAGE_HEIGHT - this.CHART_HEIGHT - 30) {
+        doc.addPage();
+        yPosition = this.MARGIN;
+      }
+      yPosition = this.addChartImage(
+        doc,
+        chartImages.thresholdChart,
+        'Metrics by Threshold',
+        yPosition,
+        this.CONTENT_WIDTH,
+        this.CHART_HEIGHT + 10
+      );
     }
 
     // Add subgroup charts
