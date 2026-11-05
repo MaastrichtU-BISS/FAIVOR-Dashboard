@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { get } from 'svelte/store';
 	import { createEventDispatcher } from 'svelte';
 	import {
 		validationStore,
@@ -16,6 +17,7 @@
 	import DatasetStep from './steps/DatasetStep.svelte';
 	import DatasetCharacteristicsStep from './steps/DatasetCharacteristicsStep.svelte';
 	import MetricsForValidationStep from './steps/MetricsForValidationStep.svelte';
+	import CalibrationStep from './steps/CalibrationStep.svelte';
 	// import PerformanceMetricsStep from './steps/PerformanceMetricsStep.svelte'; // Not used in current step logic
 	import { FaivorBackendAPI } from '$lib/api/faivor-backend';
 	import { ValidationError } from '$lib/types/validation-errors';
@@ -52,7 +54,8 @@
 	const steps = $state([
 		{ title: 'Dataset', active: true },
 		{ title: 'Dataset Characteristics', active: false },
-		{ title: 'Metrics for validation', active: false }
+		{ title: 'Metrics for validation', active: false },
+		{ title: 'Calibration', active: false }
 	]);
 
 	$effect(() => {
@@ -67,7 +70,7 @@
 				// For UiValidationJob, pass it directly to validationJobToFormData
 				validationJobToFormData(currentValidation as any).then(formDataWithResults => {
 					// Extract validation results and dataset analysis if present
-					const { validationResults, datasetAnalysis, ...formData } = formDataWithResults;
+					const { validationResults, datasetAnalysis, calibrationResults, ...formData } = formDataWithResults;
 					
 					validationFormStore.loadFormData({ ...formData, modelId: modelId });
 					initialFormData = { ...formData, modelId: modelId };
@@ -80,6 +83,10 @@
 						console.log('⚠️ No validation results found in loaded data');
 					}
 					
+					if (calibrationResults) {
+						validationFormStore.setCalibrationResults(calibrationResults);
+					}
+
 					// Set dataset analysis if it was included
 					if (datasetAnalysis) {
 						console.log('📊 Setting dataset analysis in modal:', datasetAnalysis);
@@ -215,7 +222,9 @@
 				body: JSON.stringify({
 					status: 'completed',
 					metrics: comprehensiveMetrics,
-					docker_image_sha256: validationResult.docker_image_sha256
+					docker_image_sha256: validationResult.docker_image_sha256,
+					// Forward only calibration the user already ran; never trigger a new run here
+					calibration: get(validationFormStore).calibrationResults ?? undefined
 				})
 			});
 
@@ -540,6 +549,8 @@
 				<DatasetCharacteristicsStep readonly={$validationStore.mode === 'view'} {model} />
 			{:else if currentStep === 2}
 				<MetricsForValidationStep readonly={$validationStore.mode === 'view'} {model} />
+			{:else if currentStep === 3}
+				<CalibrationStep readonly={$validationStore.mode === 'view'} {model} />
 			{/if}
 		</div>
 

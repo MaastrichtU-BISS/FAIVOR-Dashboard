@@ -117,6 +117,9 @@ export interface ValidationData {
       stage: 'none' | 'csv' | 'model' | 'complete';
     };
 
+    // Calibration results from the calibration step
+    calibration?: import('$lib/api/faivor-backend').CalibrationResponse;
+
     // Comprehensive metrics data from step 3
     comprehensive_metrics?: {
       model_info: {
@@ -138,7 +141,10 @@ export interface ValidationData {
           thresholds: number[];
           average_precision: number;
         };
-        threshold_metrics: Record<string, any>;
+        threshold_metrics: {
+          threshold?: number[];
+          [metricName: string]: unknown;
+        };
       };
       subgroups?: Record<string, any>;
     };

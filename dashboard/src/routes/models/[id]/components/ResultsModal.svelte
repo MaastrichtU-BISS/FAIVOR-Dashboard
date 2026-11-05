@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
 	import type { UiValidationJob } from '$lib/stores/models/types';
-	import { FaivorBackendAPI, type ComprehensiveMetricsResponse } from '$lib/api/faivor-backend';
+	import { FaivorBackendAPI, type ComprehensiveMetricsResponse, type CalibrationResponse } from '$lib/api/faivor-backend';
 	import type { FullJsonLdModel } from '$lib/stores/models/types';
 	import ROCCurveChart from '$lib/components/charts/ROCCurveChart.svelte';
 	import PRCurveChart from '$lib/components/charts/PRCurveChart.svelte';
@@ -13,11 +13,13 @@
 		formatThresholdValue
 	} from '$lib/utils/threshold-metrics';
 	import SubgroupComparisonChart from '$lib/components/charts/SubgroupComparisonChart.svelte';
+	import CalibrationResults from './CalibrationResults.svelte';
 	import MaterialSymbolsDownload from '~icons/material-symbols/download';
 	import { ValidationPDFExportService, type ChartImages } from '$lib/services/validation-pdf-export-service';
 	import JsonLdExportDialog from '$lib/components/validation/JsonLdExportDialog.svelte';
 	import { JsonLdExportService } from '$lib/services/jsonld-export-service';
 	import type { JsonLdExportOptions } from '$lib/types/jsonld-export';
+	import { getThresholdMetricTable } from '$lib/utils/threshold-metrics';
 	import toast from 'svelte-french-toast';
 
 	const dispatch = createEventDispatcher<{
@@ -41,6 +43,9 @@
 	let metricsError = $state<string | null>(null);
 	let metricsErrorDetails = $state<any>(null);
 
+	// Calibration state (restored from stored validation result when available)
+	let calibrationData = $state<CalibrationResponse | null>(null);
+
 	// Validation error state (for failed validations)
 	let validationError = $state<{
 		message?: string;
@@ -53,6 +58,7 @@
 	// View mode toggles
 	let showCharts = $state(true);
 	let showTables = $state(true);
+	let showCalibration = $state(true);
 
 	// Export state
 	let isExporting = $state(false);
@@ -63,6 +69,7 @@
 	let rocChartRef: ROCCurveChart;
 	let prChartRef: PRCurveChart;
 	let subgroupChartRefs: Record<string, SubgroupComparisonChart> = {};
+	let calibrationResultsRef: CalibrationResults | undefined;
 
 	// Get model name for PDF
 	let modelName = $derived(
@@ -125,13 +132,22 @@
 						}
 					}
 				}
+
+				// Capture calibration curve charts
+				if (showCalibration && calibrationData && calibrationResultsRef) {
+					const calibrationImages = calibrationResultsRef.getImageData();
+					if (Object.keys(calibrationImages).length > 0) {
+						chartImages.calibrationCharts = calibrationImages;
+					}
+				}
 			}
 
 			await ValidationPDFExportService.exportResultsToPDF(
 				validationJob,
 				metricsData,
 				modelName,
-				Object.keys(chartImages).length > 0 ? chartImages : undefined
+				Object.keys(chartImages).length > 0 ? chartImages : undefined,
+				showCalibration ? calibrationData : null
 			);
 			toast.success('Validation PDF exported');
 		} catch (error) {
@@ -156,7 +172,8 @@
 				{
 					validationJob,
 					model,
-					metricsData
+					metricsData,
+					calibrationData
 				},
 				options
 			);
@@ -201,6 +218,10 @@
 		validationError = null;
 
 		try {
+			const storedCalibration = (validationJob.originalEvaluationData as any)?.data?.validation_result
+				?.calibration;
+			calibrationData = storedCalibration ?? null;
+
 			// Debug: Log the entire validation job structure
 			console.log('ResultsModal - Full validationJob:', validationJob);
 			console.log('ResultsModal - originalEvaluationData:', validationJob.originalEvaluationData);
@@ -437,6 +458,12 @@
 						<input type="checkbox" class="toggle toggle-primary" bind:checked={showTables} />
 						<span class="label-text">Show Tables</span>
 					</label>
+					{#if calibrationData}
+						<label class="label cursor-pointer gap-2">
+							<input type="checkbox" class="toggle toggle-primary" bind:checked={showCalibration} />
+							<span class="label-text">Show Calibration</span>
+						</label>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -865,6 +892,14 @@
 									{/if}
 								</div>
 							{/each}
+						</div>
+					{/if}
+
+					<!-- Calibration -->
+					{#if calibrationData && showCalibration}
+						<div class="border-base-300 rounded-xl border p-6">
+							<h3 class="mb-4 text-lg font-semibold">Calibration</h3>
+							<CalibrationResults bind:this={calibrationResultsRef} calibration={calibrationData} />
 						</div>
 					{/if}
 

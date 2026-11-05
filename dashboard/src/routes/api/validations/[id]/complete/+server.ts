@@ -10,7 +10,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     }
 
     const { id } = params;
-    const { status, metrics, docker_image_sha256 } = await request.json();
+    const { status, metrics, docker_image_sha256, calibration } = await request.json();
 
     console.log(`Completing validation ${id} with metrics:`, metrics);
     console.log(`Docker image SHA256 received:`, docker_image_sha256 ?? 'NOT PROVIDED');
@@ -31,6 +31,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
                   COALESCE(data, '{}'),
                   '{validation_result}',
                   ${sql.json({
+                    ...(calibration ? { calibration } : {}),
                     comprehensive_metrics: metrics,
                     completed_at: new Date().toISOString(),
                     validation_results: {
@@ -40,7 +41,14 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
                         }
                       }
                     }
-                  })}
+                  })}::jsonb
+                  || CASE
+                    WHEN ${calibration ? sql`false` : sql`true`}
+                      AND data->'validation_result'->'calibration' IS NOT NULL
+                      AND data->'validation_result'->'calibration' <> 'null'::jsonb
+                    THEN jsonb_build_object('calibration', data->'validation_result'->'calibration')
+                    ELSE '{}'::jsonb
+                  END
                 ),
                 '{metrics}',
                 ${sql.json(metrics)}

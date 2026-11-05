@@ -159,4 +159,31 @@ describe('jsonld-export-service', () => {
     expect(types.includes('schema:CreativeWork')).toBeTrue();
     expect(result.document.conformsTo).toBe('https://schema.org');
   });
+
+  test('exports calibration coefficients', () => {
+    const coefficients = {
+      m1: { intercept: 0.1 },
+      m2: { intercept: 0.2, slope: 0.9 },
+      m3: { intercept: 0.3, covariates: { age: 0.01 } }
+    };
+    const result = JsonLdExportService.buildValidationExport(
+      {
+        validationJob: createValidationJob(),
+        calibrationData: {
+          predictions: {},
+          log_likelihoods: { ll0: -1, ll1: -0.9 },
+          model_selection: { selected_model: 'm1' },
+          roc_metrics: {},
+          coefficients
+        }
+      },
+      {
+        section: 'validationResults',
+        redaction: { redactIdentity: true, redactDatasetFiles: true, redactTechnicalDetails: true }
+      }
+    );
+    const validationResult = result.document.validationResult as Record<string, any>;
+    expect(validationResult.calibration.coefficients).toEqual(coefficients);
+    expect(validationResult.calibration.selectedModel).toBe('m1');
+  });
 });

@@ -1,3 +1,4 @@
+import type { CalibrationResponse } from '$lib/api/faivor-backend';
 import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
 import type { FullJsonLdModel, UiValidationJob } from '$lib/stores/models/types';
 
@@ -18,6 +19,7 @@ export interface JsonLdValidationExportInput {
   validationJob: UiValidationJob;
   model?: FullJsonLdModel;
   metricsData?: Record<string, unknown> | null;
+  calibrationData?: CalibrationResponse | null;
   datasetAnalysis?: DatasetAnalysis | null;
 }
 
