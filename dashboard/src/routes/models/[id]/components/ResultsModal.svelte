@@ -78,7 +78,7 @@
 			undefined
 	);
 
-	let thresholdChartRef: ThresholdMetricsChart;
+	let thresholdChartRefs: Record<string, ThresholdMetricsChart> = {};
 
 	async function exportToPDF() {
 		try {
@@ -104,11 +104,13 @@
 					}
 				}
 
-				if (thresholdChartRef) {
-					const thresholdImage = thresholdChartRef.getImageData();
-					if (thresholdImage) {
-						chartImages.thresholdChart = thresholdImage;
-					}
+				const thresholdImages: Record<string, string> = {};
+				for (const [metric, chartRef] of Object.entries(thresholdChartRefs)) {
+					const image = chartRef?.getImageData();
+					if (image) thresholdImages[metric] = image;
+				}
+				if (Object.keys(thresholdImages).length > 0) {
+					chartImages.thresholdCharts = thresholdImages;
 				}
 
 				// Capture PR curve
@@ -782,19 +784,19 @@
 								{@const rows = table.rows}
 								{@const columns = [...table.scalarKeys, ...table.nestedKeys]}
 								{#if showCharts}
-									<div class="mt-6">
-										<ThresholdMetricsChart
-											bind:this={thresholdChartRef}
-											thresholds={rows.map((r) => r.threshold)}
-											series={Object.fromEntries(
-												table.scalarKeys.map((key) => [
-													formatMetricLabel(key),
-													rows.map((r) => r.values[key] ?? null)
-												])
-											)}
-											title="Metrics by Threshold"
-											height={350}
-										/>
+									<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+										{#each table.scalarKeys as key, i (key)}
+											<div class="border-base-300 rounded-xl border p-6">
+												<ThresholdMetricsChart
+													bind:this={thresholdChartRefs[key]}
+													thresholds={rows.map((r) => r.threshold)}
+													series={{ [formatMetricLabel(key)]: rows.map((r) => r.values[key] ?? null) }}
+													colorIndex={i}
+													title={formatMetricLabel(key)}
+													height={350}
+												/>
+											</div>
+										{/each}
 									</div>
 								{/if}
 

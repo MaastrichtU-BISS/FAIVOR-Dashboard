@@ -4,6 +4,7 @@
 
 	export let thresholds: number[] = [];
 	export let series: Record<string, (number | null)[]> = {};
+	export let colorIndex: number = 0;
 	export let title: string = 'Metrics by Threshold';
 	export let height: number = 350;
 
@@ -40,8 +41,8 @@
 				datasets: Object.entries(series).map(([label, values], i) => ({
 					label,
 					data: thresholds.map((x, j) => ({ x, y: values[j] ?? null })),
-					borderColor: colors[i % colors.length],
-					backgroundColor: colors[i % colors.length],
+					borderColor: colors[(colorIndex + i) % colors.length],
+					backgroundColor: colors[(colorIndex + i) % colors.length],
 					borderWidth: 2,
 					pointRadius: 0,
 					pointHoverRadius: 4,
@@ -55,7 +56,7 @@
 				interaction: { mode: 'index', intersect: false },
 				plugins: {
 					title: { display: true, text: title, font: { size: 16 } },
-					legend: { display: true, position: 'bottom' }
+					legend: { display: Object.keys(series).length > 1, position: 'bottom' }
 				},
 				scales: {
 					x: {
@@ -66,7 +67,7 @@
 					},
 					y: {
 						type: 'linear',
-						title: { display: true, text: 'Value' },
+						title: { display: true, text: title },
 						min: 0,
 						max: 1
 					}
