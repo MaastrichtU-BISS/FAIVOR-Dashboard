@@ -10,8 +10,8 @@ export const GET: RequestHandler = async ({ params }) => {
 
   try {
     // Get the fair_model_url from the database using the checkpoint_id
-    const modelUrlRows: { fair_model_url: string }[] = await sql`
-      SELECT fair_model_url FROM model_checkpoints
+    const modelUrlRows: { fair_model_url: string; metadata: any; description: string | null }[] = await sql`
+      SELECT fair_model_url, metadata, description FROM model_checkpoints
       WHERE checkpoint_id = ${checkpointId}
     `;
 
@@ -26,7 +26,34 @@ export const GET: RequestHandler = async ({ params }) => {
     }
 
     // Fetch the full JSON-LD model data from the FAIR model URL
-    const fullModelData: FullJsonLdModel = await ModelImportService.fetchModelData(fairModelUrl);
+    // Falls back to the locally cached copy (or stored metadata) when the remote source is unreachable
+    const stored = modelUrlRows[0].metadata || {};
+    let fullModelData: FullJsonLdModel;
+    try {
+      fullModelData = await ModelImportService.fetchModelData(fairModelUrl);
+      try {
+        await sql`
+          UPDATE model_checkpoints
+          SET metadata = COALESCE(metadata, '{}'::jsonb) || ${sql.json({ jsonLd: fullModelData } as any)}
+          WHERE checkpoint_id = ${checkpointId}
+        `;
+      } catch (cacheError) {
+        console.warn('Could not cache model JSON-LD:', cacheError);
+      }
+    } catch (fetchError) {
+      console.warn(`Remote fetch failed for ${fairModelUrl}, using local data:`, fetchError);
+      if (stored.jsonLd) {
+        fullModelData = stored.jsonLd as FullJsonLdModel;
+      } else {
+        fullModelData = {
+          '@id': fairModelUrl,
+          'General Model Information': {
+            Title: { '@value': stored.title || fairModelUrl },
+            Description: { '@value': modelUrlRows[0].description || '' }
+          }
+        } as unknown as FullJsonLdModel;
+      }
+    }
 
     // Add checkpoint_id to the returned model data as the frontend might still use it
     // and it's not part of the standard JSON-LD from fairmodels.org

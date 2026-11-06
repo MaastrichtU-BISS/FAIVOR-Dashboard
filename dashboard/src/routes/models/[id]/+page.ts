@@ -17,6 +17,9 @@ export const load = (async ({ fetch, params }) => {
       model: data.model
     };
   } catch (e) {
+    if (e && typeof e === 'object' && 'status' in e && 'body' in e) {
+      throw e;
+    }
     if (e instanceof Error) {
       throw error(500, e.message);
     }
