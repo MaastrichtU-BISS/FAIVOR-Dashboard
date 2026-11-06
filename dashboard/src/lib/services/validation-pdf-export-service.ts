@@ -17,7 +17,7 @@ export interface ChartImages {
   radarChart?: string;
   rocChart?: string;
   prChart?: string;
-  thresholdChart?: string;
+  thresholdCharts?: Record<string, string>;
   subgroupCharts?: Record<string, string>;
   calibrationCharts?: Record<string, string>;
 }
@@ -668,19 +668,24 @@ export class ValidationPDFExportService {
       }
     }
 
-    if (chartImages.thresholdChart) {
-      if (yPosition > this.PAGE_HEIGHT - this.CHART_HEIGHT - 30) {
-        doc.addPage();
-        yPosition = this.MARGIN;
+    if (chartImages.thresholdCharts && Object.keys(chartImages.thresholdCharts).length > 0) {
+      const entries = Object.entries(chartImages.thresholdCharts);
+      const chartWidth = this.CHART_WIDTH;
+      for (let i = 0; i < entries.length; i += 2) {
+        if (yPosition > this.PAGE_HEIGHT - this.CHART_HEIGHT - 30) {
+          doc.addPage();
+          yPosition = this.MARGIN;
+        }
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        entries.slice(i, i + 2).forEach(([metric, image], col) => {
+          const x = this.MARGIN + col * (chartWidth + 10);
+          doc.text(`${formatMetricLabel(metric)} by Threshold`, x, yPosition);
+          doc.addImage(image, 'PNG', x, yPosition + 5, chartWidth, this.CHART_HEIGHT);
+        });
+        yPosition += this.CHART_HEIGHT + 15;
       }
-      yPosition = this.addChartImage(
-        doc,
-        chartImages.thresholdChart,
-        'Metrics by Threshold',
-        yPosition,
-        this.CONTENT_WIDTH,
-        this.CHART_HEIGHT + 10
-      );
     }
 
     // Add subgroup charts
