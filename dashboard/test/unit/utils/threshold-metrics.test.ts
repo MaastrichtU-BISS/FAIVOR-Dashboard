@@ -28,6 +28,20 @@ describe('buildThresholdTable', () => {
     expect(result.rows).toEqual([{ threshold: 0.7, values: { accuracy: 0.9 } }]);
   });
 
+  test('reads columnar arrays indexed by thresholds', () => {
+    const result = buildThresholdTable({
+      thresholds: [0, 0.5],
+      'F1 Score': [0.4, 0.6],
+      'Accuracy Score': [0.3, 0.7]
+    });
+
+    expect(result.scalarKeys).toEqual(['Accuracy Score', 'F1 Score']);
+    expect(result.rows).toEqual([
+      { threshold: 0, values: { 'F1 Score': 0.4, 'Accuracy Score': 0.3 } },
+      { threshold: 0.5, values: { 'F1 Score': 0.6, 'Accuracy Score': 0.7 } }
+    ]);
+  });
+
   test('returns empty table for invalid input', () => {
     expect(buildThresholdTable(null).rows).toEqual([]);
   });
