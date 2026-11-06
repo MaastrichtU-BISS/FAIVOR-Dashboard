@@ -19,7 +19,6 @@
 	import JsonLdExportDialog from '$lib/components/validation/JsonLdExportDialog.svelte';
 	import { JsonLdExportService } from '$lib/services/jsonld-export-service';
 	import type { JsonLdExportOptions } from '$lib/types/jsonld-export';
-	import { getThresholdMetricTable } from '$lib/utils/threshold-metrics';
 	import toast from 'svelte-french-toast';
 
 	const dispatch = createEventDispatcher<{

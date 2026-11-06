@@ -5,7 +5,6 @@ import autoTable from 'jspdf-autotable';
 import { calibrationModelLabel, getCoefficientRows } from '$lib/utils/calibration';
 import type { ComprehensiveMetricsResponse, CalibrationResponse } from '$lib/api/faivor-backend';
 import type { UiValidationJob } from '$lib/stores/models/types';
-import { getThresholdMetricTable } from '$lib/utils/threshold-metrics';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
