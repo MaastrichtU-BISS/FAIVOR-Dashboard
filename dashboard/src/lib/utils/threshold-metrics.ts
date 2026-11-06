@@ -38,6 +38,25 @@ export function buildThresholdTable(thresholdMetrics: unknown): ThresholdTable {
   const nested = new Set<string>();
   const rows: ThresholdRow[] = [];
 
+  // Columnar format: { thresholds: [..], "F1 Score": [..], ... }
+  const record = thresholdMetrics as Record<string, unknown>;
+  const axis = [record.thresholds, record.threshold].find(Array.isArray) as unknown[] | undefined;
+  if (axis) {
+    const series = Object.entries(record).filter(
+      ([name, v]) => name !== 'thresholds' && name !== 'threshold' && Array.isArray(v)
+    ) as [string, unknown[]][];
+    axis.forEach((t, i) => {
+      if (typeof t !== 'number' || !Number.isFinite(t)) return;
+      const values: Record<string, number | null> = {};
+      for (const [name, arr] of series) {
+        const v = arr[i];
+        values[name] = typeof v === 'number' && Number.isFinite(v) ? v : null;
+      }
+      rows.push({ threshold: t, values });
+    });
+    series.forEach(([name]) => scalar.add(name));
+  }
+
   for (const [key, entry] of Object.entries(thresholdMetrics as Record<string, any>)) {
     const threshold = parseFloat(key);
     if (!Number.isFinite(threshold) || !entry || typeof entry !== 'object' || entry.error) continue;
