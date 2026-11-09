@@ -14,6 +14,7 @@
 	} from '$lib/utils/threshold-metrics';
 	import SubgroupComparisonChart from '$lib/components/charts/SubgroupComparisonChart.svelte';
 	import CalibrationResults from './CalibrationResults.svelte';
+	import { CalibrationService, CalibrationRequestError } from '$lib/services/calibration-service';
 	import MaterialSymbolsDownload from '~icons/material-symbols/download';
 	import { ValidationPDFExportService, type ChartImages } from '$lib/services/validation-pdf-export-service';
 	import JsonLdExportDialog from '$lib/components/validation/JsonLdExportDialog.svelte';
@@ -44,6 +45,11 @@
 
 	// Calibration state (restored from stored validation result when available)
 	let calibrationData = $state<CalibrationResponse | null>(null);
+	let calibrationCsv = $state<File | null>(null);
+	let calibrationColumnMetadata = $state<File | null>(null);
+	let isCalibrating = $state(false);
+	let calibrationError = $state<string | null>(null);
+	let calibrationErrorDetails = $state<any>(null);
 
 	// Validation error state (for failed validations)
 	let validationError = $state<{
@@ -211,6 +217,43 @@
 			loadMetrics();
 		}
 	});
+
+	async function runCalibration() {
+		if (!calibrationCsv || !model) return;
+		isCalibrating = true;
+		calibrationError = null;
+		calibrationErrorDetails = null;
+		try {
+			const { DatasetStepService } = await import('$lib/services/dataset-step-service');
+			const modelMetadata = DatasetStepService.transformModelMetadataToFAIR(model as any);
+			const result = await CalibrationService.run(modelMetadata, {
+				data: calibrationCsv,
+				columnMetadata: calibrationColumnMetadata ?? undefined
+			} as any);
+
+			const response = await fetch(`/api/validations/${validationJob.val_id}/calibration`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ calibration: result })
+			});
+			if (!response.ok) {
+				throw new Error('Calibration finished but could not be saved');
+			}
+			calibrationData = result;
+			showCalibration = true;
+			toast.success('Calibration completed');
+		} catch (error: any) {
+			console.error('Calibration failed:', error);
+			if (error instanceof CalibrationRequestError) {
+				calibrationError = error.info.message;
+				calibrationErrorDetails = error.info;
+			} else {
+				calibrationError = error?.message || 'Calibration failed';
+			}
+		} finally {
+			isCalibrating = false;
+		}
+	}
 
 	async function loadMetrics() {
 		isLoadingMetrics = true;
@@ -893,6 +936,68 @@
 									{/if}
 								</div>
 							{/each}
+						</div>
+					{/if}
+
+					<!-- Run calibration (closed testing procedure) -->
+					{#if validationJob.validation_status === 'completed'}
+						<div class="border-base-300 rounded-xl border p-6">
+							<h3 class="mb-2 text-lg font-semibold">Model update (calibration)</h3>
+							<p class="text-base-content/70 mb-4 text-sm">
+								Review the validation results above, then decide whether to run the closed testing
+								procedure. Select the dataset used for validation to run calibration.
+							</p>
+							<div class="flex flex-wrap items-end gap-4">
+								<label class="form-control">
+									<span class="label-text mb-1 text-sm">Dataset (CSV)</span>
+									<input
+										type="file"
+										accept=".csv"
+										class="file-input file-input-bordered file-input-sm"
+										disabled={isCalibrating}
+										onchange={(e) => (calibrationCsv = e.currentTarget.files?.[0] ?? null)}
+									/>
+								</label>
+								<label class="form-control">
+									<span class="label-text mb-1 text-sm">Column metadata (JSON, optional)</span>
+									<input
+										type="file"
+										accept=".json"
+										class="file-input file-input-bordered file-input-sm"
+										disabled={isCalibrating}
+										onchange={(e) => (calibrationColumnMetadata = e.currentTarget.files?.[0] ?? null)}
+									/>
+								</label>
+								<button
+									class="btn btn-primary btn-sm"
+									onclick={runCalibration}
+									disabled={isCalibrating || !calibrationCsv || !model}
+								>
+									{#if isCalibrating}
+										<span class="loading loading-spinner loading-sm"></span>
+										Calibrating...
+									{:else}
+										{calibrationData ? 'Re-run calibration' : 'Run calibration'}
+									{/if}
+								</button>
+							</div>
+							{#if calibrationError}
+								<div class="alert alert-error mt-4">
+									<div>
+										<h4 class="font-bold">Calibration failed</h4>
+										<div class="text-sm">{calibrationError}</div>
+										{#if calibrationErrorDetails?.userGuidance}
+											<div class="mt-2 text-sm">{calibrationErrorDetails.userGuidance}</div>
+										{/if}
+										{#if calibrationErrorDetails?.technicalDetails}
+											<details class="mt-2">
+												<summary class="cursor-pointer text-sm">Technical details</summary>
+												<pre class="text-xs whitespace-pre-wrap">{calibrationErrorDetails.technicalDetails}</pre>
+											</details>
+										{/if}
+									</div>
+								</div>
+							{/if}
 						</div>
 					{/if}
 
