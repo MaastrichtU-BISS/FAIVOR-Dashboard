@@ -14,6 +14,12 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
       return json({ error: 'calibration is required' }, { status: 400 });
     }
 
+    // Accept both "73" and "local-eval-73"
+    const validationId = Number(params.id.replace('local-eval-', ''));
+    if (!Number.isInteger(validationId)) {
+      return json({ error: 'Invalid validation id' }, { status: 400 });
+    }
+
     const result = await sql`
       UPDATE validations
       SET data = jsonb_set(
@@ -21,7 +27,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
         '{validation_result,calibration}',
         ${sql.json(calibration)}
       )
-      WHERE val_id = ${params.id}
+      WHERE val_id = ${validationId}
       AND user_id = ${session.user.id}
       AND deleted_at IS NULL
       RETURNING val_id
