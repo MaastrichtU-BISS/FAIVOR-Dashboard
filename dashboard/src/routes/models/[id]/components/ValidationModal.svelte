@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { get } from 'svelte/store';
 	import { createEventDispatcher } from 'svelte';
 	import {
 		validationStore,
@@ -17,7 +16,6 @@
 	import DatasetStep from './steps/DatasetStep.svelte';
 	import DatasetCharacteristicsStep from './steps/DatasetCharacteristicsStep.svelte';
 	import MetricsForValidationStep from './steps/MetricsForValidationStep.svelte';
-	import CalibrationStep from './steps/CalibrationStep.svelte';
 	// import PerformanceMetricsStep from './steps/PerformanceMetricsStep.svelte'; // Not used in current step logic
 	import { FaivorBackendAPI } from '$lib/api/faivor-backend';
 	import { ValidationError } from '$lib/types/validation-errors';
@@ -54,8 +52,7 @@
 	const steps = $state([
 		{ title: 'Dataset', active: true },
 		{ title: 'Dataset Characteristics', active: false },
-		{ title: 'Metrics for validation', active: false },
-		{ title: 'Calibration', active: false }
+		{ title: 'Metrics for validation', active: false }
 	]);
 
 	$effect(() => {
@@ -222,9 +219,7 @@
 				body: JSON.stringify({
 					status: 'completed',
 					metrics: comprehensiveMetrics,
-					docker_image_sha256: validationResult.docker_image_sha256,
-					// Forward only calibration the user already ran; never trigger a new run here
-					calibration: get(validationFormStore).calibrationResults ?? undefined
+					docker_image_sha256: validationResult.docker_image_sha256
 				})
 			});
 
@@ -549,8 +544,6 @@
 				<DatasetCharacteristicsStep readonly={$validationStore.mode === 'view'} {model} />
 			{:else if currentStep === 2}
 				<MetricsForValidationStep readonly={$validationStore.mode === 'view'} {model} />
-			{:else if currentStep === 3}
-				<CalibrationStep readonly={$validationStore.mode === 'view'} {model} />
 			{/if}
 		</div>
 
