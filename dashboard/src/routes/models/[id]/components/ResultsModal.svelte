@@ -303,13 +303,22 @@
 
 	const CI_SUFFIX = ' 95% CI';
 
+	const METRIC_GROUPS: Record<string, string> = {
+		performance: 'Performance',
+		overall_performance: 'Overall Performance',
+		discrimination: 'Discrimination',
+		calibration: 'Calibration',
+		classification_t: 'Classification (Threshold)',
+		clinical_utility: 'Clinical Utility',
+		fairness: 'Fairness',
+		explainability: 'Explainability'
+	};
+
 	function getMetricCategory(key: string): string {
 		const dot = key.indexOf('.');
 		if (dot === -1) return 'Other';
 		const group = key.slice(0, dot);
-		if (group === 'performance') return 'Performance';
-		if (group === 'fairness') return 'Fairness';
-		if (group === 'explainability') return 'Explainability';
+		if (METRIC_GROUPS[group]) return METRIC_GROUPS[group];
 		const label = group.replace(/_/g, ' ');
 		return label.charAt(0).toUpperCase() + label.slice(1);
 	}
@@ -339,7 +348,9 @@
 			else grouped[category][name].value = value;
 		});
 
-		return grouped;
+		const order = Object.values(METRIC_GROUPS);
+		const rank = (c: string) => (order.includes(c) ? order.indexOf(c) : order.length);
+		return Object.fromEntries(Object.entries(grouped).sort(([x], [y]) => rank(x) - rank(y)));
 	}
 
 	function formatCI(ci: any): string {
