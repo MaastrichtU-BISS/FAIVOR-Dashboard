@@ -304,7 +304,6 @@
 	const CI_SUFFIX = ' 95% CI';
 
 	const METRIC_GROUPS: Record<string, string> = {
-		performance: 'Performance',
 		overall_performance: 'Overall Performance',
 		discrimination: 'Discrimination',
 		calibration: 'Calibration',
