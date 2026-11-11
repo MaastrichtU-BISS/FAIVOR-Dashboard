@@ -381,33 +381,62 @@
 		return JSON.stringify(value, null, 2);
 	}
 
+	const CI_SUFFIX = ' 95% CI';
+
+	const METRIC_GROUPS: Record<string, string> = {
+		overall_performance: 'Overall Performance',
+		discrimination: 'Discrimination',
+		calibration: 'Calibration',
+		classification_t: 'Classification (Threshold)',
+		clinical_utility: 'Clinical Utility',
+		fairness: 'Fairness',
+		explainability: 'Explainability'
+	};
+
 	function getMetricCategory(key: string): string {
-		if (key.startsWith('performance.')) return 'Performance';
-		if (key.startsWith('fairness.')) return 'Fairness';
-		if (key.startsWith('explainability.')) return 'Explainability';
-		return 'Other';
+		const dot = key.indexOf('.');
+		if (dot === -1) return 'Other';
+		const group = key.slice(0, dot);
+		if (METRIC_GROUPS[group]) return METRIC_GROUPS[group];
+		const label = group.replace(/_/g, ' ');
+		return label.charAt(0).toUpperCase() + label.slice(1);
 	}
 
 	function getMetricName(key: string): string {
-		return key.split('.').pop() || key;
+		const dot = key.indexOf('.');
+		return dot === -1 ? key : key.slice(dot + 1);
 	}
 
+	type MetricRow = { value?: any; ci?: any };
+
+	// Keys look like "metric_group.metric_name" with an optional " 95% CI" suffix
 	function groupMetricsByCategory(
 		metrics: Record<string, any>
-	): Record<string, Record<string, any>> {
-		const grouped: Record<string, Record<string, any>> = {};
+	): Record<string, Record<string, MetricRow>> {
+		const grouped: Record<string, Record<string, MetricRow>> = {};
 
 		Object.entries(metrics).forEach(([key, value]) => {
 			const category = getMetricCategory(key);
-			const name = getMetricName(key);
+			let name = getMetricName(key);
+			const isCI = name.endsWith(CI_SUFFIX);
+			if (isCI) name = name.slice(0, -CI_SUFFIX.length);
 
-			if (!grouped[category]) {
-				grouped[category] = {};
-			}
-			grouped[category][name] = value;
+			grouped[category] ??= {};
+			grouped[category][name] ??= {};
+			if (isCI) grouped[category][name].ci = value;
+			else grouped[category][name].value = value;
 		});
 
-		return grouped;
+		const order = Object.values(METRIC_GROUPS);
+		const rank = (c: string) => (order.includes(c) ? order.indexOf(c) : order.length);
+		return Object.fromEntries(Object.entries(grouped).sort(([x], [y]) => rank(x) - rank(y)));
+	}
+
+	function formatCI(ci: any): string {
+		if (Array.isArray(ci) && ci.length === 2 && ci.every((v) => typeof v === 'number')) {
+			return `[${ci[0].toFixed(3)}, ${ci[1].toFixed(3)}]`;
+		}
+		return ci === undefined || ci === null ? '—' : formatMetricValue(ci);
 	}
 
 	function prepareSubgroupData(subgroups: Record<string, any>) {
@@ -736,13 +765,17 @@
 												<tr>
 													<th>Metric</th>
 													<th>Value</th>
+													<th>95% CI</th>
 												</tr>
 											</thead>
 											<tbody>
-												{#each Object.entries(metrics) as [name, value]}
+												{#each Object.entries(metrics) as [name, row]}
 													<tr>
 														<td class="font-medium capitalize">{name.replace(/_/g, ' ')}</td>
-														<td class="font-mono">{formatMetricValue(value)}</td>
+														<td class="font-mono">
+															{row.value === undefined ? '—' : formatMetricValue(row.value)}
+														</td>
+														<td class="font-mono">{formatCI(row.ci)}</td>
 													</tr>
 												{/each}
 											</tbody>
