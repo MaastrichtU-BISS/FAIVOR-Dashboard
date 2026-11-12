@@ -18,6 +18,7 @@ export interface ChartImages {
   rocChart?: string;
   prChart?: string;
   thresholdCharts?: Record<string, string>;
+  reliabilityChart?: string;
   subgroupCharts?: Record<string, string>;
   calibrationCharts?: Record<string, string>;
 }
@@ -666,6 +667,22 @@ export class ValidationPDFExportService {
           this.CHART_HEIGHT
         );
       }
+    }
+
+    // Add reliability diagram (calibration curve from validation)
+    if (chartImages.reliabilityChart) {
+      if (yPosition > this.PAGE_HEIGHT - this.CHART_HEIGHT - 30) {
+        doc.addPage();
+        yPosition = this.MARGIN;
+      }
+      yPosition = this.addChartImage(
+        doc,
+        chartImages.reliabilityChart,
+        'Reliability Diagram',
+        yPosition,
+        this.CONTENT_WIDTH,
+        this.CHART_HEIGHT
+      );
     }
 
     if (chartImages.thresholdCharts && Object.keys(chartImages.thresholdCharts).length > 0) {
