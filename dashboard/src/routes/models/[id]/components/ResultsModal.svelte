@@ -5,6 +5,7 @@
 	import type { FullJsonLdModel } from '$lib/stores/models/types';
 	import ROCCurveChart from '$lib/components/charts/ROCCurveChart.svelte';
 	import PRCurveChart from '$lib/components/charts/PRCurveChart.svelte';
+	import ReliabilityDiagramChart from '$lib/components/charts/ReliabilityDiagramChart.svelte';
 	import MetricsRadarChart from '$lib/components/charts/MetricsRadarChart.svelte';
 	import ThresholdMetricsChart from '$lib/components/charts/ThresholdMetricsChart.svelte';
 	import {
@@ -73,6 +74,7 @@
 	let radarChartRef: MetricsRadarChart;
 	let rocChartRef: ROCCurveChart;
 	let prChartRef: PRCurveChart;
+	let reliabilityChartRef: ReliabilityDiagramChart;
 	let subgroupChartRefs: Record<string, SubgroupComparisonChart> = {};
 	let calibrationResultsRef: CalibrationResults | undefined;
 
@@ -124,6 +126,14 @@
 					const prImage = prChartRef.getImageData();
 					if (prImage) {
 						chartImages.prChart = prImage;
+					}
+				}
+
+				// Capture reliability diagram
+				if (reliabilityChartRef) {
+					const reliabilityImage = reliabilityChartRef.getImageData();
+					if (reliabilityImage) {
+						chartImages.reliabilityChart = reliabilityImage;
 					}
 				}
 
@@ -708,7 +718,7 @@
 							<div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
 								<!-- Performance Metrics Radar Chart -->
 								{#if groupedMetrics.Performance && Object.keys(groupedMetrics.Performance).length > 0}
-									<div class="border-base-300 rounded-xl border p-6">
+									<div class="border-base-300 rounded-xl border p-6 lg:col-span-2">
 										<MetricsRadarChart
 											bind:this={radarChartRef}
 											metrics={Object.fromEntries(
@@ -748,6 +758,27 @@
 													.average_precision}
 												height={350}
 											/>
+										</div>
+									{/if}
+
+									<!-- Calibration Curve -->
+									{#if parsedMetrics.threshold_metrics.calibration_curve?.confidence?.length}
+										<div class="border-base-300 rounded-xl border p-6">
+											<ReliabilityDiagramChart
+												bind:this={reliabilityChartRef}
+												confidence={parsedMetrics.threshold_metrics.calibration_curve.confidence}
+												reliabilities={parsedMetrics.threshold_metrics.calibration_curve
+													.reliabilities ?? []}
+												binCount={parsedMetrics.threshold_metrics.calibration_curve.bin_count ?? []}
+												height={350}
+											/>
+										</div>
+									{:else if parsedMetrics.threshold_metrics.calibration_curve?.error}
+										<div class="border-base-300 rounded-xl border p-6">
+											<h4 class="mb-2 text-base font-semibold">Calibration Curve</h4>
+											<p class="text-base-content/70 text-sm">
+												{parsedMetrics.threshold_metrics.calibration_curve.error}
+											</p>
 										</div>
 									{/if}
 								{/if}

@@ -49,6 +49,12 @@ export interface ComprehensiveMetricsResponse {
       threshold?: number[];
       [metricName: string]: unknown;
     };
+    calibration_curve?: {
+      reliabilities?: number[];
+      confidence?: number[];
+      bin_count?: number[];
+      error?: string;
+    };
   };
   subgroups?: Record<string, any>;
 }
