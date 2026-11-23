@@ -3,7 +3,7 @@
 	import MaterialSymbolsAnalytics from '~icons/material-symbols/analytics';
 	import MaterialSymbolsDownload from '~icons/material-symbols/download';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
-	import { CSVAnalysisService, type ExpectedFeature } from '$lib/services/csv-analysis-service';
+	import { CSVAnalysisService, type ExpectedFeature, type ColumnRole } from '$lib/services/csv-analysis-service';
 	import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
 	import { PDFExportService } from '$lib/services/pdf-export-service';
 	import JsonLdExportDialog from '$lib/components/validation/JsonLdExportDialog.svelte';
@@ -29,6 +29,7 @@
 	let isAnalyzing = $state(!existingAnalysis);
 	let analysisError = $state<string | null>(null);
 	let gridColumns = $state(3);
+	let columnRoles = $state<Record<string, ColumnRole>>({});
 	let isExporting = $state(false);
 	let isJsonLdDialogOpen = $state(false);
 
@@ -47,7 +48,7 @@
 			isAnalyzing = true;
 			analysisError = null;
 
-			const analysis = await CSVAnalysisService.analyzeCSV(csvFile, expectedFeatures);
+			const analysis = await CSVAnalysisService.analyzeCSV(csvFile, expectedFeatures, columnRoles);
 			datasetAnalysis = analysis;
 
 			// Emit the analysis results
@@ -60,6 +61,14 @@
 		} finally {
 			isAnalyzing = false;
 		}
+	}
+
+	function setColumnRole(name: string, value: string) {
+		const next = { ...columnRoles };
+		if (value === 'auto') delete next[name];
+		else next[name] = value as ColumnRole;
+		columnRoles = next;
+		if (folderFiles.data) analyzeDataset(folderFiles.data);
 	}
 
 	async function exportToPDF() {
@@ -157,7 +166,7 @@
 			</button>
 		</div>
 
-		{#if datasetAnalysis.schemaIssues?.missingFeatures.length || datasetAnalysis.schemaIssues?.extraColumns.length}
+		{#if datasetAnalysis.schemaIssues?.missingFeatures.length}
 			<div class="alert alert-warning text-sm">
 				<div>
 					{#if datasetAnalysis.schemaIssues.missingFeatures.length}
@@ -166,12 +175,35 @@
 							{datasetAnalysis.schemaIssues.missingFeatures.join(', ')}
 						</p>
 					{/if}
-					{#if datasetAnalysis.schemaIssues.extraColumns.length}
-						<p>
-							<strong>Columns not used by the model:</strong>
-							{datasetAnalysis.schemaIssues.extraColumns.join(', ')}
-						</p>
-					{/if}
+				</div>
+			</div>
+		{/if}
+
+		{#if datasetAnalysis.schemaIssues?.extraColumns.length}
+			<div class="card bg-base-100 border-base-300 border">
+				<div class="card-body p-4">
+					<h3 class="font-semibold">Columns without model metadata</h3>
+					<p class="text-base-content/70 text-sm">
+						Choose how each column is treated. "Metadata" (e.g. patient ID) excludes it from the
+						analysis.
+					</p>
+					<div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+						{#each datasetAnalysis.schemaIssues.extraColumns as name}
+							<label class="flex items-center justify-between gap-2 text-sm">
+								<span class="truncate font-medium">{name}</span>
+								<select
+									class="select select-bordered select-sm"
+									value={columnRoles[name] ?? 'auto'}
+									onchange={(e) => setColumnRole(name, e.currentTarget.value)}
+								>
+									<option value="auto">Auto-detect</option>
+									<option value="numerical">Numerical</option>
+									<option value="categorical">Categorical</option>
+									<option value="metadata">Metadata (exclude)</option>
+								</select>
+							</label>
+						{/each}
+					</div>
 				</div>
 			</div>
 		{/if}
@@ -180,7 +212,7 @@
 			<div class="alert alert-error text-sm">
 				<div>
 					{#if col.typeMismatch}
-						<strong>{col.name}</strong>: model metadata expects numerical, but {col.invalidCount}
+						<strong>{col.name}</strong>: expected numerical (per metadata or your selection), but {col.invalidCount}
 						value(s) are not numeric (e.g.
 						{col.invalidValues?.map((v) => `"${v.value}" at row ${v.row}`).join(', ')}).
 					{/if}

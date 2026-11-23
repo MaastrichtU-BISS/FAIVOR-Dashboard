@@ -37,3 +37,25 @@ describe('CSVAnalysisService metadata-driven types', () => {
     expect(analysis.columns[0].type).toBe('categorical');
   });
 });
+
+describe('CSVAnalysisService column roles', () => {
+  const features = [{ label: 'age', type: 'n' }];
+
+  test('excludes columns marked as metadata and keeps them listed as unlinked', async () => {
+    const analysis = await CSVAnalysisService.analyzeCSV(csv('id,age\n1,30\n2,40\n'), features, {
+      id: 'metadata'
+    });
+    expect(analysis.columns.map(c => c.name)).toEqual(['age']);
+    expect(analysis.metadataColumns).toEqual(['id']);
+    expect(analysis.schemaIssues?.extraColumns).toEqual(['id']);
+  });
+
+  test('user role overrides auto-detection for unlinked columns only', async () => {
+    const analysis = await CSVAnalysisService.analyzeCSV(csv('zip,age\n6211,30\n6212,40\n'), features, {
+      zip: 'categorical',
+      age: 'categorical'
+    });
+    expect(analysis.columns[0].type).toBe('categorical');
+    expect(analysis.columns[1].type).toBe('numerical');
+  });
+});

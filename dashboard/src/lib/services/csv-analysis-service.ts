@@ -39,9 +39,12 @@ export interface ExpectedFeature {
   type?: string; // 'n' / 'c' as in model metadata
 }
 
+// User-chosen role for columns not linked to model metadata; 'metadata' excludes the column from analysis (e.g. patient_id)
+export type ColumnRole = 'numerical' | 'categorical' | 'metadata';
+
 export interface SchemaIssues {
   missingFeatures: string[]; // Model inputs absent from the CSV
-  extraColumns: string[]; // CSV columns the model does not use
+  extraColumns: string[]; // CSV columns not linked to model metadata (including those marked 'metadata')
 }
 
 export interface DatasetAnalysis {
@@ -52,6 +55,7 @@ export interface DatasetAnalysis {
   fileName: string;
   fileSize: number;
   schemaIssues?: SchemaIssues;
+  metadataColumns?: string[]; // Columns the user marked as metadata; excluded from `columns`
 }
 
 const MAX_REPORTED_INVALID = 5;
@@ -62,7 +66,8 @@ export class CSVAnalysisService {
    */
   static async analyzeCSV(
     csvFile: File,
-    expectedFeatures?: ExpectedFeature[]
+    expectedFeatures?: ExpectedFeature[],
+    columnRoles: Record<string, ColumnRole> = {}
   ): Promise<DatasetAnalysis> {
     try {
       const text = await csvFile.text();
@@ -114,13 +119,22 @@ export class CSVAnalysisService {
       // Analyze each column
       const matched = new Set<ExpectedFeature>();
       const matchedColumns = new Set<string>();
-      const columnStats: ColumnStatistics[] = headers.map((header, index) => {
+      const metadataColumns: string[] = [];
+      const columnStats: ColumnStatistics[] = [];
+      headers.forEach((header, index) => {
         const feature = this.findExpectedFeature(header, expectedFeatures);
         if (feature) {
           matched.add(feature);
           matchedColumns.add(header);
         }
-        return this.analyzeColumn(header, normalizedRows, index, this.mapExpectedType(feature?.type));
+        // Model metadata wins; user roles only apply to columns without a linked feature
+        const role = feature ? undefined : columnRoles[header];
+        if (role === 'metadata') {
+          metadataColumns.push(header);
+          return;
+        }
+        const expected = feature ? this.mapExpectedType(feature.type) : role;
+        columnStats.push(this.analyzeColumn(header, normalizedRows, index, expected));
       });
 
       const schemaIssues = expectedFeatures?.length
@@ -128,25 +142,24 @@ export class CSVAnalysisService {
             missingFeatures: expectedFeatures
               .filter(f => !matched.has(f))
               .map(f => f.label || f.featureId || 'Unnamed feature'),
-            extraColumns: columnStats
-              .map(c => c.name)
-              .filter(name => !matchedColumns.has(name))
+            extraColumns: headers.filter(name => !matchedColumns.has(name))
           }
         : undefined;
 
       // Calculate overall completeness
-      const totalCells = normalizedRows.length * headers.length;
+      const totalCells = normalizedRows.length * columnStats.length;
       const nonNullCells = columnStats.reduce((sum, col) => sum + col.count, 0);
-      const completeness = (nonNullCells / totalCells) * 100;
+      const completeness = totalCells > 0 ? (nonNullCells / totalCells) * 100 : 100;
 
       return {
         totalRows: normalizedRows.length,
-        totalColumns: headers.length,
+        totalColumns: columnStats.length,
         columns: columnStats,
         completeness: parseFloat(completeness.toFixed(2)),
         fileName: csvFile.name,
         fileSize: csvFile.size,
-        schemaIssues
+        schemaIssues,
+        metadataColumns
       };
     } catch (error) {
       console.error('CSV Analysis Error:', error);
