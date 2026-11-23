@@ -24,6 +24,17 @@ describe('CSVAnalysisService metadata-driven types', () => {
     expect(analysis.columns[0].typeMismatch).toBe(false);
   });
 
+  test('recognizes full metadata type names', async () => {
+    const analysis = await CSVAnalysisService.analyzeCSV(csv('age,smoker\n30,0\nabc,1\n'), [
+      { label: 'age', type: 'numerical' },
+      { label: 'smoker', type: 'categorical' }
+    ]);
+    expect(analysis.columns[0].type).toBe('numerical');
+    expect(analysis.columns[0].typeMismatch).toBe(true);
+    expect(analysis.columns[1].type).toBe('categorical');
+    expect(analysis.columns[1].typeMismatch).toBe(false);
+  });
+
   test('reports missing and extra columns', async () => {
     const analysis = await CSVAnalysisService.analyzeCSV(csv('age,id\n30,1\n40,2\n'), [
       { label: 'age', type: 'n' },

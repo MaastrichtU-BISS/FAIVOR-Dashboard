@@ -36,7 +36,7 @@ export interface ColumnStatistics {
 export interface ExpectedFeature {
   featureId?: string;
   label?: string;
-  type?: string; // 'n' / 'c' as in model metadata
+  type?: string; // 'n' or 'numerical' / 'c' or 'categorical' as in model metadata
 }
 
 // User-chosen role for columns not linked to model metadata; 'metadata' excludes the column from analysis (e.g. patient_id)
