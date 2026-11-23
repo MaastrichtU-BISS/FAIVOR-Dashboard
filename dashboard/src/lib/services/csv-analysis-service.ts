@@ -6,6 +6,12 @@ export interface ColumnStatistics {
   uniqueValues: number;
   nullValues: number;
 
+  // Type declared in model metadata (when the column matches a model input feature)
+  expectedType?: 'categorical' | 'numerical';
+  typeMismatch?: boolean;
+  invalidCount?: number;
+  invalidValues?: { row: number; value: string }[]; // First few offending cells (row is 1-based, excluding header)
+
   // For categorical columns
   values?: string[];
   mostCommon?: { value: string; count: number };
@@ -27,6 +33,17 @@ export interface ColumnStatistics {
   distributionObject?: Record<string, number>; // For compatibility with /table route format
 }
 
+export interface ExpectedFeature {
+  featureId?: string;
+  label?: string;
+  type?: string; // 'n' / 'c' as in model metadata
+}
+
+export interface SchemaIssues {
+  missingFeatures: string[]; // Model inputs absent from the CSV
+  extraColumns: string[]; // CSV columns the model does not use
+}
+
 export interface DatasetAnalysis {
   totalRows: number;
   totalColumns: number;
@@ -34,13 +51,19 @@ export interface DatasetAnalysis {
   completeness: number;
   fileName: string;
   fileSize: number;
+  schemaIssues?: SchemaIssues;
 }
+
+const MAX_REPORTED_INVALID = 5;
 
 export class CSVAnalysisService {
   /**
    * Analyze a CSV file and return comprehensive statistics
    */
-  static async analyzeCSV(csvFile: File): Promise<DatasetAnalysis> {
+  static async analyzeCSV(
+    csvFile: File,
+    expectedFeatures?: ExpectedFeature[]
+  ): Promise<DatasetAnalysis> {
     try {
       const text = await csvFile.text();
       const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(line => line.trim());
@@ -89,9 +112,27 @@ export class CSVAnalysisService {
       });
 
       // Analyze each column
-      const columnStats: ColumnStatistics[] = headers.map((header, index) =>
-        this.analyzeColumn(header, normalizedRows, index)
-      );
+      const matched = new Set<ExpectedFeature>();
+      const matchedColumns = new Set<string>();
+      const columnStats: ColumnStatistics[] = headers.map((header, index) => {
+        const feature = this.findExpectedFeature(header, expectedFeatures);
+        if (feature) {
+          matched.add(feature);
+          matchedColumns.add(header);
+        }
+        return this.analyzeColumn(header, normalizedRows, index, this.mapExpectedType(feature?.type));
+      });
+
+      const schemaIssues = expectedFeatures?.length
+        ? {
+            missingFeatures: expectedFeatures
+              .filter(f => !matched.has(f))
+              .map(f => f.label || f.featureId || 'Unnamed feature'),
+            extraColumns: columnStats
+              .map(c => c.name)
+              .filter(name => !matchedColumns.has(name))
+          }
+        : undefined;
 
       // Calculate overall completeness
       const totalCells = normalizedRows.length * headers.length;
@@ -104,12 +145,38 @@ export class CSVAnalysisService {
         columns: columnStats,
         completeness: parseFloat(completeness.toFixed(2)),
         fileName: csvFile.name,
-        fileSize: csvFile.size
+        fileSize: csvFile.size,
+        schemaIssues
       };
     } catch (error) {
       console.error('CSV Analysis Error:', error);
       throw new Error(`Failed to analyze CSV file "${csvFile.name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  private static normalizeName(name: string): string {
+    return name.trim().toLowerCase();
+  }
+
+  private static findExpectedFeature(
+    columnName: string,
+    features?: ExpectedFeature[]
+  ): ExpectedFeature | undefined {
+    if (!features?.length) return undefined;
+    const target = this.normalizeName(columnName);
+    return features.find(f =>
+      [f.label, f.featureId, f.featureId?.split('/').pop()].some(
+        candidate => candidate && this.normalizeName(candidate) === target
+      )
+    );
+  }
+
+  private static mapExpectedType(type?: string): 'categorical' | 'numerical' | undefined {
+    const t = type?.trim().toLowerCase();
+    if (!t) return undefined;
+    if (['n', 'numerical', 'numeric', 'continuous', 'integer', 'float', 'decimal'].includes(t)) return 'numerical';
+    if (['c', 'categorical', 'binary', 'ordinal', 'string', 'nominal'].includes(t)) return 'categorical';
+    return undefined;
   }
 
   /**
@@ -162,7 +229,8 @@ export class CSVAnalysisService {
   private static analyzeColumn(
     columnName: string,
     dataRows: string[][],
-    columnIndex: number
+    columnIndex: number,
+    expectedType?: 'categorical' | 'numerical'
   ): ColumnStatistics {
     const columnValues = dataRows
       .map(row => row[columnIndex] || '') // Handle missing values gracefully
@@ -175,7 +243,8 @@ export class CSVAnalysisService {
     if (columnValues.length === 0) {
       return {
         name: columnName || `Column ${columnIndex + 1}`,
-        type: 'categorical',
+        type: expectedType ?? 'categorical',
+        expectedType,
         count: 0,
         uniqueValues: 0,
         nullValues: dataRows.length,
@@ -185,19 +254,38 @@ export class CSVAnalysisService {
       };
     }
 
-    // Determine if column is numerical
-    const numericalValues = columnValues
-      .map(val => parseFloat(val))
-      .filter(val => !isNaN(val));
+    // Strict parsing: Number() rejects partial numbers such as "12abc"
+    const parsed = dataRows.map(row => {
+      const raw = (row[columnIndex] || '').trim();
+      return raw === '' ? null : Number(raw);
+    });
+    const numericalValues = parsed.filter((v): v is number => v !== null && Number.isFinite(v));
+    const invalidValues = dataRows
+      .map((row, i) => ({ row: i + 1, value: (row[columnIndex] || '').trim(), num: parsed[i] }))
+      .filter(c => c.num !== null && !Number.isFinite(c.num))
+      .map(({ row, value }) => ({ row, value }));
+    const allNumeric = invalidValues.length === 0;
 
-    // Use 70% threshold to determine if column is numerical (more flexible)
-    const isNumerical = numericalValues.length > columnValues.length * 0.7;
+    // Model metadata is the source of truth; without it, require every value to be numeric
+    const type = expectedType ?? (allNumeric ? 'numerical' : 'categorical');
 
-    if (isNumerical && numericalValues.length > 0) {
-      return this.analyzeNumericalColumn(columnName, numericalValues, columnValues.length, nullValues);
+    let stats: ColumnStatistics;
+    if (type === 'numerical' && numericalValues.length > 0) {
+      stats = this.analyzeNumericalColumn(columnName, numericalValues, numericalValues.length, nullValues);
     } else {
-      return this.analyzeCategoricalColumn(columnName, columnValues, nullValues);
+      stats = this.analyzeCategoricalColumn(columnName, columnValues, nullValues);
     }
+
+    if (expectedType) {
+      stats.expectedType = expectedType;
+      // A categorical feature may legitimately hold numeric codes, so only numerical expectations can mismatch
+      stats.typeMismatch = expectedType === 'numerical' && !allNumeric;
+      if (expectedType === 'numerical' && invalidValues.length > 0) {
+        stats.invalidCount = invalidValues.length;
+        stats.invalidValues = invalidValues.slice(0, MAX_REPORTED_INVALID);
+      }
+    }
+    return stats;
   }
 
   /**
