@@ -18,6 +18,14 @@
 	// Extract model name for PDF export
 	let modelName = $derived(model?.['Model name']?.['@value'] || model?.title || undefined);
 
+	let expectedFeatures = $derived(
+		model?.['Input data1']?.map((input) => ({
+			featureId: input['Input feature']?.['@id'],
+			label: input['Input label']?.['@value'],
+			type: input['Type of input']?.['@value']
+		}))
+	);
+
 	// Use the validation form store for all data
 	let formData = $derived($validationFormStore);
 
@@ -174,6 +182,7 @@
 					onAnalysisComplete={handleAnalysisComplete}
 					existingAnalysis={existingAnalysis}
 					{modelName}
+					{expectedFeatures}
 				/>
 			</div>
 		</div>
