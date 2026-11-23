@@ -3,7 +3,7 @@
 	import MaterialSymbolsAnalytics from '~icons/material-symbols/analytics';
 	import MaterialSymbolsDownload from '~icons/material-symbols/download';
 	import type { DatasetFolderFiles } from '$lib/types/validation';
-	import { CSVAnalysisService, type ExpectedFeature } from '$lib/services/csv-analysis-service';
+	import { CSVAnalysisService } from '$lib/services/csv-analysis-service';
 	import type { DatasetAnalysis } from '$lib/services/csv-analysis-service';
 	import { PDFExportService } from '$lib/services/pdf-export-service';
 	import JsonLdExportDialog from '$lib/components/validation/JsonLdExportDialog.svelte';
@@ -19,10 +19,9 @@
 		onAnalysisComplete?: (analysis: DatasetAnalysis) => void;
 		existingAnalysis?: DatasetAnalysis;
 		modelName?: string;
-		expectedFeatures?: ExpectedFeature[];
 	}
 
-	let { folderFiles, folderName, onAnalysisComplete, existingAnalysis, modelName, expectedFeatures }: Props =
+	let { folderFiles, folderName, onAnalysisComplete, existingAnalysis, modelName }: Props =
 		$props();
 
 	let datasetAnalysis = $state<DatasetAnalysis | null>(existingAnalysis || null);
@@ -47,7 +46,7 @@
 			isAnalyzing = true;
 			analysisError = null;
 
-			const analysis = await CSVAnalysisService.analyzeCSV(csvFile, expectedFeatures);
+			const analysis = await CSVAnalysisService.analyzeCSV(csvFile);
 			datasetAnalysis = analysis;
 
 			// Emit the analysis results
@@ -156,40 +155,6 @@
 				{/if}
 			</button>
 		</div>
-
-		{#if datasetAnalysis.schemaIssues?.missingFeatures.length || datasetAnalysis.schemaIssues?.extraColumns.length}
-			<div class="alert alert-warning text-sm">
-				<div>
-					{#if datasetAnalysis.schemaIssues.missingFeatures.length}
-						<p>
-							<strong>Model inputs missing from dataset:</strong>
-							{datasetAnalysis.schemaIssues.missingFeatures.join(', ')}
-						</p>
-					{/if}
-					{#if datasetAnalysis.schemaIssues.extraColumns.length}
-						<p>
-							<strong>Columns not used by the model:</strong>
-							{datasetAnalysis.schemaIssues.extraColumns.join(', ')}
-						</p>
-					{/if}
-				</div>
-			</div>
-		{/if}
-
-		{#each datasetAnalysis.columns.filter((c) => c.typeMismatch || c.nullValues > 0) as col}
-			<div class="alert alert-error text-sm">
-				<div>
-					{#if col.typeMismatch}
-						<strong>{col.name}</strong>: model metadata expects numerical, but {col.invalidCount}
-						value(s) are not numeric (e.g.
-						{col.invalidValues?.map((v) => `"${v.value}" at row ${v.row}`).join(', ')}).
-					{/if}
-					{#if col.nullValues > 0}
-						<strong>{col.name}</strong>: {col.nullValues} empty value(s).
-					{/if}
-				</div>
-			</div>
-		{/each}
 
 		<!-- Dataset Overview -->
 		<DatasetOverview analysis={datasetAnalysis} />
