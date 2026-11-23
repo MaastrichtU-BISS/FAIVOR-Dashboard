@@ -127,7 +127,7 @@ export class CSVAnalysisService {
       const metadataColumns: string[] = [];
       const columnStats: ColumnStatistics[] = [];
       headers.forEach((header, index) => {
-        const feature = this.findExpectedFeature(header, expectedFeatures);
+        const feature = CSVAnalysisService.findExpectedFeature(header, expectedFeatures);
         if (feature) {
           matched.add(feature);
           matchedColumns.add(header);
@@ -138,7 +138,7 @@ export class CSVAnalysisService {
           metadataColumns.push(header);
           return;
         }
-        const expected = feature ? this.mapExpectedType(feature.type) : role;
+        const expected = feature ? CSVAnalysisService.mapExpectedType(feature.type) : role;
         columnStats.push(this.analyzeColumn(header, normalizedRows, index, expected));
       });
 
@@ -181,10 +181,10 @@ export class CSVAnalysisService {
     features?: ExpectedFeature[]
   ): ExpectedFeature | undefined {
     if (!features?.length) return undefined;
-    const target = this.normalizeName(columnName);
+    const target = CSVAnalysisService.normalizeName(columnName);
     return features.find(f =>
       [f.label, f.featureId, f.featureId?.split('/').pop()].some(
-        candidate => candidate && this.normalizeName(candidate) === target
+        candidate => candidate && CSVAnalysisService.normalizeName(candidate) === target
       )
     );
   }
