@@ -60,6 +60,31 @@ export interface DatasetAnalysis {
 
 const MAX_REPORTED_INVALID = 5;
 
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function findExpectedFeature(
+  columnName: string,
+  features?: ExpectedFeature[]
+): ExpectedFeature | undefined {
+  if (!features?.length) return undefined;
+  const target = normalizeName(columnName);
+  return features.find(f =>
+    [f.label, f.featureId, f.featureId?.split('/').pop()].some(
+      candidate => candidate && normalizeName(candidate) === target
+    )
+  );
+}
+
+function mapExpectedType(type?: string): 'categorical' | 'numerical' | undefined {
+  const t = type?.trim().toLowerCase();
+  if (!t) return undefined;
+  if (['n', 'numerical', 'numeric', 'continuous', 'integer', 'float', 'decimal'].includes(t)) return 'numerical';
+  if (['c', 'categorical', 'binary', 'ordinal', 'string', 'nominal'].includes(t)) return 'categorical';
+  return undefined;
+}
+
 export class CSVAnalysisService {
   /**
    * Analyze a CSV file and return comprehensive statistics
@@ -122,7 +147,7 @@ export class CSVAnalysisService {
       const metadataColumns: string[] = [];
       const columnStats: ColumnStatistics[] = [];
       headers.forEach((header, index) => {
-        const feature = CSVAnalysisService.findExpectedFeature(header, expectedFeatures);
+        const feature = findExpectedFeature(header, expectedFeatures);
         if (feature) {
           matched.add(feature);
           matchedColumns.add(header);
@@ -133,7 +158,7 @@ export class CSVAnalysisService {
           metadataColumns.push(header);
           return;
         }
-        const expected = feature ? CSVAnalysisService.mapExpectedType(feature.type) : role;
+        const expected = feature ? mapExpectedType(feature.type) : role;
         columnStats.push(this.analyzeColumn(header, normalizedRows, index, expected));
       });
 
@@ -165,31 +190,6 @@ export class CSVAnalysisService {
       console.error('CSV Analysis Error:', error);
       throw new Error(`Failed to analyze CSV file "${csvFile.name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }
-
-  private static normalizeName(name: string): string {
-    return name.trim().toLowerCase();
-  }
-
-  private static findExpectedFeature(
-    columnName: string,
-    features?: ExpectedFeature[]
-  ): ExpectedFeature | undefined {
-    if (!features?.length) return undefined;
-    const target = CSVAnalysisService.normalizeName(columnName);
-    return features.find(f =>
-      [f.label, f.featureId, f.featureId?.split('/').pop()].some(
-        candidate => candidate && CSVAnalysisService.normalizeName(candidate) === target
-      )
-    );
-  }
-
-  private static mapExpectedType(type?: string): 'categorical' | 'numerical' | undefined {
-    const t = type?.trim().toLowerCase();
-    if (!t) return undefined;
-    if (['n', 'numerical', 'numeric', 'continuous', 'integer', 'float', 'decimal'].includes(t)) return 'numerical';
-    if (['c', 'categorical', 'binary', 'ordinal', 'string', 'nominal'].includes(t)) return 'categorical';
-    return undefined;
   }
 
   /**
