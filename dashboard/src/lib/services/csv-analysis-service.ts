@@ -1,4 +1,9 @@
 // src/lib/services/csv-analysis-service.ts
+import type { ModelMetadataSnapshot } from '$lib/types/validation';
+
+// Model metadata feature type: 'n' (numerical) or 'c' (categorical)
+export type FeatureType = NonNullable<NonNullable<ModelMetadataSnapshot['input_features']>[number]['type']>;
+
 export interface ColumnStatistics {
   name: string;
   type: 'categorical' | 'numerical';
@@ -7,7 +12,7 @@ export interface ColumnStatistics {
   nullValues: number;
 
   // Type declared in model metadata (when the column matches a model input feature)
-  expectedType?: 'categorical' | 'numerical';
+  featureType?: FeatureType; // input_features.type
   typeMismatch?: boolean;
   invalidCount?: number;
   invalidValues?: { row: number; value: string }[]; // First few offending cells (row is 1-based, excluding header)
@@ -36,7 +41,7 @@ export interface ColumnStatistics {
 export interface ExpectedFeature {
   featureId?: string;
   label?: string;
-  type?: string; // 'n' / 'c' as in model metadata
+  type?: FeatureType; // input_features.type
 }
 
 // User-chosen role for columns not linked to model metadata; 'metadata' excludes the column from analysis (e.g. patient_id)
@@ -184,14 +189,6 @@ export class CSVAnalysisService {
     );
   }
 
-  private static mapExpectedType(type?: string): 'categorical' | 'numerical' | undefined {
-    const t = type?.trim().toLowerCase();
-    if (!t) return undefined;
-    if (['n', 'numerical', 'numeric', 'continuous', 'integer', 'float', 'decimal'].includes(t)) return 'numerical';
-    if (['c', 'categorical', 'binary', 'ordinal', 'string', 'nominal'].includes(t)) return 'categorical';
-    return undefined;
-  }
-
   /**
    * Auto-detect CSV delimiter by checking which delimiter produces the most consistent column count
    */
@@ -243,8 +240,9 @@ export class CSVAnalysisService {
     columnName: string,
     dataRows: string[][],
     columnIndex: number,
-    expectedType?: 'categorical' | 'numerical'
+    featureType?: FeatureType
   ): ColumnStatistics {
+    const isNumericalFeature = featureType?.trim().toLowerCase() === 'n';
     const columnValues = dataRows
       .map(row => row[columnIndex] || '') // Handle missing values gracefully
       .filter(val => val !== '' && val != null && val !== undefined);
@@ -256,8 +254,8 @@ export class CSVAnalysisService {
     if (columnValues.length === 0) {
       return {
         name: columnName || `Column ${columnIndex + 1}`,
-        type: expectedType ?? 'categorical',
-        expectedType,
+        type: featureType ? (isNumericalFeature ? 'numerical' : 'categorical') : 'categorical',
+        featureType,
         count: 0,
         uniqueValues: 0,
         nullValues: dataRows.length,
@@ -280,7 +278,7 @@ export class CSVAnalysisService {
     const allNumeric = invalidValues.length === 0;
 
     // Model metadata is the source of truth; without it, require every value to be numeric
-    const type = expectedType ?? (allNumeric ? 'numerical' : 'categorical');
+    const type = featureType ? (isNumericalFeature ? 'numerical' : 'categorical') : (allNumeric ? 'numerical' : 'categorical');
 
     let stats: ColumnStatistics;
     if (type === 'numerical' && numericalValues.length > 0) {
@@ -289,11 +287,11 @@ export class CSVAnalysisService {
       stats = this.analyzeCategoricalColumn(columnName, columnValues, nullValues);
     }
 
-    if (expectedType) {
-      stats.expectedType = expectedType;
+    if (featureType) {
+      stats.featureType = featureType;
       // A categorical feature may legitimately hold numeric codes, so only numerical expectations can mismatch
-      stats.typeMismatch = expectedType === 'numerical' && !allNumeric;
-      if (expectedType === 'numerical' && invalidValues.length > 0) {
+      stats.typeMismatch = isNumericalFeature && !allNumeric;
+      if (isNumericalFeature && invalidValues.length > 0) {
         stats.invalidCount = invalidValues.length;
         stats.invalidValues = invalidValues.slice(0, MAX_REPORTED_INVALID);
       }
