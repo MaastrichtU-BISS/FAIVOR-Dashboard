@@ -1,9 +1,4 @@
 // src/lib/services/csv-analysis-service.ts
-import type { ModelMetadataSnapshot } from '$lib/types/validation';
-
-// Model metadata feature type: 'n' (numerical) or 'c' (categorical)
-export type FeatureType = NonNullable<NonNullable<ModelMetadataSnapshot['input_features']>[number]['type']>;
-
 export interface ColumnStatistics {
   name: string;
   type: 'categorical' | 'numerical';
@@ -12,7 +7,7 @@ export interface ColumnStatistics {
   nullValues: number;
 
   // Type declared in model metadata (when the column matches a model input feature)
-  featureType?: FeatureType; // input_features.type
+  expectedType?: 'categorical' | 'numerical';
   typeMismatch?: boolean;
   invalidCount?: number;
   invalidValues?: { row: number; value: string }[]; // First few offending cells (row is 1-based, excluding header)
@@ -41,7 +36,7 @@ export interface ColumnStatistics {
 export interface ExpectedFeature {
   featureId?: string;
   label?: string;
-  type?: FeatureType; // input_features.type
+  type?: string; // 'n' or 'numerical' / 'c' or 'categorical' as in model metadata
 }
 
 // User-chosen role for columns not linked to model metadata; 'metadata' excludes the column from analysis (e.g. patient_id)
@@ -64,6 +59,31 @@ export interface DatasetAnalysis {
 }
 
 const MAX_REPORTED_INVALID = 5;
+
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function findExpectedFeature(
+  columnName: string,
+  features?: ExpectedFeature[]
+): ExpectedFeature | undefined {
+  if (!features?.length) return undefined;
+  const target = normalizeName(columnName);
+  return features.find(f =>
+    [f.label, f.featureId, f.featureId?.split('/').pop()].some(
+      candidate => candidate && normalizeName(candidate) === target
+    )
+  );
+}
+
+function mapExpectedType(type?: string): 'categorical' | 'numerical' | undefined {
+  const t = type?.trim().toLowerCase();
+  if (!t) return undefined;
+  if (['n', 'numerical', 'numeric', 'continuous', 'integer', 'float', 'decimal'].includes(t)) return 'numerical';
+  if (['c', 'categorical', 'binary', 'ordinal', 'string', 'nominal'].includes(t)) return 'categorical';
+  return undefined;
+}
 
 export class CSVAnalysisService {
   /**
@@ -127,7 +147,7 @@ export class CSVAnalysisService {
       const metadataColumns: string[] = [];
       const columnStats: ColumnStatistics[] = [];
       headers.forEach((header, index) => {
-        const feature = CSVAnalysisService.findExpectedFeature(header, expectedFeatures);
+        const feature = findExpectedFeature(header, expectedFeatures);
         if (feature) {
           matched.add(feature);
           matchedColumns.add(header);
@@ -138,7 +158,7 @@ export class CSVAnalysisService {
           metadataColumns.push(header);
           return;
         }
-        const expected = feature ? CSVAnalysisService.mapExpectedType(feature.type) : role;
+        const expected = feature ? mapExpectedType(feature.type) : role;
         columnStats.push(this.analyzeColumn(header, normalizedRows, index, expected));
       });
 
@@ -170,23 +190,6 @@ export class CSVAnalysisService {
       console.error('CSV Analysis Error:', error);
       throw new Error(`Failed to analyze CSV file "${csvFile.name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }
-
-  private static normalizeName(name: string): string {
-    return name.trim().toLowerCase();
-  }
-
-  private static findExpectedFeature(
-    columnName: string,
-    features?: ExpectedFeature[]
-  ): ExpectedFeature | undefined {
-    if (!features?.length) return undefined;
-    const target = CSVAnalysisService.normalizeName(columnName);
-    return features.find(f =>
-      [f.label, f.featureId, f.featureId?.split('/').pop()].some(
-        candidate => candidate && CSVAnalysisService.normalizeName(candidate) === target
-      )
-    );
   }
 
   /**
@@ -240,9 +243,8 @@ export class CSVAnalysisService {
     columnName: string,
     dataRows: string[][],
     columnIndex: number,
-    featureType?: FeatureType
+    expectedType?: 'categorical' | 'numerical'
   ): ColumnStatistics {
-    const isNumericalFeature = featureType?.trim().toLowerCase() === 'n';
     const columnValues = dataRows
       .map(row => row[columnIndex] || '') // Handle missing values gracefully
       .filter(val => val !== '' && val != null && val !== undefined);
@@ -254,8 +256,8 @@ export class CSVAnalysisService {
     if (columnValues.length === 0) {
       return {
         name: columnName || `Column ${columnIndex + 1}`,
-        type: featureType ? (isNumericalFeature ? 'numerical' : 'categorical') : 'categorical',
-        featureType,
+        type: expectedType ?? 'categorical',
+        expectedType,
         count: 0,
         uniqueValues: 0,
         nullValues: dataRows.length,
@@ -278,7 +280,7 @@ export class CSVAnalysisService {
     const allNumeric = invalidValues.length === 0;
 
     // Model metadata is the source of truth; without it, require every value to be numeric
-    const type = featureType ? (isNumericalFeature ? 'numerical' : 'categorical') : (allNumeric ? 'numerical' : 'categorical');
+    const type = expectedType ?? (allNumeric ? 'numerical' : 'categorical');
 
     let stats: ColumnStatistics;
     if (type === 'numerical' && numericalValues.length > 0) {
@@ -287,11 +289,11 @@ export class CSVAnalysisService {
       stats = this.analyzeCategoricalColumn(columnName, columnValues, nullValues);
     }
 
-    if (featureType) {
-      stats.featureType = featureType;
+    if (expectedType) {
+      stats.expectedType = expectedType;
       // A categorical feature may legitimately hold numeric codes, so only numerical expectations can mismatch
-      stats.typeMismatch = isNumericalFeature && !allNumeric;
-      if (isNumericalFeature && invalidValues.length > 0) {
+      stats.typeMismatch = expectedType === 'numerical' && !allNumeric;
+      if (expectedType === 'numerical' && invalidValues.length > 0) {
         stats.invalidCount = invalidValues.length;
         stats.invalidValues = invalidValues.slice(0, MAX_REPORTED_INVALID);
       }
